@@ -70,6 +70,20 @@ elseif(UNIX AND NOT APPLE)
   find_package(BLAS REQUIRED)
 endif()
 
+if(OS_LINUX)
+  if(DEFINED ENV{ACCELERATION})
+    set(ACCELERATION
+        $ENV{ACCELERATION}
+        CACHE STRING "Acceleration to use" FORCE)
+  endif()
+  if(NOT DEFINED ACCELERATION)
+    set(ACCELERATION
+        "cpu"
+        CACHE STRING "Acceleration to use")
+  endif()
+  set_property(CACHE ACCELERATION PROPERTY STRINGS "cpu" "hipblas" "cuda" "vulkan")
+endif()
+
 include(cmake/BuildWhispercpp.cmake)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Whispercpp)
 
