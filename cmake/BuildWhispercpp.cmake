@@ -116,10 +116,42 @@ else()
   else()
     set(Whispercpp_BUILD_TYPE Debug)
   endif()
-  set(Whispercpp_Build_GIT_TAG "v1.6.2")
+  set(Whispercpp_Build_GIT_TAG "v1.8.1")
   set(WHISPER_EXTRA_CXX_FLAGS "-fPIC")
   set(WHISPER_ADDITIONAL_CMAKE_ARGS -DWHISPER_BLAS=ON -DWHISPER_BLAS_VENDOR=OpenBLAS -DWHISPER_CUBLAS=OFF
                                     -DWHISPER_OPENBLAS=on)
+  set(WHISPER_LIBRARIES Whisper GGML GGMLBase GGMLCPU GGMLBlas)
+  set(WHISPER_IMPORT_LIBRARIES whisper ggml ggml-base ggml-cpu ggml-blas)
+
+  # TODO: Add hipBLAS, OpenCL, and SYCL support
+
+  set(ARCH_PREFIX ${ACCELERATION})
+  if(${ACCELERATION} STREQUAL "cuda")
+    find_package(CUDAToolkit REQUIRED)
+    set(WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native)
+    add_compile_definitions("LOCALVOCAL_WITH_CUDA")
+    list(APPEND WHISPER_LIBRARIES GGMLCUDA)
+    list(APPEND WHISPER_IMPORT_LIBRARIES ggml-cuda)
+  elseif(${ACCELERATION} STREQUAL "vulkan")
+    find_package(
+      Vulkan
+      COMPONENTS glslc
+      REQUIRED)
+    set(WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_VULKAN=ON)
+    add_compile_definitions("LOCALVOCAL_WITH_VULKAN")
+    list(APPEND WHISPER_LIBRARIES GGMLVulkan)
+    list(APPEND WHISPER_IMPORT_LIBRARIES ggml-vulkan)
+  else()
+    message(
+      STATUS
+        "The ACCELERATION environment variable is not set. Defaulting to `cpu`. Possible values: `cpu`, `cpu-blas`, `cuda` or `vulkan`"
+    )
+    add_compile_definitions("LOCALVOCAL_WITH_CPU")
+  endif()
+
+  foreach(importlib ${WHISPER_IMPORT_LIBRARIES})
+    list(APPEND WHISPER_BYPRODUCTS <INSTALL_DIR>/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${importlib}${CMAKE_STATIC_LIBRARY_SUFFIX})
+  endforeach(importlib ${WHISPER_IMPORT_LIBRARIES})
 
   # On Linux build a static Whisper library
   ExternalProject_Add(
@@ -128,39 +160,99 @@ else()
     GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
     GIT_TAG ${Whispercpp_Build_GIT_TAG}
     BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${Whispercpp_BUILD_TYPE}
-    BUILD_BYPRODUCTS <INSTALL_DIR>/lib/static/${CMAKE_STATIC_LIBRARY_PREFIX}whisper${CMAKE_STATIC_LIBRARY_SUFFIX}
+    BUILD_BYPRODUCTS ${WHISPER_BYPRODUCTS}
     CMAKE_GENERATOR ${CMAKE_GENERATOR}
     INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${Whispercpp_BUILD_TYPE} && ${CMAKE_COMMAND} -E
-                    copy <SOURCE_DIR>/ggml.h <INSTALL_DIR>/include
+                    copy <SOURCE_DIR>/ggml/include/ggml.h <INSTALL_DIR>/include
     CONFIGURE_COMMAND
       ${CMAKE_COMMAND} -E env ${WHISPER_ADDITIONAL_ENV} ${CMAKE_COMMAND} <SOURCE_DIR> -B <BINARY_DIR> -G
-      ${CMAKE_GENERATOR} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_BUILD_TYPE=${Whispercpp_BUILD_TYPE}
-      -DCMAKE_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM} -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
-      -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES_} -DCMAKE_CXX_FLAGS=${WHISPER_EXTRA_CXX_FLAGS}
-      -DCMAKE_C_FLAGS=${WHISPER_EXTRA_CXX_FLAGS} -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF
+      ${CMAKE_GENERATOR} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR}
+      -DCMAKE_BUILD_TYPE=${Whispercpp_BUILD_TYPE} -DCMAKE_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM}
+      -DCMAKE_CXX_FLAGS=${WHISPER_EXTRA_CXX_FLAGS} -DCMAKE_C_FLAGS=${WHISPER_EXTRA_CXX_FLAGS}
+      -DCMAKE_CUDA_FLAGS=${WHISPER_EXTRA_CXX_FLAGS} -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_TESTS=OFF
       -DWHISPER_BUILD_EXAMPLES=OFF ${WHISPER_ADDITIONAL_CMAKE_ARGS})
 
   ExternalProject_Get_Property(Whispercpp_Build INSTALL_DIR)
 
-  # add the static Whisper library to the link line
+  # add the static Whisper libraries to the link line
   add_library(Whispercpp::Whisper STATIC IMPORTED)
   set_target_properties(
     Whispercpp::Whisper
-    PROPERTIES IMPORTED_LOCATION
-               ${INSTALL_DIR}/lib/static/${CMAKE_STATIC_LIBRARY_PREFIX}whisper${CMAKE_STATIC_LIBRARY_SUFFIX})
+    PROPERTIES
+      IMPORTED_LOCATION
+      ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}whisper${CMAKE_STATIC_LIBRARY_SUFFIX})
   set_target_properties(Whispercpp::Whisper PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+  add_library(Whispercpp::GGML STATIC IMPORTED)
+  set_target_properties(
+    Whispercpp::GGML
+    PROPERTIES IMPORTED_LOCATION
+               ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set_target_properties(Whispercpp::GGML PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+  add_library(Whispercpp::GGMLBase STATIC IMPORTED)
+  set_target_properties(
+    Whispercpp::GGMLBase
+    PROPERTIES
+      IMPORTED_LOCATION
+      ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-base${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set_target_properties(Whispercpp::GGMLBase PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+  add_library(Whispercpp::GGMLCPU STATIC IMPORTED)
+  set_target_properties(
+    Whispercpp::GGMLCPU
+    PROPERTIES
+      IMPORTED_LOCATION
+      ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-cpu${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set_target_properties(Whispercpp::GGMLCPU PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+  add_library(Whispercpp::GGMLBlas STATIC IMPORTED)
+  set_target_properties(
+    Whispercpp::GGMLBlas
+    PROPERTIES
+      IMPORTED_LOCATION
+      ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-blas${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set_target_properties(Whispercpp::GGMLBlas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+
+  if(${ACCELERATION} STREQUAL "cuda")
+    add_library(Whispercpp::GGMLCUDA STATIC IMPORTED)
+    set_target_properties(
+      Whispercpp::GGMLCUDA
+      PROPERTIES
+        IMPORTED_LOCATION
+        ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-cuda${CMAKE_STATIC_LIBRARY_SUFFIX})
+    set_target_properties(Whispercpp::GGMLCUDA PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+  elseif(${ACCELERATION} STREQUAL "vulkan")
+    add_library(Whispercpp::GGMLVulkan STATIC IMPORTED)
+    set_target_properties(
+      Whispercpp::GGMLVulkan
+      PROPERTIES
+        IMPORTED_LOCATION
+        ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-vulkan${CMAKE_STATIC_LIBRARY_SUFFIX})
+    set_target_properties(Whispercpp::GGMLVulkan PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+  endif()
 endif()
 
 add_library(Whispercpp INTERFACE)
 add_dependencies(Whispercpp Whispercpp_Build)
-target_link_libraries(Whispercpp INTERFACE Whispercpp::Whisper)
-if(WIN32 AND "${ACCELERATION}" STREQUAL "cpu")
-  target_link_libraries(Whispercpp INTERFACE Whispercpp::OpenBLAS)
-endif()
-if(APPLE)
+if(WIN32)
+  target_link_libraries(Whispercpp INTERFACE Whispercpp::Whisper)
+  if("${ACCELERATION}" STREQUAL "cpu")
+    target_link_libraries(Whispercpp INTERFACE Whispercpp::OpenBLAS)
+  endif()
+elseif(APPLE)
   target_link_libraries(Whispercpp INTERFACE "-framework Accelerate -framework CoreML -framework Metal")
-  target_link_libraries(Whispercpp INTERFACE Whispercpp::GGML Whispercpp::CoreML)
-endif(APPLE)
-if(UNIX AND NOT APPLE)
+  target_link_libraries(Whispercpp INTERFACE Whispercpp::Whisper Whispercpp::GGML Whispercpp::CoreML)
+else()
+  # Linux
+  foreach(lib ${WHISPER_LIBRARIES})
+  message(STATUS "Adding " ${lib} " to linker")
+  target_link_libraries(Whispercpp INTERFACE Whispercpp::${lib})
+  endforeach(lib ${WHISPER_LIBRARIES})
   target_link_libraries(Whispercpp INTERFACE ${BLAS_LIBRARIES})
+  if(${ACCELERATION} STREQUAL "cuda")
+    target_link_libraries(Whispercpp INTERFACE CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cuda_driver)
+  elseif(${ACCELERATION} STREQUAL "vulkan")
+    target_link_libraries(Whispercpp INTERFACE Vulkan::Vulkan)
+  endif()
 endif()
