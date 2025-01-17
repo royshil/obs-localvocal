@@ -1,5 +1,5 @@
 use crate::{
-    h264::{H264ByteStreamWrite, H264NalHeader},
+    h265::{H265ByteStreamWrite, H265NalHeader},
     h26x::{
         annex_b::{
             AnnexBNalUnitWriter as AnnexBNalUnitWriterImpl,
@@ -19,7 +19,7 @@ impl<W: Write> AnnexBWriter<W> {
     }
 }
 
-impl<W: Write> H264ByteStreamWrite<W> for AnnexBWriter<W> {
+impl<W: Write> H265ByteStreamWrite<W> for AnnexBWriter<W> {
     type Writer = AnnexBNalUnitWriter<W>;
 
     fn start_write_nal_unit(self) -> Result<AnnexBNalUnitWriter<W>> {
@@ -31,7 +31,7 @@ pub struct AnnexBNalUnitWriter<W: ?Sized + Write>(AnnexBNalUnitWriterImpl<W>);
 
 impl<W: Write> NalUnitWrite<W> for AnnexBNalUnitWriter<W> {
     type Writer = AnnexBRbspWriter<W>;
-    type NalHeader = H264NalHeader;
+    type NalHeader = H265NalHeader;
 
     fn write_nal_header(self, nal_header: Self::NalHeader) -> Result<AnnexBRbspWriter<W>> {
         self.0.write_nal_header(nal_header).map(AnnexBRbspWriter)

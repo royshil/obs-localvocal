@@ -1,4 +1,4 @@
-use crate::h264::{write_sei_header, CountingSink};
+use crate::h26x::{write_sei_header, Result};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::{io::Write, time::Duration};
 use uuid::{uuid, Uuid};
@@ -16,6 +16,31 @@ trait WriteCStrExt: Write {
 }
 
 impl<W: Write + ?Sized> WriteCStrExt for W {}
+
+pub(crate) struct CountingSink {
+    count: usize,
+}
+
+impl CountingSink {
+    pub fn new() -> Self {
+        Self { count: 0 }
+    }
+
+    pub fn count(&self) -> usize {
+        self.count
+    }
+}
+
+impl Write for CountingSink {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        self.count += buf.len();
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
 
 pub struct WebvttTrack<'a> {
     pub default: bool,

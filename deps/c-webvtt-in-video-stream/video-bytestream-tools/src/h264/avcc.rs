@@ -1,10 +1,13 @@
-use super::{
-    H264ByteStreamWrite, NalHeader, NalUnitWrite, NalUnitWriter, RbspWrite, RbspWriter, Result,
+use crate::{
+    h264::{H264ByteStreamWrite, H264NalHeader},
+    h26x::{NalUnitWrite, NalUnitWriter, RbspWrite, Result},
+    webvtt::{WebvttTrack, WebvttWrite},
 };
-use crate::webvtt::{WebvttTrack, WebvttWrite};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::{io::Write, time::Duration};
 use thiserror::Error;
+
+use super::{H264NalUnitWriter, H264RbspWriter};
 
 const AVCC_MAX_LENGTH: [usize; 4] = [0xff, 0xff_ff, 0, 0xff_ff_ff_ff];
 
@@ -38,7 +41,7 @@ impl<W: Write> H264ByteStreamWrite<W> for AVCCWriter<W> {
 
     fn start_write_nal_unit(self) -> Result<AVCCNalUnitWriter<AVCCWriterBuffer<W>>> {
         Ok(AVCCNalUnitWriter {
-            inner: NalUnitWriter::new(AVCCWriterBuffer::new(self)),
+            inner: H264NalUnitWriter(NalUnitWriter::new(AVCCWriterBuffer::new(self))),
         })
     }
 }
@@ -88,37 +91,28 @@ impl<W: ?Sized + Write> Write for AVCCWriterBuffer<W> {
 }
 
 pub struct AVCCNalUnitWriter<W: ?Sized + Write> {
-    inner: NalUnitWriter<W>,
-}
-
-impl<W: Write> AVCCNalUnitWriter<W> {
-    fn _nal_unit_writer(&mut self) -> &mut NalUnitWriter<W> {
-        &mut self.inner
-    }
+    inner: H264NalUnitWriter<W>,
 }
 
 impl<W: Write> NalUnitWrite<W> for AVCCNalUnitWriter<AVCCWriterBuffer<W>> {
     type Writer = AVCCRbspWriter<AVCCWriterBuffer<W>>;
+    type NalHeader = H264NalHeader;
 
     fn write_nal_header(
         self,
-        nal_header: NalHeader,
+        nal_header: Self::NalHeader,
     ) -> Result<AVCCRbspWriter<AVCCWriterBuffer<W>>> {
-        self.inner
-            .write_nal_header(nal_header)
-            .map(|inner| AVCCRbspWriter { inner })
+        self.inner.write_nal_header(nal_header).map(AVCCRbspWriter)
     }
 }
 
-pub struct AVCCRbspWriter<W: ?Sized + Write> {
-    inner: RbspWriter<W>,
-}
+pub struct AVCCRbspWriter<W: ?Sized + Write>(H264RbspWriter<W>);
 
 impl<W: Write> RbspWrite<W> for AVCCRbspWriter<AVCCWriterBuffer<W>> {
     type Writer = AVCCWriter<W>;
 
     fn finish_rbsp(self) -> Result<Self::Writer> {
-        let buffer = self.inner.finish_rbsp()?;
+        let buffer = self.0.finish_rbsp()?;
         buffer.finish()
     }
 }
@@ -130,7 +124,7 @@ impl<W: Write + ?Sized> WebvttWrite for AVCCRbspWriter<W> {
         send_frequency_hz: u8,
         subtitle_tracks: &[WebvttTrack],
     ) -> std::io::Result<()> {
-        self.inner
+        self.0
             .write_webvtt_header(max_latency_to_video, send_frequency_hz, subtitle_tracks)
     }
 
@@ -142,7 +136,7 @@ impl<W: Write + ?Sized> WebvttWrite for AVCCRbspWriter<W> {
         video_offset: Duration,
         webvtt_payload: &str, // TODO: replace with string type that checks for interior NULs
     ) -> std::io::Result<()> {
-        self.inner.write_webvtt_payload(
+        self.0.write_webvtt_payload(
             track_index,
             chunk_number,
             chunk_version,

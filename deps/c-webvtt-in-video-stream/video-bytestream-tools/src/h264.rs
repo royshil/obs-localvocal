@@ -1,34 +1,24 @@
-use crate::webvtt::{write_webvtt_header, write_webvtt_payload, WebvttTrack, WebvttWrite};
+use crate::{
+    h26x::{annex_b::WriteNalHeader, NalUnitWrite, NalUnitWriter, RbspWrite, RbspWriter},
+    webvtt::{WebvttTrack, WebvttWrite},
+};
 use byteorder::WriteBytesExt;
 use h264_reader::nal::UnitType;
-use std::{collections::VecDeque, io::Write, time::Duration};
+use std::{io::Write, time::Duration};
 
 type Result<T, E = std::io::Error> = std::result::Result<T, E>;
 
 pub mod annex_b;
 pub mod avcc;
 
-pub trait H264ByteStreamWrite<W: ?Sized + Write> {
-    type Writer: NalUnitWrite<W>;
-    fn start_write_nal_unit(self) -> Result<Self::Writer>;
-}
-
-impl<W: Write> H264ByteStreamWrite<W> for W {
-    type Writer = NalUnitWriter<W>;
-
-    fn start_write_nal_unit(self) -> Result<Self::Writer> {
-        Ok(NalUnitWriter::new(self))
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
-pub struct NalHeader {
+pub struct H264NalHeader {
     nal_unit_type: UnitType,
     nal_ref_idc: u8,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum NalHeaderError {
+pub enum H264NalHeaderError {
     NalRefIdcOutOfRange(u8),
     InvalidNalRefIdcForNalUnitType {
         nal_unit_type: UnitType,
@@ -37,24 +27,24 @@ pub enum NalHeaderError {
     NalUnitTypeOutOfRange(UnitType),
 }
 
-impl NalHeader {
+impl H264NalHeader {
     pub fn from_nal_unit_type_and_nal_ref_idc(
         nal_unit_type: UnitType,
         nal_ref_idc: u8,
-    ) -> Result<NalHeader, NalHeaderError> {
+    ) -> Result<Self, H264NalHeaderError> {
         if nal_ref_idc >= 4 {
-            return Err(NalHeaderError::NalRefIdcOutOfRange(nal_ref_idc));
+            return Err(H264NalHeaderError::NalRefIdcOutOfRange(nal_ref_idc));
         }
         match nal_unit_type.id() {
-            0 => Err(NalHeaderError::NalUnitTypeOutOfRange(nal_unit_type)),
+            0 => Err(H264NalHeaderError::NalUnitTypeOutOfRange(nal_unit_type)),
             6 | 9 | 10 | 11 | 12 => {
                 if nal_ref_idc == 0 {
-                    Ok(NalHeader {
+                    Ok(Self {
                         nal_unit_type,
                         nal_ref_idc,
                     })
                 } else {
-                    Err(NalHeaderError::InvalidNalRefIdcForNalUnitType {
+                    Err(H264NalHeaderError::InvalidNalRefIdcForNalUnitType {
                         nal_unit_type,
                         nal_ref_idc,
                     })
@@ -62,19 +52,19 @@ impl NalHeader {
             }
             5 => {
                 if nal_ref_idc != 0 {
-                    Ok(NalHeader {
+                    Ok(Self {
                         nal_unit_type,
                         nal_ref_idc,
                     })
                 } else {
-                    Err(NalHeaderError::InvalidNalRefIdcForNalUnitType {
+                    Err(H264NalHeaderError::InvalidNalRefIdcForNalUnitType {
                         nal_unit_type,
                         nal_ref_idc,
                     })
                 }
             }
-            32.. => Err(NalHeaderError::NalUnitTypeOutOfRange(nal_unit_type)),
-            _ => Ok(NalHeader {
+            32.. => Err(H264NalHeaderError::NalUnitTypeOutOfRange(nal_unit_type)),
+            _ => Ok(Self {
                 nal_unit_type,
                 nal_ref_idc,
             }),
@@ -86,140 +76,55 @@ impl NalHeader {
     }
 }
 
-pub struct NalUnitWriter<W: ?Sized + Write> {
-    inner: W,
-}
-
-pub trait NalUnitWrite<W: ?Sized + Write> {
-    type Writer: RbspWrite<W>;
-    fn write_nal_header(self, nal_header: NalHeader) -> Result<Self::Writer>;
-}
-
-impl<W: Write> NalUnitWriter<W> {
-    fn new(inner: W) -> Self {
-        Self { inner }
+impl<W: ?Sized + Write> WriteNalHeader<W> for H264NalHeader {
+    fn write_to(self, writer: &mut W) -> crate::h26x::Result<()> {
+        writer.write_u8(self.as_header_byte())
     }
 }
 
-impl<W: Write> NalUnitWrite<W> for NalUnitWriter<W> {
-    type Writer = RbspWriter<W>;
+pub trait H264ByteStreamWrite<W: ?Sized + Write> {
+    type Writer: NalUnitWrite<W>;
+    fn start_write_nal_unit(self) -> Result<Self::Writer>;
+}
 
-    fn write_nal_header(mut self, nal_header: NalHeader) -> Result<RbspWriter<W>> {
-        self.inner.write_u8(nal_header.as_header_byte())?;
-        Ok(RbspWriter::new(self.inner))
+impl<W: Write> H264ByteStreamWrite<W> for W {
+    type Writer = H264NalUnitWriter<W>;
+
+    fn start_write_nal_unit(self) -> Result<Self::Writer> {
+        Ok(H264NalUnitWriter(NalUnitWriter::new(self)))
     }
 }
 
-pub struct RbspWriter<W: ?Sized + Write> {
-    last_written: VecDeque<u8>,
-    inner: W,
-}
+pub struct H264NalUnitWriter<W: ?Sized + Write>(NalUnitWriter<W>);
+pub struct H264RbspWriter<W: ?Sized + Write>(RbspWriter<W>);
 
-pub trait RbspWrite<W: ?Sized + Write> {
-    type Writer: H264ByteStreamWrite<W>;
-    fn finish_rbsp(self) -> Result<Self::Writer>;
-}
+impl<W: Write> NalUnitWrite<W> for H264NalUnitWriter<W> {
+    type Writer = H264RbspWriter<W>;
+    type NalHeader = H264NalHeader;
 
-impl<W: Write> RbspWriter<W> {
-    pub fn new(inner: W) -> Self {
-        Self {
-            last_written: VecDeque::with_capacity(3),
-            inner,
-        }
+    fn write_nal_header(mut self, nal_header: H264NalHeader) -> Result<H264RbspWriter<W>> {
+        self.0.inner.write_u8(nal_header.as_header_byte())?;
+        Ok(H264RbspWriter(RbspWriter::new(self.0.inner)))
     }
 }
 
-impl<W: Write> RbspWrite<W> for RbspWriter<W> {
+impl<W: Write> RbspWrite<W> for H264RbspWriter<W> {
     type Writer = W;
-    fn finish_rbsp(mut self) -> Result<W> {
-        self.write_u8(0x80)?;
-        Ok(self.inner)
+
+    fn finish_rbsp(self) -> crate::h26x::Result<Self::Writer> {
+        self.0.finish_rbsp()
     }
 }
 
-impl<W: ?Sized + Write> Write for RbspWriter<W> {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        let mut written = 0;
-        for &byte in buf {
-            let mut last_written_iter = self.last_written.iter();
-            if last_written_iter.next() == Some(&0)
-                && last_written_iter.next() == Some(&0)
-                && (byte == 0 || byte == 1 || byte == 2 || byte == 3)
-            {
-                self.inner.write_u8(3)?;
-                self.last_written.clear();
-            }
-            self.inner.write_u8(byte)?;
-            written += 1;
-            self.last_written.push_back(byte);
-            if self.last_written.len() > 2 {
-                self.last_written.pop_front();
-            }
-        }
-        Ok(written)
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        self.inner.flush()
-    }
-}
-
-pub(crate) struct CountingSink {
-    count: usize,
-}
-
-impl CountingSink {
-    pub fn new() -> Self {
-        Self { count: 0 }
-    }
-
-    pub fn count(&self) -> usize {
-        self.count
-    }
-}
-
-impl Write for CountingSink {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
-        self.count += buf.len();
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> Result<()> {
-        Ok(())
-    }
-}
-
-pub(crate) fn write_sei_header<W: ?Sized + Write>(
-    writer: &mut W,
-    mut payload_type: usize,
-    mut payload_size: usize,
-) -> std::io::Result<()> {
-    while payload_type >= 255 {
-        writer.write_u8(255)?;
-        payload_type -= 255;
-    }
-    writer.write_u8(payload_type.try_into().unwrap())?;
-    while payload_size >= 255 {
-        writer.write_u8(255)?;
-        payload_size -= 255;
-    }
-    writer.write_u8(payload_size.try_into().unwrap())?;
-    Ok(())
-}
-
-impl<W: Write + ?Sized> WebvttWrite for RbspWriter<W> {
+impl<W: Write + ?Sized> WebvttWrite for H264RbspWriter<W> {
     fn write_webvtt_header(
         &mut self,
         max_latency_to_video: Duration,
         send_frequency_hz: u8,
         subtitle_tracks: &[WebvttTrack],
     ) -> std::io::Result<()> {
-        write_webvtt_header(
-            self,
-            max_latency_to_video,
-            send_frequency_hz,
-            subtitle_tracks,
-        )
+        self.0
+            .write_webvtt_header(max_latency_to_video, send_frequency_hz, subtitle_tracks)
     }
 
     fn write_webvtt_payload(
@@ -230,8 +135,7 @@ impl<W: Write + ?Sized> WebvttWrite for RbspWriter<W> {
         video_offset: Duration,
         webvtt_payload: &str, // TODO: replace with string type that checks for interior NULs
     ) -> std::io::Result<()> {
-        write_webvtt_payload(
-            self,
+        self.0.write_webvtt_payload(
             track_index,
             chunk_number,
             chunk_version,
@@ -244,7 +148,8 @@ impl<W: Write + ?Sized> WebvttWrite for RbspWriter<W> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        h264::{NalHeader, NalUnitWrite, NalUnitWriter, RbspWrite},
+        h264::{H264NalHeader, H264NalUnitWriter},
+        h26x::{NalUnitWrite, NalUnitWriter, RbspWrite},
         webvtt::{WebvttWrite, PAYLOAD_GUID, USER_DATA_UNREGISTERED},
     };
     use byteorder::{BigEndian, ReadBytesExt};
@@ -255,11 +160,11 @@ mod tests {
     fn check_webvtt_sei() {
         let mut writer = vec![];
 
-        let nalu_writer = NalUnitWriter::new(&mut writer);
+        let nalu_writer = H264NalUnitWriter(NalUnitWriter::new(&mut writer));
         let nal_unit_type = h264_reader::nal::UnitType::SEI;
         let nal_ref_idc = 0;
         let nal_header =
-            NalHeader::from_nal_unit_type_and_nal_ref_idc(nal_unit_type, nal_ref_idc).unwrap();
+            H264NalHeader::from_nal_unit_type_and_nal_ref_idc(nal_unit_type, nal_ref_idc).unwrap();
         let mut payload_writer = nalu_writer.write_nal_header(nal_header).unwrap();
         let track_index = 0;
         let chunk_number = 1;
@@ -308,11 +213,11 @@ mod tests {
     fn check_webvtt_multi_sei() {
         let mut writer = vec![];
 
-        let nalu_writer = NalUnitWriter::new(&mut writer);
+        let nalu_writer = H264NalUnitWriter(NalUnitWriter::new(&mut writer));
         let nal_unit_type = h264_reader::nal::UnitType::SEI;
         let nal_ref_idc = 0;
         let nal_header =
-            NalHeader::from_nal_unit_type_and_nal_ref_idc(nal_unit_type, nal_ref_idc).unwrap();
+            H264NalHeader::from_nal_unit_type_and_nal_ref_idc(nal_unit_type, nal_ref_idc).unwrap();
         let mut payload_writer = nalu_writer.write_nal_header(nal_header).unwrap();
         let track_index = 0;
         let chunk_number = 1;
