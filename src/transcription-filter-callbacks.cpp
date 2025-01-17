@@ -465,7 +465,7 @@ void output_packet_added_callback(obs_output_t *output, struct encoder_packet *p
 			} else if (strcmp(obs_encoder_get_codec(encoder), "av1") == 0) {
 				continue;
 			} else if (strcmp(obs_encoder_get_codec(encoder), "hevc") == 0) {
-				continue;
+				codec_flavor = H265AnnexB;
 			} else {
 				continue;
 			}
