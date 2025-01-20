@@ -2,6 +2,7 @@ use crate::{
     h26x::{annex_b::WriteNalHeader, NalUnitWrite, NalUnitWriter, RbspWrite, RbspWriter},
     webvtt::{WebvttTrack, WebvttWrite},
 };
+use bitstream_io::{BigEndian, BitWrite, BitWriter};
 use std::{io::Write, time::Duration};
 
 type Result<T, E = std::io::Error> = std::result::Result<T, E>;
@@ -179,17 +180,21 @@ impl H265NalHeader {
         })
     }
 
-    fn as_header_bytes(&self) -> [u8; 2] {
-        [
-            (self.nal_unit_type.id() << 1) | ((self.nuh_layer_id >> 5) & 1),
-            ((self.nuh_layer_id & 0b1_1111) << 3) | (self.nuh_temporal_id + 1),
-        ]
+    fn as_header_bytes(&self) -> Result<[u8; 2]> {
+        let mut output = [0u8; 2];
+        let mut writer = BitWriter::endian(&mut output[..], BigEndian);
+        writer.write(1, 0)?;
+        writer.write(6, self.nal_unit_type.id())?;
+        writer.write(6, self.nuh_layer_id)?;
+        writer.write(3, self.nuh_temporal_id + 1)?;
+        assert!(writer.into_unwritten() == (0, 0));
+        Ok(output)
     }
 }
 
 impl<W: ?Sized + Write> WriteNalHeader<W> for H265NalHeader {
     fn write_to(self, writer: &mut W) -> crate::h26x::Result<()> {
-        writer.write_all(&self.as_header_bytes())
+        writer.write_all(&self.as_header_bytes()?[..])
     }
 }
 
@@ -214,7 +219,7 @@ impl<W: Write> NalUnitWrite<W> for H265NalUnitWriter<W> {
     type NalHeader = H265NalHeader;
 
     fn write_nal_header(mut self, nal_header: H265NalHeader) -> Result<H265RbspWriter<W>> {
-        self.0.inner.write_all(&nal_header.as_header_bytes())?;
+        self.0.inner.write_all(&nal_header.as_header_bytes()?[..])?;
         Ok(H265RbspWriter(RbspWriter::new(self.0.inner)))
     }
 }

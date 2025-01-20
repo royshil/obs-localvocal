@@ -1,7 +1,8 @@
+use crate::webvtt::{
+    write_webvtt_header, write_webvtt_payload, WebvttTrack, WebvttWrite, USER_DATA_UNREGISTERED,
+};
 use byteorder::WriteBytesExt;
 use std::{collections::VecDeque, io::Write, time::Duration};
-
-use crate::webvtt::{write_webvtt_header, write_webvtt_payload, WebvttTrack, WebvttWrite};
 
 pub(crate) mod annex_b;
 
@@ -104,6 +105,7 @@ impl<W: Write + ?Sized> WebvttWrite for RbspWriter<W> {
             max_latency_to_video,
             send_frequency_hz,
             subtitle_tracks,
+            |writer, size| write_sei_header(writer, USER_DATA_UNREGISTERED, size),
         )
     }
 
@@ -122,6 +124,7 @@ impl<W: Write + ?Sized> WebvttWrite for RbspWriter<W> {
             chunk_version,
             video_offset,
             webvtt_payload,
+            |writer, size| write_sei_header(writer, USER_DATA_UNREGISTERED, size),
         )
     }
 }

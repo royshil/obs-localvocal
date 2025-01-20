@@ -5,6 +5,7 @@ use std::{
 };
 use strum_macros::FromRepr;
 use video_bytestream_tools::{
+    av1,
     h264::{self, H264ByteStreamWrite, H264NalHeader},
     h265::{self, H265ByteStreamWrite, H265NalHeader},
     h26x::{NalUnitWrite, RbspWrite},
@@ -106,6 +107,7 @@ enum CodecFlavor {
     H264Avcc4,
     H264AnnexB,
     H265AnnexB,
+    AV1OBUs,
 }
 
 impl CodecFlavor {
@@ -116,6 +118,7 @@ impl CodecFlavor {
             CodecFlavor::H264Avcc4 => CodecFlavorInternal::H264(CodecFlavorH264::Avcc(4)),
             CodecFlavor::H264AnnexB => CodecFlavorInternal::H264(CodecFlavorH264::AnnexB),
             CodecFlavor::H265AnnexB => CodecFlavorInternal::H265(CodecFlavorH265::AnnexB),
+            CodecFlavor::AV1OBUs => CodecFlavorInternal::AV1,
         }
     }
 }
@@ -132,6 +135,7 @@ enum CodecFlavorH265 {
 enum CodecFlavorInternal {
     H264(CodecFlavorH264),
     H265(CodecFlavorH265),
+    AV1,
 }
 
 pub struct WebvttBuffer(Vec<u8>);
@@ -226,6 +230,16 @@ pub extern "C" fn webvtt_muxer_try_mux_into_bytestream(
                     write.finish_rbsp()?;
                     Ok(())
                 },
+            )
+            .ok()?,
+
+            CodecFlavorInternal::AV1 => mux_into_bytestream(
+                muxer,
+                video_timestamp,
+                add_header,
+                &mut buffer,
+                |buffer| Ok(av1::OBUWriter::new(buffer)),
+                |_write| Ok(()),
             )
             .ok()?,
         };
