@@ -479,7 +479,7 @@ void output_packet_added_callback(obs_output_t *output, struct encoder_packet *p
 			uint8_t track_index = 0;
 			// FIXME: this may be too lazy, i.e. languages should probably be locked in the signal handler instead
 			for (auto &lang : gf.active_languages) {
-				auto lang_it = whisper_available_lang_reverse.find(lang);
+				auto lang_it = whisper_available_lang.find(lang);
 				if (lang_it == whisper_available_lang.end()) {
 					obs_log(LOG_WARNING,
 						"requested language '%s' unknown, track not added",
