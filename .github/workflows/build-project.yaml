@@ -239,6 +239,7 @@ jobs:
           config: ${{ needs.check-event.outputs.config }}
 
       - name: Upload Source Tarball 🗜️
+        if: ${{ matrix.acceleration == 'cpu' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-sources-${{ needs.check-event.outputs.commitHash }}
