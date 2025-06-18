@@ -29,7 +29,7 @@
 #define MAX_PREPROC_CHANNELS 10
 #define MAX_WEBVTT_TRACKS 5
 
-#if !defined(LIBOBS_MAJOR_VERSION) || LIBOBS_MAJOR_VERSION < 31
+#if !defined(LIBOBS_API_MAJOR_VER) || LIBOBS_API_MAJOR_VER < 31
 struct encoder_packet_time {
 	/* PTS used to associate uncompressed frames with encoded packets. */
 	int64_t pts;
