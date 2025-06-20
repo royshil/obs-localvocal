@@ -96,10 +96,23 @@ else()
   include(cmake/FetchOnnxruntime.cmake)
 endif()
 
-include(cmake/BuildICU.cmake)
-# Add ICU to the target
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU)
-target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC ${ICU_INCLUDE_DIR})
+set(USE_SYSTEM_ICU
+    OFF
+    CACHE STRING "Use system ICU")
+
+if(USE_SYSTEM_ICU)
+  find_package(
+    ICU 75.1
+    COMPONENTS data uc i18n
+    REQUIRED)
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${ICU_LIBRARIES}")
+  target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC "${ICU_INCLUDE_DIRS}")
+else()
+  include(cmake/BuildICU.cmake)
+  # Add ICU to the target
+  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU)
+  target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC ${ICU_INCLUDE_DIR})
+endif()
 
 # check env var for extra verbose logging
 if(DEFINED ENV{LOCALVOCAL_EXTRA_VERBOSE})
