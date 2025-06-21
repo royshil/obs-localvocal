@@ -59,6 +59,7 @@ struct whisper_context *init_whisper_context(const std::string &model_path_in,
 	struct whisper_context_params cparams = whisper_context_default_params();
 #ifdef LOCALVOCAL_WITH_CUDA
 	cparams.use_gpu = true;
+	cparams.gpu_device = 1;
 	obs_log(LOG_INFO, "Using CUDA GPU for inference, device %d", cparams.gpu_device);
 #elif defined(LOCALVOCAL_WITH_HIPBLAS)
 	cparams.use_gpu = true;
