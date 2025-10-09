@@ -10,7 +10,6 @@ if (( ${+commands[ccache]} )) {
 
   typeset -gx CCACHE_CONFIGPATH="${project_root}/.ccache.conf"
 
-  ccache --set-config=run_second_cpp=true
   ccache --set-config=direct_mode=true
   ccache --set-config=inode_cache=true
   ccache --set-config=compiler_check=content
