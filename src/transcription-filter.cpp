@@ -545,13 +545,13 @@ void *transcription_filter_create(obs_data_t *settings, obs_source_t *filter)
 	if (subtitle_sources == nullptr || strlen(subtitle_sources) == 0 ||
 	    strcmp(subtitle_sources, "none") == 0 || strcmp(subtitle_sources, "(null)") == 0) {
 		obs_log(gf->log_level, "Create text source");
-		create_obs_text_source_if_needed();
 		gf->text_source_name = "LocalVocal Subtitles";
 		obs_data_set_string(settings, "subtitle_sources", "LocalVocal Subtitles");
 	} else {
 		// set the text source name
 		gf->text_source_name = subtitle_sources;
 	}
+	create_obs_text_source_if_needed();
 	obs_log(gf->log_level, "clear paths and whisper context");
 	gf->whisper_model_file_currently_loaded = "";
 	gf->output_file_path = std::string("");
