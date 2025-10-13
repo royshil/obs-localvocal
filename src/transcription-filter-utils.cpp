@@ -5,8 +5,7 @@
 #include <obs-frontend-api.h>
 #include <plugin-support.h>
 
-void add_text_source_to_scenes_callback(obs_frontend_event event,
-					__attribute__((unused)) void *private_data)
+void add_text_source_to_scenes_callback(obs_frontend_event event, void *)
 {
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
 		// check if a source called "LocalVocal Subtitles" exists
