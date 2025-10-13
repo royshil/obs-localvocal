@@ -104,7 +104,7 @@ struct obs_audio_data *transcription_filter_filter_audio(void *data, struct obs_
 		// push back current audio data to input deque
 		for (size_t c = 0; c < gf->channels; c++) {
 			deque_push_back(&gf->input_buffers[c], audio->data[c],
-					    audio->frames * sizeof(float));
+					audio->frames * sizeof(float));
 		}
 		// push audio packet info (timestamp/frame count) to info deque
 		struct transcription_filter_audio_info info = {0};

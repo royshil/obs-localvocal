@@ -5,7 +5,9 @@
 #include <obs-frontend-api.h>
 #include <plugin-support.h>
 
-void add_text_source_to_scenes_callback(obs_frontend_event event, __attribute__((unused)) void* private_data) {
+void add_text_source_to_scenes_callback(obs_frontend_event event,
+					__attribute__((unused)) void *private_data)
+{
 	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
 		// check if a source called "LocalVocal Subtitles" exists
 		obs_source_t *source = obs_get_source_by_name("LocalVocal Subtitles");
@@ -16,12 +18,15 @@ void add_text_source_to_scenes_callback(obs_frontend_event event, __attribute__(
 			return;
 		}
 
-		obs_log(LOG_INFO, "(add_text_source_callback) Creating text source 'LocalVocal Subtitles'");
+		obs_log(LOG_INFO,
+			"(add_text_source_callback) Creating text source 'LocalVocal Subtitles'");
 		// create a new OBS text source called "LocalVocal Subtitles"
 #ifdef _WIN32
-		source = obs_source_create("text_gdiplus_v3", "LocalVocal Subtitles", nullptr, nullptr);
+		source = obs_source_create("text_gdiplus_v3", "LocalVocal Subtitles", nullptr,
+					   nullptr);
 #else
-		source = obs_source_create("text_ft2_source_v2", "LocalVocal Subtitles", nullptr, nullptr);
+		source = obs_source_create("text_ft2_source_v2", "LocalVocal Subtitles", nullptr,
+					   nullptr);
 #endif
 		if (source) {
 			// set source settings
@@ -54,9 +59,10 @@ void add_text_source_to_scenes_callback(obs_frontend_event event, __attribute__(
 
 			// set transform settings
 			obs_transform_info transform_info;
-			transform_info.pos.x = ((float) scene_width) / 2.0f;
-			transform_info.pos.y = (((float) scene_height) - ((transform_info.bounds.y / 2.0f) + 20.0f));
-			transform_info.bounds.x = ((float) scene_width) - 40.0f;
+			transform_info.pos.x = ((float)scene_width) / 2.0f;
+			transform_info.pos.y = (((float)scene_height) -
+						((transform_info.bounds.y / 2.0f) + 20.0f));
+			transform_info.bounds.x = ((float)scene_width) - 40.0f;
 			transform_info.bounds.y = 145.0;
 			transform_info.bounds_type = obs_bounds_type::OBS_BOUNDS_SCALE_INNER;
 			transform_info.bounds_alignment = OBS_ALIGN_CENTER;
@@ -74,8 +80,7 @@ void add_text_source_to_scenes_callback(obs_frontend_event event, __attribute__(
 			obs_sceneitem_set_visible(source_sceneitem, true);
 
 			obs_source_release(scene_as_source);
-		}
-		else {
+		} else {
 			obs_log(LOG_DEBUG, "Failed to create text source");
 		}
 

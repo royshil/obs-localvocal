@@ -541,11 +541,11 @@ int wmain(int argc, wchar_t *argv[])
 					}
 					// push back current audio data to input deque
 					for (size_t c = 0; c < gf->channels; c++) {
-						deque_push_back(
-							&gf->input_buffers[c],
-							audio[c].data() +
-								frames_count * frame_size_bytes,
-							frames_size_bytes);
+						deque_push_back(&gf->input_buffers[c],
+								audio[c].data() +
+									frames_count *
+										frame_size_bytes,
+								frames_size_bytes);
 					}
 					// push audio packet info (timestamp/frame count) to info deque
 					struct transcription_filter_audio_info info = {0};
@@ -570,8 +570,8 @@ int wmain(int argc, wchar_t *argv[])
 		frames_size_bytes = frames * frame_size_bytes;
 		for (size_t c = 0; c < gf->channels; c++) {
 			deque_push_back(&gf->input_buffers[c],
-					    std::vector<uint8_t>(frames_size_bytes).data(),
-					    frames_size_bytes);
+					std::vector<uint8_t>(frames_size_bytes).data(),
+					frames_size_bytes);
 		}
 		// push audio packet info (timestamp/frame count) to info deque
 		struct transcription_filter_audio_info info = {0};

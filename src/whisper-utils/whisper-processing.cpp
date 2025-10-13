@@ -335,10 +335,10 @@ void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_o
 	if (vad_state == VAD_STATE_PARTIAL) {
 		// peek instead of pop, since this is a partial run that keeps the data in the buffer
 		deque_peek_front(&gf->whisper_buffer, pcm32f_data + WHISPER_SAMPLE_RATE / 100,
-				     pcm32f_size * sizeof(float));
+				 pcm32f_size * sizeof(float));
 	} else {
 		deque_pop_front(&gf->whisper_buffer, pcm32f_data + WHISPER_SAMPLE_RATE / 100,
-				    pcm32f_size * sizeof(float));
+				pcm32f_size * sizeof(float));
 	}
 
 	auto inference_start_ts = now_ms();
