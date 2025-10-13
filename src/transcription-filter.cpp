@@ -101,17 +101,17 @@ struct obs_audio_data *transcription_filter_filter_audio(void *data, struct obs_
 
 	{
 		std::lock_guard<std::mutex> lock(gf->whisper_buf_mutex); // scoped lock
-		// push back current audio data to input circlebuf
+		// push back current audio data to input deque
 		for (size_t c = 0; c < gf->channels; c++) {
-			circlebuf_push_back(&gf->input_buffers[c], audio->data[c],
+			deque_push_back(&gf->input_buffers[c], audio->data[c],
 					    audio->frames * sizeof(float));
 		}
-		// push audio packet info (timestamp/frame count) to info circlebuf
+		// push audio packet info (timestamp/frame count) to info deque
 		struct transcription_filter_audio_info info = {0};
 		info.frames = audio->frames; // number of frames in this packet
 		// calculate timestamp offset from the start of the stream
 		info.timestamp_offset_ns = now_ns() - gf->start_timestamp_ms * 1000000;
-		circlebuf_push_back(&gf->info_buffer, &info, sizeof(info));
+		deque_push_back(&gf->info_buffer, &info, sizeof(info));
 		gf->wshiper_thread_cv.notify_one();
 	}
 
@@ -160,12 +160,12 @@ void transcription_filter_destroy(void *data)
 		bfree(gf->copy_buffers[0]);
 		gf->copy_buffers[0] = nullptr;
 		for (size_t i = 0; i < gf->channels; i++) {
-			circlebuf_free(&gf->input_buffers[i]);
+			deque_free(&gf->input_buffers[i]);
 		}
 	}
-	circlebuf_free(&gf->info_buffer);
+	deque_free(&gf->info_buffer);
 
-	circlebuf_free(&gf->resampled_buffer);
+	deque_free(&gf->resampled_buffer);
 
 #ifdef ENABLE_WEBVTT
 	{
@@ -499,11 +499,11 @@ void *transcription_filter_create(obs_data_t *settings, obs_source_t *filter)
 	gf->initial_creation = true;
 
 	for (size_t i = 0; i < gf->channels; i++) {
-		circlebuf_init(&gf->input_buffers[i]);
+		deque_init(&gf->input_buffers[i]);
 	}
-	circlebuf_init(&gf->info_buffer);
-	circlebuf_init(&gf->whisper_buffer);
-	circlebuf_init(&gf->resampled_buffer);
+	deque_init(&gf->info_buffer);
+	deque_init(&gf->whisper_buffer);
+	deque_init(&gf->resampled_buffer);
 
 	// allocate copy buffers
 	gf->copy_buffers[0] =

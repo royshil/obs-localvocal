@@ -49,7 +49,7 @@ int get_data_from_buf_and_resample(transcription_filter_data *gf,
 		struct transcription_filter_audio_info info_from_buf = {0};
 		const size_t size_of_audio_info = sizeof(transcription_filter_audio_info);
 		while (gf->info_buffer.size >= size_of_audio_info) {
-			circlebuf_pop_front(&gf->info_buffer, &info_from_buf, size_of_audio_info);
+			deque_pop_front(&gf->info_buffer, &info_from_buf, size_of_audio_info);
 			num_frames_from_infos += info_from_buf.frames;
 			if (start_timestamp_offset_ns == 0) {
 				start_timestamp_offset_ns = info_from_buf.timestamp_offset_ns;
@@ -58,7 +58,7 @@ int get_data_from_buf_and_resample(transcription_filter_data *gf,
 			if (num_frames_from_infos > max_num_frames) {
 				// too big, push the last info into the buffer's front where it was
 				num_frames_from_infos -= info_from_buf.frames;
-				circlebuf_push_front(&gf->info_buffer, &info_from_buf,
+				deque_push_front(&gf->info_buffer, &info_from_buf,
 						     size_of_audio_info);
 				break;
 			}
@@ -81,10 +81,10 @@ int get_data_from_buf_and_resample(transcription_filter_data *gf,
 			memset(gf->copy_buffers[c], 0, gf->frames * sizeof(float));
 		}
 
-		/* Pop from input circlebuf */
+		/* Pop from input deque */
 		for (size_t c = 0; c < gf->channels; c++) {
 			// Push the new data to copy_buffers[c]
-			circlebuf_pop_front(&gf->input_buffers[c], gf->copy_buffers[c],
+			deque_pop_front(&gf->input_buffers[c], gf->copy_buffers[c],
 					    num_frames_from_infos * sizeof(float));
 		}
 	}
@@ -108,7 +108,7 @@ int get_data_from_buf_and_resample(transcription_filter_data *gf,
 						 (uint32_t)num_frames_from_infos);
 		}
 
-		circlebuf_push_back(&gf->resampled_buffer, resampled_16khz[0],
+		deque_push_back(&gf->resampled_buffer, resampled_16khz[0],
 				    resampled_16khz_frames * sizeof(float));
 #ifdef LOCALVOCAL_EXTRA_VERBOSE
 		obs_log(gf->log_level,
@@ -144,10 +144,10 @@ vad_state vad_disabled_segmentation(transcription_filter_data *gf, vad_state las
 	}
 
 	// push the data into gf-whisper_buffer
-	circlebuf_push_back(&gf->whisper_buffer, gf->resampled_buffer.data,
+	deque_push_back(&gf->whisper_buffer, gf->resampled_buffer.data,
 			    gf->resampled_buffer.size);
 	// clear the resampled buffer
-	circlebuf_pop_front(&gf->resampled_buffer, nullptr, gf->resampled_buffer.size);
+	deque_pop_front(&gf->resampled_buffer, nullptr, gf->resampled_buffer.size);
 
 	const uint64_t whisper_buf_samples = gf->whisper_buffer.size / sizeof(float);
 	const bool is_partial_segment =
@@ -220,7 +220,7 @@ vad_state vad_based_segmentation(transcription_filter_data *gf, vad_state last_v
 
 	std::vector<float> vad_input;
 	vad_input.resize(vad_num_windows * gf->vad->get_window_size_samples());
-	circlebuf_pop_front(&gf->resampled_buffer, vad_input.data(),
+	deque_pop_front(&gf->resampled_buffer, vad_input.data(),
 			    vad_input.size() * sizeof(float));
 
 #ifdef LOCALVOCAL_EXTRA_VERBOSE
@@ -285,7 +285,7 @@ vad_state vad_based_segmentation(transcription_filter_data *gf, vad_state last_v
 		const int number_of_frames = end_frame - start_frame;
 
 		// push the data into gf-whisper_buffer
-		circlebuf_push_back(&gf->whisper_buffer, vad_input.data() + start_frame,
+		deque_push_back(&gf->whisper_buffer, vad_input.data() + start_frame,
 				    number_of_frames * sizeof(float));
 
 		obs_log(gf->log_level,
@@ -379,13 +379,13 @@ vad_state hybrid_vad_segmentation(transcription_filter_data *gf, vad_state last_
 
 	last_vad_state.end_ts_offset_ms = end_timestamp_offset_ns / 1000000;
 
-	// extract the data from the resampled buffer with circlebuf_pop_front into a temp buffer
+	// extract the data from the resampled buffer with deque_pop_front into a temp buffer
 	// and then push it into the whisper buffer
 	const size_t resampled_buffer_size = gf->resampled_buffer.size;
 	std::vector<uint8_t> temp_buffer;
 	temp_buffer.resize(resampled_buffer_size);
-	circlebuf_pop_front(&gf->resampled_buffer, temp_buffer.data(), resampled_buffer_size);
-	circlebuf_push_back(&gf->whisper_buffer, temp_buffer.data(), resampled_buffer_size);
+	deque_pop_front(&gf->resampled_buffer, temp_buffer.data(), resampled_buffer_size);
+	deque_push_back(&gf->whisper_buffer, temp_buffer.data(), resampled_buffer_size);
 
 	obs_log(gf->log_level, "whisper buffer size: %lu bytes", gf->whisper_buffer.size);
 
@@ -422,7 +422,7 @@ vad_state hybrid_vad_segmentation(transcription_filter_data *gf, vad_state last_
 			// run vad on the current buffer
 			std::vector<float> vad_input;
 			vad_input.resize(gf->whisper_buffer.size / sizeof(float));
-			circlebuf_peek_front(&gf->whisper_buffer, vad_input.data(),
+			deque_peek_front(&gf->whisper_buffer, vad_input.data(),
 					     vad_input.size() * sizeof(float));
 
 			obs_log(gf->log_level, "sending %d frames to vad, %.1f ms",
@@ -444,7 +444,7 @@ vad_state hybrid_vad_segmentation(transcription_filter_data *gf, vad_state last_
 				// pop the partial segment from the whisper buffer, save some audio for the next segment
 				const size_t num_bytes_to_keep =
 					(WHISPER_SAMPLE_RATE / 4) * sizeof(float);
-				circlebuf_pop_front(&gf->whisper_buffer, nullptr,
+				deque_pop_front(&gf->whisper_buffer, nullptr,
 						    gf->whisper_buffer.size - num_bytes_to_keep);
 			}
 		}

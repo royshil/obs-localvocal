@@ -117,11 +117,11 @@ create_context(int sample_rate, int channels, const std::string &whisper_model_p
 	gf->input_cv.emplace();
 
 	for (size_t i = 0; i < gf->channels; i++) {
-		circlebuf_init(&gf->input_buffers[i]);
+		deque_init(&gf->input_buffers[i]);
 	}
-	circlebuf_init(&gf->info_buffer);
-	circlebuf_init(&gf->whisper_buffer);
-	circlebuf_init(&gf->resampled_buffer);
+	deque_init(&gf->info_buffer);
+	deque_init(&gf->whisper_buffer);
+	deque_init(&gf->resampled_buffer);
 
 	// allocate copy buffers
 	gf->copy_buffers[0] =
@@ -366,12 +366,12 @@ void release_context(transcription_filter_data *gf)
 		free(gf->copy_buffers[0]);
 		gf->copy_buffers[0] = nullptr;
 		for (size_t i = 0; i < gf->channels; i++) {
-			circlebuf_free(&gf->input_buffers[i]);
+			deque_free(&gf->input_buffers[i]);
 		}
 	}
-	circlebuf_free(&gf->info_buffer);
-	circlebuf_free(&gf->whisper_buffer);
-	circlebuf_free(&gf->resampled_buffer);
+	deque_free(&gf->info_buffer);
+	deque_free(&gf->whisper_buffer);
+	deque_free(&gf->resampled_buffer);
 
 	delete gf;
 }
@@ -539,15 +539,15 @@ int wmain(int argc, wchar_t *argv[])
 								return gf->input_buffers->size == 0;
 							});
 					}
-					// push back current audio data to input circlebuf
+					// push back current audio data to input deque
 					for (size_t c = 0; c < gf->channels; c++) {
-						circlebuf_push_back(
+						deque_push_back(
 							&gf->input_buffers[c],
 							audio[c].data() +
 								frames_count * frame_size_bytes,
 							frames_size_bytes);
 					}
-					// push audio packet info (timestamp/frame count) to info circlebuf
+					// push audio packet info (timestamp/frame count) to info deque
 					struct transcription_filter_audio_info info = {0};
 					info.frames = frames; // number of frames in this packet
 					// make a timestamp from the current position in the audio buffer
@@ -555,7 +555,7 @@ int wmain(int argc, wchar_t *argv[])
 						start_time + (int64_t)(((float)frames_count /
 									(float)gf->sample_rate) *
 								       1e9);
-					circlebuf_push_back(&gf->info_buffer, &info, sizeof(info));
+					deque_push_back(&gf->info_buffer, &info, sizeof(info));
 				}
 				gf->wshiper_thread_cv.notify_one();
 			}
@@ -565,20 +565,20 @@ int wmain(int argc, wchar_t *argv[])
 				break;
 			}
 		}
-		// push a second of silence to the input circlebuf
+		// push a second of silence to the input deque
 		frames = 2 * gf->sample_rate;
 		frames_size_bytes = frames * frame_size_bytes;
 		for (size_t c = 0; c < gf->channels; c++) {
-			circlebuf_push_back(&gf->input_buffers[c],
+			deque_push_back(&gf->input_buffers[c],
 					    std::vector<uint8_t>(frames_size_bytes).data(),
 					    frames_size_bytes);
 		}
-		// push audio packet info (timestamp/frame count) to info circlebuf
+		// push audio packet info (timestamp/frame count) to info deque
 		struct transcription_filter_audio_info info = {0};
 		info.frames = frames; // number of frames in this packet
 		// make a timestamp from the current frame count
 		info.timestamp_offset_ns = frames_count * 1000 / gf->sample_rate;
-		circlebuf_push_back(&gf->info_buffer, &info, sizeof(info));
+		deque_push_back(&gf->info_buffer, &info, sizeof(info));
 	}
 
 	obs_log(LOG_INFO, "Buffer filled with %d frames",
@@ -588,7 +588,7 @@ int wmain(int argc, wchar_t *argv[])
 	obs_log(LOG_INFO, "Waiting for processing to finish");
 	while (true) {
 		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		// check the input circlebuf has more data
+		// check the input deque has more data
 		size_t input_buf_size = 0;
 		{
 			std::lock_guard<std::mutex> lock(gf->whisper_buf_mutex);

@@ -334,10 +334,10 @@ void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_o
 	float *pcm32f_data = (float *)bzalloc(pcm32f_size_with_silence * sizeof(float));
 	if (vad_state == VAD_STATE_PARTIAL) {
 		// peek instead of pop, since this is a partial run that keeps the data in the buffer
-		circlebuf_peek_front(&gf->whisper_buffer, pcm32f_data + WHISPER_SAMPLE_RATE / 100,
+		deque_peek_front(&gf->whisper_buffer, pcm32f_data + WHISPER_SAMPLE_RATE / 100,
 				     pcm32f_size * sizeof(float));
 	} else {
-		circlebuf_pop_front(&gf->whisper_buffer, pcm32f_data + WHISPER_SAMPLE_RATE / 100,
+		deque_pop_front(&gf->whisper_buffer, pcm32f_data + WHISPER_SAMPLE_RATE / 100,
 				    pcm32f_size * sizeof(float));
 	}
 
@@ -389,8 +389,8 @@ void whisper_loop(void *data)
 		}
 
 		if (gf->clear_buffers) {
-			circlebuf_pop_front(&gf->resampled_buffer, nullptr, 0);
-			circlebuf_pop_front(&gf->whisper_buffer, nullptr, 0);
+			deque_pop_front(&gf->resampled_buffer, nullptr, 0);
+			deque_pop_front(&gf->whisper_buffer, nullptr, 0);
 			current_vad_state = {false, now_ms(), 0, 0};
 			gf->clear_buffers = false;
 		}

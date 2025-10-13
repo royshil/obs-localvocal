@@ -695,11 +695,11 @@ void reset_caption_state(transcription_filter_data *gf_)
 		std::lock_guard<std::mutex> lock(gf_->whisper_buf_mutex);
 		for (size_t c = 0; c < gf_->channels; c++) {
 			if (gf_->input_buffers[c].data != nullptr) {
-				circlebuf_free(&gf_->input_buffers[c]);
+				deque_free(&gf_->input_buffers[c]);
 			}
 		}
 		if (gf_->info_buffer.data != nullptr) {
-			circlebuf_free(&gf_->info_buffer);
+			deque_free(&gf_->info_buffer);
 		}
 	}
 	gf_->clear_buffers = true;
