@@ -56,7 +56,7 @@ void create_obs_text_source_if_needed()
 		transform_info.scale.x = 1.0;
 		transform_info.scale.y = 1.0;
 		transform_info.rot = 0.0;
-		obs_sceneitem_set_info(source_sceneitem, &transform_info);
+		obs_sceneitem_set_info2(source_sceneitem, &transform_info);
 		obs_sceneitem_release(source_sceneitem);
 
 		obs_source_release(source);
