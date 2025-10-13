@@ -58,11 +58,11 @@ void add_text_source_to_scenes_callback(obs_frontend_event event, void *)
 
 			// set transform settings
 			obs_transform_info transform_info;
+			transform_info.bounds.x = ((float)scene_width) - 40.0f;
+			transform_info.bounds.y = 145.0;
 			transform_info.pos.x = ((float)scene_width) / 2.0f;
 			transform_info.pos.y = (((float)scene_height) -
 						((transform_info.bounds.y / 2.0f) + 20.0f));
-			transform_info.bounds.x = ((float)scene_width) - 40.0f;
-			transform_info.bounds.y = 145.0;
 			transform_info.bounds_type = obs_bounds_type::OBS_BOUNDS_SCALE_INNER;
 			transform_info.bounds_alignment = OBS_ALIGN_CENTER;
 			transform_info.alignment = OBS_ALIGN_CENTER;
