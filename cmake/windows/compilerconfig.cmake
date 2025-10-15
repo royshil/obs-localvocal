@@ -34,26 +34,13 @@ add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:CXX,Clang>:${_obs_clang_cxx_options}>"
   $<$<NOT:$<CONFIG:Debug>>:/Gy>
   $<$<NOT:$<CONFIG:Debug>>:/GL>
-  $<$<NOT:$<CONFIG:Debug>>:/Oi>
-)
+  $<$<NOT:$<CONFIG:Debug>>:/Oi>)
 
-add_compile_definitions(
-  UNICODE
-  _UNICODE
-  _CRT_SECURE_NO_WARNINGS
-  _CRT_NONSTDC_NO_WARNINGS
-  $<$<CONFIG:DEBUG>:DEBUG>
-  $<$<CONFIG:DEBUG>:_DEBUG>
-)
+add_compile_definitions(UNICODE _UNICODE _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_WARNINGS $<$<CONFIG:DEBUG>:DEBUG>
+                        $<$<CONFIG:DEBUG>:_DEBUG>)
 
-add_link_options(
-  $<$<NOT:$<CONFIG:Debug>>:/OPT:REF>
-  $<$<NOT:$<CONFIG:Debug>>:/OPT:ICF>
-  $<$<NOT:$<CONFIG:Debug>>:/LTCG>
-  $<$<NOT:$<CONFIG:Debug>>:/INCREMENTAL:NO>
-  /DEBUG
-  /Brepro
-)
+add_link_options($<$<NOT:$<CONFIG:Debug>>:/OPT:REF> $<$<NOT:$<CONFIG:Debug>>:/OPT:ICF> $<$<NOT:$<CONFIG:Debug>>:/LTCG>
+                 $<$<NOT:$<CONFIG:Debug>>:/INCREMENTAL:NO> /DEBUG /Brepro)
 
 if(CMAKE_COMPILE_WARNING_AS_ERROR)
   add_link_options(/WX)
