@@ -27,7 +27,8 @@ if(POLICY CMP0090)
   cmake_policy(SET CMP0090 NEW)
 endif()
 
-# Allow invalid arguments to add_custom_command() - lua and python scripting CMake files in OBS source use these invalid args
+# Allow invalid arguments to add_custom_command() - lua and python scripting CMake files in OBS source use these invalid
+# args
 if(POLICY CMP0175)
   cmake_policy(SET CMP0175 OLD)
 endif()
