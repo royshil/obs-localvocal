@@ -63,7 +63,7 @@ From `.deps\obs-deps-2023-11-03-x64\bin` copy:
 - swscale-7.dll
 - zlib.dll
 
-Finally, from `.deps\obs-studio-30.0.2\build_x64\rundir\Debug\bin\64bit` copy:
+Finally, from `.deps\obs-studio-31.1.1\build_x64\rundir\Debug\bin\64bit` copy:
 
 - obs-frontend-api.dll
 - obs.dll

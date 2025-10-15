@@ -32,9 +32,9 @@ $obsDlls = @(
     ".deps\obs-deps-2024-03-19-x64\bin\zlib.dll"
     ".deps\obs-deps-2024-03-19-x64\bin\librist.dll"
     ".deps\obs-deps-2024-03-19-x64\bin\srt.dll"
-    ".deps\obs-studio-30.1.2\build_x64\rundir\Debug\bin\64bit\obs-frontend-api.dll",
-    ".deps\obs-studio-30.1.2\build_x64\rundir\Debug\bin\64bit\obs.dll",
-    ".deps\obs-studio-30.1.2\build_x64\rundir\Debug\bin\64bit\w32-pthreads.dll"
+    ".deps\obs-studio-31.1.1\build_x64\rundir\Debug\bin\64bit\obs-frontend-api.dll",
+    ".deps\obs-studio-31.1.1\build_x64\rundir\Debug\bin\64bit\obs.dll",
+    ".deps\obs-studio-31.1.1\build_x64\rundir\Debug\bin\64bit\w32-pthreads.dll"
 )
 
 $obsDlls | ForEach-Object {
