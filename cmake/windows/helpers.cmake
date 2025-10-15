@@ -52,6 +52,18 @@ function(set_target_properties_plugin target)
     target_link_libraries(${target} PRIVATE plugin-support)
   endif()
 
+  add_custom_command(
+    TARGET ${target}
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>"
+    COMMAND
+      "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${target}>"
+      "$<$<CONFIG:Debug,RelWithDebInfo,Release>:$<TARGET_PDB_FILE:${target}>>"
+      "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>"
+    COMMENT "Copy ${target} to rundir"
+    VERBATIM
+  )
+
   target_install_resources(${target})
 
   get_target_property(target_sources ${target} SOURCES)
@@ -83,28 +95,29 @@ function(target_install_resources target)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/data")
     file(GLOB_RECURSE data_files "${CMAKE_CURRENT_SOURCE_DIR}/data/*")
     foreach(data_file IN LISTS data_files)
-      cmake_path(RELATIVE_PATH data_file BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/" OUTPUT_VARIABLE
-                 relative_path)
+      cmake_path(
+        RELATIVE_PATH
+        data_file
+        BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/"
+        OUTPUT_VARIABLE relative_path
+      )
       cmake_path(GET relative_path PARENT_PATH relative_path)
       target_sources(${target} PRIVATE "${data_file}")
       source_group("Resources/${relative_path}" FILES "${data_file}")
     endforeach()
 
-    install(
-      DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/"
-      DESTINATION data/obs-plugins/${target}
-      USE_SOURCE_PERMISSIONS)
+    install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/" DESTINATION "${target}/data" USE_SOURCE_PERMISSIONS)
 
-    if(OBS_BUILD_DIR)
-      add_custom_command(
-        TARGET ${target}
-        POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E make_directory "${OBS_BUILD_DIR}/data/obs-plugins/${target}"
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data"
-                "${OBS_BUILD_DIR}/data/obs-plugins/${target}"
-        COMMENT "Copy ${target} resources to data directory"
-        VERBATIM)
-    endif()
+    add_custom_command(
+      TARGET ${target}
+      POST_BUILD
+      COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>/${target}"
+      COMMAND
+        "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data"
+        "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>/${target}"
+      COMMENT "Copy ${target} resources to rundir"
+      VERBATIM
+    )
   endif()
 endfunction()
 
