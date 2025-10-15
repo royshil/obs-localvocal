@@ -107,7 +107,7 @@ jobs:
           print "pluginName=${product_name}" >> $GITHUB_OUTPUT
           print "pluginVersion=${product_version}" >> $GITHUB_OUTPUT
   
-      - uses: maxim-lobanov/setup-xcode@v1.6
+      - uses: maxim-lobanov/setup-xcode@v1.6.0
         id: set-xcode-version
         with:
           xcode-version: 15.2
