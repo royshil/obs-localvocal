@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16...3.26)
+cmake_minimum_required(VERSION 3.31...4.12)
 
 include_guard(GLOBAL)
 
@@ -25,6 +25,11 @@ endif()
 # Disable export function calls to populate package registry by default
 if(POLICY CMP0090)
   cmake_policy(SET CMP0090 NEW)
+endif()
+
+# Allow invalid arguments to add_custom_command() - lua and python scripting CMake files in OBS source use these invalid args
+if(POLICY CMP0175)
+  cmake_policy(SET CMP0175 OLD)
 endif()
 
 # Prohibit in-source builds
