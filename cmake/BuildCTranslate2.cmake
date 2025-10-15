@@ -4,7 +4,7 @@ include(ExternalProject)
 include(FetchContent)
 
 if(APPLE)
-
+  message(STATUS "Using pre-compiled CTranslate2")
   FetchContent_Declare(
     ctranslate2_fetch
     URL https://github.com/occ-ai/obs-ai-ctranslate2-dep/releases/download/1.2.0/libctranslate2-macos-Release-1.2.0.tar.gz
@@ -18,7 +18,7 @@ if(APPLE)
   target_compile_options(ct2 INTERFACE -Wno-shorten-64-to-32 -Wno-comma)
 
 elseif(WIN32)
-
+  message(STATUS "Using pre-compiled CTranslate2")
   # check ACCELERATION environment variable
   if(NOT DEFINED ACCELERATION)
     message(FATAL_ERROR "Please set ACCELERATION to either `cpu`, `hipblas`, or `cuda`")
@@ -50,6 +50,7 @@ elseif(WIN32)
   file(GLOB CT2_DLLS ${ctranslate2_fetch_SOURCE_DIR}/bin/*.dll)
   install(FILES ${CT2_DLLS} DESTINATION "obs-plugins/64bit")
 else()
+  message(STATUS "Building CTranslate2 from source")
   # Enable ccache if available
   find_program(CCACHE_PROGRAM ccache)
   if(CCACHE_PROGRAM)
