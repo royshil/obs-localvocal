@@ -22,13 +22,13 @@ endif()
 
 include(buildspec)
 
-# Set default deployment target to 11.0 if not set and enable selection in GUI up to 13.0
+# Set default deployment target to 12.0 if not set and enable selection in GUI up to 15.0
 if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
   set(CMAKE_OSX_DEPLOYMENT_TARGET
-      11.0
+      12.0
       CACHE STRING "Minimum macOS version to target for deployment (at runtime). Newer APIs will be weak-linked." FORCE)
 endif()
-set_property(CACHE CMAKE_OSX_DEPLOYMENT_TARGET PROPERTY STRINGS 13.0 12.0 11.0)
+set_property(CACHE CMAKE_OSX_DEPLOYMENT_TARGET PROPERTY STRINGS 15.0 14.0 13.0 12.0)
 
 # Use Applications directory as default install destination
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
