@@ -76,6 +76,44 @@ std::string timestamp_t::format(const char *fmt, ...)
 #endif
 };
 
+const char* ort_error_code_str(OrtErrorCode code)
+{
+  switch (code) {
+	case OrtErrorCode::ORT_OK:
+	  return "OK";
+	case OrtErrorCode::ORT_FAIL:
+	  return "FAIL";
+	case OrtErrorCode::ORT_INVALID_ARGUMENT:
+	  return "INVALID_ARGUMENT";
+	case OrtErrorCode::ORT_NO_SUCHFILE:
+	  return "NO_SUCHFILE";
+	case OrtErrorCode::ORT_NO_MODEL:
+	  return "NO_MODEL";
+	case OrtErrorCode::ORT_ENGINE_ERROR:
+	  return "ENGINE_ERROR";
+	case OrtErrorCode::ORT_RUNTIME_EXCEPTION:
+	  return "RUNTIME_EXCEPTION";
+	case OrtErrorCode::ORT_INVALID_PROTOBUF:
+	  return "INVALID_PROTOBUF";
+	case OrtErrorCode::ORT_MODEL_LOADED:
+	  return "MODEL_LOADED";
+	case OrtErrorCode::ORT_NOT_IMPLEMENTED:
+	  return "NOT_IMPLEMENTED";
+	case OrtErrorCode::ORT_INVALID_GRAPH:
+	  return "INVALID_GRAPH";
+	case OrtErrorCode::ORT_EP_FAIL:
+	  return "EP_FAIL";
+	case OrtErrorCode::ORT_MODEL_LOAD_CANCELED:
+	  return "MODEL_LOAD_CANCELED";
+	case OrtErrorCode::ORT_MODEL_REQUIRES_COMPILATION:
+	  return "MODEL_REQUIRES_COMPILATION";
+	case OrtErrorCode::ORT_NOT_FOUND:
+	  return "NOT_FOUND";
+	default:
+	  return "UNKNOWN_ERROR_CODE";
+  }
+}
+
 void VadIterator::init_engine_threads(int inter_threads, int intra_threads)
 {
 	// The method should be called in each thread/proc in multi-thread/proc work
@@ -128,8 +166,8 @@ float VadIterator::predict_one(const std::vector<float> &data)
 
 	// Infer
 	ort_outputs = session->Run(Ort::RunOptions{nullptr}, input_node_names.data(),
-				   ort_inputs.data(), ort_inputs.size(), output_node_names.data(),
-				   output_node_names.size());
+				  ort_inputs.data(), ort_inputs.size(), output_node_names.data(),
+				  output_node_names.size());
 
 	// Output probability & update h,c recursively
 	float speech_prob = ort_outputs[0].GetTensorMutableData<float>()[0];
@@ -261,32 +299,44 @@ void VadIterator::predict(const std::vector<float> &data)
 
 void VadIterator::process(const std::vector<float> &input_wav, bool reset_state)
 {
-	reset_states(reset_state);
+	try {
+	  reset_states(reset_state);
 
-	audio_length_samples = (int)input_wav.size();
+	  audio_length_samples = (int)input_wav.size();
 
-	for (int j = 0; j < audio_length_samples; j += (int)window_size_samples) {
-		if (j + (int)window_size_samples > audio_length_samples)
-			break;
-		std::vector<float> r{&input_wav[0] + j, &input_wav[0] + j + window_size_samples};
-		predict(r);
+	  for (int j = 0; j < audio_length_samples; j += (int)window_size_samples) {
+		  if (j + (int)window_size_samples > audio_length_samples)
+			  break;
+		  std::vector<float> r{&input_wav[0] + j, &input_wav[0] + j + window_size_samples};
+		  predict(r);
+	  }
+
+	  if (current_speech.start >= 0) {
+		  current_speech.end = audio_length_samples;
+		  speeches.push_back(current_speech);
+		  current_speech = timestamp_t();
+		  prev_end = 0;
+		  next_start = 0;
+		  temp_end = 0;
+		  triggered = false;
+	  }
 	}
-
-	if (current_speech.start >= 0) {
-		current_speech.end = audio_length_samples;
-		speeches.push_back(current_speech);
-		current_speech = timestamp_t();
-		prev_end = 0;
-		next_start = 0;
-		temp_end = 0;
-		triggered = false;
+	catch (Ort::Exception e) {
+	  obs_log(LOG_ERROR, "Caught exception when running VAD prediction. Error code: %s, message: %s",
+			  ort_error_code_str(e.GetOrtErrorCode()), e.what());
 	}
 };
 
 void VadIterator::process(const std::vector<float> &input_wav, std::vector<float> &output_wav)
 {
-	process(input_wav);
-	collect_chunks(input_wav, output_wav);
+	try {
+	  process(input_wav);
+	  collect_chunks(input_wav, output_wav);
+	}
+	catch (Ort::Exception e) {
+	  obs_log(LOG_ERROR, "Caught exception when running VAD prediction. Error code: %s, message: %s",
+			  ort_error_code_str(e.GetOrtErrorCode()), e.what());
+	}
 }
 
 void VadIterator::collect_chunks(const std::vector<float> &input_wav,
