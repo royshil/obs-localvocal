@@ -8,6 +8,11 @@ option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 option(ENABLE_TESTS "Enable tests" OFF)
 
+if(CMAKE_MAJOR_VERSION EQUAL 4)
+  message(STATUS "CMake 4 detected")
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+endif()
+
 include(compilerconfig)
 include(defaults)
 include(helpers)

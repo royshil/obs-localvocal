@@ -156,8 +156,6 @@ For other distros where you can't use the CI build script, you can build the plu
     cmake -B build-dir --preset linux-x86_64 -DUSE_SYSTEM_CURL=ON -DUSE_SYSTEM_ICU=ON -DCMAKE_INSTALL_PREFIX=./output_dir
     ```
 
-    Note: if using CMake 4.0.0 or higher you may also need to add `-DCMAKE_POLICY_VERSION_MINIMUM=3.5`. If possible, please use a version of CMake that is older than 4.0.0, as many of the dependencies used by this plugin still have their minimum versions set to very old versions of CMake.
-
 1. Build the plugin and copy the files to the output directory
 
     ```sh

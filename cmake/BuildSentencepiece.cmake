@@ -48,7 +48,7 @@ else()
   ExternalProject_Add(
     sentencepiece_build
     GIT_REPOSITORY ${SP_URL}
-    GIT_TAG v0.1.99
+    GIT_TAG v0.2.1
     BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
     CMAKE_GENERATOR ${CMAKE_GENERATOR}
     INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
