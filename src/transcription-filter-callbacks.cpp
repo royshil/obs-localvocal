@@ -631,32 +631,43 @@ void recording_state_callback(enum obs_frontend_event event, void *data)
 
 		namespace fs = std::filesystem;
 
-		char *recordingFileName = obs_frontend_get_last_recording();
-		std::string recordingFileNameStr(recordingFileName);
-		bfree(recordingFileName);
-		fs::path recordingPath(recordingFileName);
 		fs::path outputPath(gf_->output_file_path);
 
-		fs::path newPath = recordingPath.stem();
-
-		if (gf_->save_srt) {
-			obs_log(gf_->log_level, "Recording stopped. Rename srt file.");
-			newPath.replace_extension(".srt");
-		} else {
-			obs_log(gf_->log_level, "Recording stopped. Rename transcript file.");
-			std::string newExtension = outputPath.extension().string();
-
-			if (newExtension == recordingPath.extension().string()) {
-				newExtension += ".txt";
+		try {
+			if (!std::filesystem::exists(outputPath)) {
+				obs_log(gf_->log_level, "Output file is empty");
+				return;
 			}
 
-			newPath.replace_extension(newExtension);
+			char *recordingFileName = obs_frontend_get_last_recording();
+			std::string recordingFileNameStr(recordingFileName);
+			bfree(recordingFileName);
+
+			fs::path recordingPath(recordingFileNameStr);
+			fs::path newPath = recordingPath.stem();
+
+			if (gf_->save_srt) {
+				obs_log(gf_->log_level, "Recording stopped. Rename srt file.");
+				newPath.replace_extension(".srt");
+			} else {
+				obs_log(gf_->log_level, "Recording stopped. Rename transcript file.");
+				std::string newExtension = outputPath.extension().string();
+
+				if (newExtension == recordingPath.extension().string()) {
+					newExtension += ".txt";
+				}
+
+				newPath.replace_extension(newExtension);
+			}
+
+			// make sure newPath is next to the recording file
+			newPath = recordingPath.parent_path() / newPath.filename();
+
+			fs::rename(outputPath, newPath);
 		}
-
-		// make sure newPath is next to the recording file
-		newPath = recordingPath.parent_path() / newPath.filename();
-
-		fs::rename(outputPath, newPath);
+		catch (std::filesystem::filesystem_error e) {
+			obs_log(LOG_ERROR, "Error renaming output file - %s", e.what());
+		}
 	} else if (event == OBS_FRONTEND_EVENT_STREAMING_STARTING) {
 #ifdef ENABLE_WEBVTT
 		add_webvtt_output(*gf_, OBSOutputAutoRelease{obs_frontend_get_streaming_output()},
