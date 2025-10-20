@@ -8,6 +8,34 @@ option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 option(ENABLE_TESTS "Enable tests" OFF)
 
+set(USE_SYSTEM_CURL
+    OFF
+    CACHE STRING "Use system cURL")
+
+set(USE_SYSTEM_ICU
+    OFF
+    CACHE STRING "Use system ICU")
+
+set(USE_SYSTEM_ONNXRUNTIME
+    OFF
+    CACHE STRING "Use system ONNX Runtime")
+
+set(DISABLE_ONNXRUNTIME_GPU
+    OFF
+    CACHE STRING "Disables GPU support of ONNX Runtime (Only valid on Linux)")
+
+set(USE_SYSTEM_BLAS
+    OFF
+    CACHE STRING "Use system BLAS for CPU acceleration")
+
+set(LOCALVOCAL_WITH_CUDA
+    OFF
+    CACHE STRING "Use CUDA for acceleration")
+
+set(LOCALVOCAL_WITH_ROCM
+    OFF
+    CACHE STRING "Use ROCm for acceleration")
+
 if(CMAKE_MAJOR_VERSION EQUAL 4)
   message(STATUS "CMake 4 detected")
   set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
@@ -40,10 +68,6 @@ if(ENABLE_QT)
                AUTORCC ON)
 endif()
 
-set(USE_SYSTEM_CURL
-    OFF
-    CACHE STRING "Use system cURL")
-
 if(USE_SYSTEM_CURL)
   find_package(CURL REQUIRED)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${CURL_LIBRARIES}")
@@ -70,34 +94,12 @@ elseif(UNIX AND NOT APPLE)
   find_package(BLAS REQUIRED)
 endif()
 
-if(OS_LINUX)
-  if(DEFINED ENV{ACCELERATION})
-    set(ACCELERATION
-        $ENV{ACCELERATION}
-        CACHE STRING "Acceleration to use" FORCE)
-  endif()
-  if(NOT DEFINED ACCELERATION)
-    set(ACCELERATION
-        "cpu"
-        CACHE STRING "Acceleration to use")
-  endif()
-  set_property(CACHE ACCELERATION PROPERTY STRINGS "cpu" "hipblas" "cuda" "vulkan")
-endif()
-
 include(cmake/BuildWhispercpp.cmake)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Whispercpp)
 
 include(cmake/BuildCTranslate2.cmake)
 include(cmake/BuildSentencepiece.cmake)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ct2 sentencepiece)
-
-set(USE_SYSTEM_ONNXRUNTIME
-    OFF
-    CACHE STRING "Use system ONNX Runtime")
-
-set(DISABLE_ONNXRUNTIME_GPU
-    OFF
-    CACHE STRING "Disables GPU support of ONNX Runtime (Only valid on Linux)")
 
 if(DISABLE_ONNXRUNTIME_GPU)
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DISABLE_ONNXRUNTIME_GPU)
@@ -117,10 +119,6 @@ if(USE_SYSTEM_ONNXRUNTIME)
 else()
   include(cmake/FetchOnnxruntime.cmake)
 endif()
-
-set(USE_SYSTEM_ICU
-    OFF
-    CACHE STRING "Use system ICU")
 
 if(USE_SYSTEM_ICU)
   find_package(

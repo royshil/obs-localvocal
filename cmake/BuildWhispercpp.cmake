@@ -126,28 +126,28 @@ else()
   # TODO: Add hipBLAS, OpenCL, and SYCL support
 
   set(ARCH_PREFIX ${ACCELERATION})
-  if(${ACCELERATION} STREQUAL "cuda")
+  # if(${ACCELERATION} STREQUAL "cuda")
     find_package(CUDAToolkit REQUIRED)
     set(WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native)
     add_compile_definitions("LOCALVOCAL_WITH_CUDA")
     list(APPEND WHISPER_LIBRARIES GGMLCUDA)
     list(APPEND WHISPER_IMPORT_LIBRARIES ggml-cuda)
-  elseif(${ACCELERATION} STREQUAL "vulkan")
+  # elseif(${ACCELERATION} STREQUAL "vulkan")
     find_package(
       Vulkan
       COMPONENTS glslc
       REQUIRED)
-    set(WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_VULKAN=ON)
-    add_compile_definitions("LOCALVOCAL_WITH_VULKAN")
+    list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_VULKAN=ON)
+    #add_compile_definitions("LOCALVOCAL_WITH_VULKAN")
     list(APPEND WHISPER_LIBRARIES GGMLVulkan)
     list(APPEND WHISPER_IMPORT_LIBRARIES ggml-vulkan)
-  else()
-    message(
-      STATUS
-        "The ACCELERATION environment variable is not set. Defaulting to `cpu`. Possible values: `cpu`, `cpu-blas`, `cuda` or `vulkan`"
-    )
-    add_compile_definitions("LOCALVOCAL_WITH_CPU")
-  endif()
+  # else()
+  #   message(
+  #     STATUS
+  #       "The ACCELERATION environment variable is not set. Defaulting to `cpu`. Possible values: `cpu`, `cpu-blas`, `cuda` or `vulkan`"
+  #   )
+  #   add_compile_definitions("LOCALVOCAL_WITH_CPU")
+  # endif()
 
   foreach(importlib ${WHISPER_IMPORT_LIBRARIES})
     list(APPEND WHISPER_BYPRODUCTS <INSTALL_DIR>/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${importlib}${CMAKE_STATIC_LIBRARY_SUFFIX})
@@ -214,7 +214,7 @@ else()
       ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-blas${CMAKE_STATIC_LIBRARY_SUFFIX})
   set_target_properties(Whispercpp::GGMLBlas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 
-  if(${ACCELERATION} STREQUAL "cuda")
+  # if(${ACCELERATION} STREQUAL "cuda")
     add_library(Whispercpp::GGMLCUDA STATIC IMPORTED)
     set_target_properties(
       Whispercpp::GGMLCUDA
@@ -222,7 +222,7 @@ else()
         IMPORTED_LOCATION
         ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-cuda${CMAKE_STATIC_LIBRARY_SUFFIX})
     set_target_properties(Whispercpp::GGMLCUDA PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
-  elseif(${ACCELERATION} STREQUAL "vulkan")
+  # elseif(${ACCELERATION} STREQUAL "vulkan")
     add_library(Whispercpp::GGMLVulkan STATIC IMPORTED)
     set_target_properties(
       Whispercpp::GGMLVulkan
@@ -230,7 +230,7 @@ else()
         IMPORTED_LOCATION
         ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-vulkan${CMAKE_STATIC_LIBRARY_SUFFIX})
     set_target_properties(Whispercpp::GGMLVulkan PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
-  endif()
+  # endif()
 endif()
 
 add_library(Whispercpp INTERFACE)
@@ -250,9 +250,9 @@ else()
   target_link_libraries(Whispercpp INTERFACE Whispercpp::${lib})
   endforeach(lib ${WHISPER_LIBRARIES})
   target_link_libraries(Whispercpp INTERFACE ${BLAS_LIBRARIES})
-  if(${ACCELERATION} STREQUAL "cuda")
+  # if(${ACCELERATION} STREQUAL "cuda")
     target_link_libraries(Whispercpp INTERFACE CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cuda_driver)
-  elseif(${ACCELERATION} STREQUAL "vulkan")
+  # elseif(${ACCELERATION} STREQUAL "vulkan")
     target_link_libraries(Whispercpp INTERFACE Vulkan::Vulkan)
-  endif()
+  # endif()
 endif()
