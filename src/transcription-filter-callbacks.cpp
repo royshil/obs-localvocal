@@ -25,6 +25,13 @@
 #include "translation/language_codes.h"
 #include "translation/cloud-translation/translation-cloud.h"
 
+bool whisper_abort_callback(void *data)
+{
+	// Seems like data is usually a string?
+	obs_log(LOG_ERROR, "Error in GGML processing - %s", (char *)(data));
+	return false;
+}
+
 void send_caption_to_source(const std::string &target_source_name, const std::string &caption,
 			    struct transcription_filter_data *gf)
 {

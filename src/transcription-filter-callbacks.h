@@ -6,6 +6,7 @@
 #include "transcription-filter-data.h"
 #include "whisper-utils/whisper-processing.h"
 
+bool whisper_abort_callback(void *data);
 void send_caption_to_source(const std::string &target_source_name, const std::string &str_copy,
 			    struct transcription_filter_data *gf);
 std::string send_sentence_to_translation(const std::string &sentence,

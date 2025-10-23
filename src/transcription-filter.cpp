@@ -423,6 +423,10 @@ void transcription_filter_update(void *data, obs_data_t *s)
 
 		apply_whisper_params_from_settings(gf->whisper_params, s);
 
+		if (gf->whisper_params.abort_callback == nullptr) {
+			gf->whisper_params.abort_callback = whisper_abort_callback;
+		}
+
 		if (!new_translate || gf->translation_model_index != "whisper-based-translation") {
 			const char *whisper_language_select =
 				obs_data_get_string(s, "whisper_language_select");
