@@ -52,17 +52,6 @@ function(set_target_properties_plugin target)
     target_link_libraries(${target} PRIVATE plugin-support)
   endif()
 
-  add_custom_command(
-    TARGET ${target}
-    POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>"
-    COMMAND
-      "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${target}>"
-      "$<$<CONFIG:Debug,RelWithDebInfo,Release>:$<TARGET_PDB_FILE:${target}>>"
-      "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>"
-    COMMENT "Copy ${target} to rundir"
-    VERBATIM)
-
   target_install_resources(${target})
 
   get_target_property(target_sources ${target} SOURCES)
@@ -103,17 +92,19 @@ function(target_install_resources target)
 
     install(
       DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data/"
-      DESTINATION "${target}/data"
+      DESTINATION "data/obs-plugins/${target}"
       USE_SOURCE_PERMISSIONS)
 
-    add_custom_command(
-      TARGET ${target}
-      POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>/${target}"
-      COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data"
-              "${CMAKE_CURRENT_BINARY_DIR}/rundir/$<CONFIG>/${target}"
-      COMMENT "Copy ${target} resources to rundir"
-      VERBATIM)
+    if(OBS_BUILD_DIR)
+      add_custom_command(
+        TARGET ${target}
+        POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${OBS_BUILD_DIR}/data/obs-plugins/${target}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/data"
+                "${OBS_BUILD_DIR}/data/obs-plugins/${target}"
+        COMMENT "Copy ${target} resources to data directory"
+        VERBATIM)
+    endif()
   endif()
 endfunction()
 
