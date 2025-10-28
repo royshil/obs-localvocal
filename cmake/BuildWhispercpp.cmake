@@ -104,7 +104,7 @@ elseif(WIN32)
   install(FILES ${WHISPER_DLLS} DESTINATION "obs-plugins/64bit")
 else()
   # Enable ccache if available
-  find_program(CCACHE_PROGRAM ccache)
+  find_program(CCACHE_PROGRAM ccache QUIET)
   if(CCACHE_PROGRAM)
     message(STATUS "Found ccache: ${CCACHE_PROGRAM}")
     set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
@@ -123,31 +123,64 @@ else()
   set(WHISPER_LIBRARIES Whisper GGML GGMLBase GGMLCPU GGMLBlas)
   set(WHISPER_IMPORT_LIBRARIES whisper ggml ggml-base ggml-cpu ggml-blas)
 
-  # TODO: Add hipBLAS, OpenCL, and SYCL support
+  # TODO: Add OpenCL, and SYCL support
 
-  set(ARCH_PREFIX ${ACCELERATION})
-  # if(${ACCELERATION} STREQUAL "cuda")
-    find_package(CUDAToolkit REQUIRED)
-    set(WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native)
+  if(WIN32)
+    # Currently non-working attempt to make source builds with acceleration work on Windows
+    set(WHISPER_EXTRA_CXX_FLAGS "/EHsc")
+    FetchContent_Declare(
+      BLAS
+      #URL https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.30/OpenBLAS-0.3.30-x64.zip
+      URL https://github.com/OpenMathLib/OpenBLAS/releases/download/v0.3.30/OpenBLAS-0.3.30-x64-64.zip
+      #URL_HASH SHA256=8b04387766efc05c627e26d24797ec0d4ed4c105ec14fa7400aa84a02db22b66
+      URL_HASH SHA256=b4d8248ff14f8405ead4580f57503ffce240de3f6ad46409898f5bc0f989c5d2
+      DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+      OVERRIDE_FIND_PACKAGE)
+    FetchContent_MakeAvailable(BLAS)
+    set(BLAS_LIBRARIES ${blas_SOURCE_DIR}/lib/libopenblas.lib)
+    list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DBLAS_LIBRARIES=${BLAS_LIBRARIES} -DBLAS_INCLUDE_DIRS=${blas_SOURCE_DIR}/include)
+    set(WHISPER_ADDITIONAL_ENV "OPENBLAS_PATH=${blas_SOURCE_DIR}")
+
+    add_library(BLAS SHARED IMPORTED)
+    set_target_properties(BLAS PROPERTIES IMPORTED_LOCATION
+                                          ${blas_SOURCE_DIR}/lib/libopenblas.dll.a)
+  elseif(UNIX AND NOT APPLE)
+    set(WHISPER_EXTRA_CXX_FLAGS "-fPIC")
+  endif()
+
+  #set(CMAKE_PREFIX_PATH "C:/Program Files/AMD/ROCm/6.1;$ENV{VULKAN_SDK}")
+  set(HIP_PLATFORM amd)
+  set(CMAKE_HIP_PLATFORM amd)
+  set(CMAKE_HIP_ARCHITECTURES OFF)
+  find_package(hip QUIET)
+  find_package(hipblas QUIET)
+  find_package(rocblas QUIET)
+  if(hip_FOUND AND hipblas_FOUND AND rocblas_FOUND)
+    message(STATUS "hipblas found, Libraries: ${hipblas_LIBRARIES}")
+    add_compile_definitions("LOCALVOCAL_WITH_HIPBLAS")
+    set(WHISPER_ADDITIONAL_ENV "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH};HIP_PLATFORM=${HIP_PLATFORM}")
+    list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_HIP=ON -DGGML_CUDA=OFF -DGGML_HIP_ROCWMMA_FATTN=ON)
+    list(APPEND WHISPER_LIBRARIES GGMLHipblas)
+    list(APPEND WHISPER_IMPORT_LIBRARIES ggml-hip)
+  endif()
+
+  find_package(CUDAToolkit QUIET)
+  if(CUDAToolkit_FOUND)
+    message(STATUS "CUDA found, Libraries: ${CUDAToolkit_LIBRARIES}")
+    list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native)
     add_compile_definitions("LOCALVOCAL_WITH_CUDA")
     list(APPEND WHISPER_LIBRARIES GGMLCUDA)
     list(APPEND WHISPER_IMPORT_LIBRARIES ggml-cuda)
-  # elseif(${ACCELERATION} STREQUAL "vulkan")
-    find_package(
-      Vulkan
-      COMPONENTS glslc
-      REQUIRED)
+  endif()
+
+  find_package(Vulkan COMPONENTS glslc QUIET)
+  if(Vulkan_FOUND)
+    message(STATUS "Vulkan found, Libraries: ${Vulkan_LIBRARIES}")
     list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_VULKAN=ON)
-    #add_compile_definitions("LOCALVOCAL_WITH_VULKAN")
+    add_compile_definitions("LOCALVOCAL_WITH_VULKAN")
     list(APPEND WHISPER_LIBRARIES GGMLVulkan)
     list(APPEND WHISPER_IMPORT_LIBRARIES ggml-vulkan)
-  # else()
-  #   message(
-  #     STATUS
-  #       "The ACCELERATION environment variable is not set. Defaulting to `cpu`. Possible values: `cpu`, `cpu-blas`, `cuda` or `vulkan`"
-  #   )
-  #   add_compile_definitions("LOCALVOCAL_WITH_CPU")
-  # endif()
+  endif()
 
   foreach(importlib ${WHISPER_IMPORT_LIBRARIES})
     list(APPEND WHISPER_BYPRODUCTS <INSTALL_DIR>/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${importlib}${CMAKE_STATIC_LIBRARY_SUFFIX})
@@ -214,15 +247,27 @@ else()
       ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-blas${CMAKE_STATIC_LIBRARY_SUFFIX})
   set_target_properties(Whispercpp::GGMLBlas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 
-  # if(${ACCELERATION} STREQUAL "cuda")
-    add_library(Whispercpp::GGMLCUDA STATIC IMPORTED)
-    set_target_properties(
-      Whispercpp::GGMLCUDA
-      PROPERTIES
-        IMPORTED_LOCATION
-        ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-cuda${CMAKE_STATIC_LIBRARY_SUFFIX})
-    set_target_properties(Whispercpp::GGMLCUDA PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
-  # elseif(${ACCELERATION} STREQUAL "vulkan")
+  if(hipblas_FOUND)
+   add_library(Whispercpp::GGMLHipblas STATIC IMPORTED)
+   set_target_properties(
+     Whispercpp::GGMLHipblas
+     PROPERTIES
+       IMPORTED_LOCATION
+       ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-hip${CMAKE_STATIC_LIBRARY_SUFFIX})
+   set_target_properties(Whispercpp::GGMLHipblas PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+  endif()
+
+  if(CUDAToolkit_FOUND)
+   add_library(Whispercpp::GGMLCUDA STATIC IMPORTED)
+   set_target_properties(
+     Whispercpp::GGMLCUDA
+     PROPERTIES
+       IMPORTED_LOCATION
+       ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-cuda${CMAKE_STATIC_LIBRARY_SUFFIX})
+   set_target_properties(Whispercpp::GGMLCUDA PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+  endif()
+
+  if(Vulkan_FOUND)
     add_library(Whispercpp::GGMLVulkan STATIC IMPORTED)
     set_target_properties(
       Whispercpp::GGMLVulkan
@@ -230,29 +275,29 @@ else()
         IMPORTED_LOCATION
         ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-vulkan${CMAKE_STATIC_LIBRARY_SUFFIX})
     set_target_properties(Whispercpp::GGMLVulkan PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
-  # endif()
+  endif()
 endif()
 
 add_library(Whispercpp INTERFACE)
 add_dependencies(Whispercpp Whispercpp_Build)
-if(WIN32)
-  target_link_libraries(Whispercpp INTERFACE Whispercpp::Whisper)
-  if("${ACCELERATION}" STREQUAL "cpu")
-    target_link_libraries(Whispercpp INTERFACE Whispercpp::OpenBLAS)
-  endif()
-elseif(APPLE)
+
+if(APPLE)
   target_link_libraries(Whispercpp INTERFACE "-framework Accelerate -framework CoreML -framework Metal")
   target_link_libraries(Whispercpp INTERFACE Whispercpp::Whisper Whispercpp::GGML Whispercpp::CoreML)
 else()
   # Linux
   foreach(lib ${WHISPER_LIBRARIES})
-  message(STATUS "Adding " ${lib} " to linker")
-  target_link_libraries(Whispercpp INTERFACE Whispercpp::${lib})
+    message(STATUS "Adding " ${lib} " to linker")
+    target_link_libraries(Whispercpp INTERFACE Whispercpp::${lib})
   endforeach(lib ${WHISPER_LIBRARIES})
   target_link_libraries(Whispercpp INTERFACE ${BLAS_LIBRARIES})
-  # if(${ACCELERATION} STREQUAL "cuda")
-    target_link_libraries(Whispercpp INTERFACE CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cuda_driver)
-  # elseif(${ACCELERATION} STREQUAL "vulkan")
+  if(hipblas_FOUND)
+   target_link_libraries(Whispercpp INTERFACE hip::host roc::rocblas roc::hipblas)
+  endif()
+  if(CUDAToolkit_FOUND)
+   target_link_libraries(Whispercpp INTERFACE CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cuda_driver)
+  endif()
+  if(Vulkan_FOUND)
     target_link_libraries(Whispercpp INTERFACE Vulkan::Vulkan)
-  # endif()
+  endif()
 endif()

@@ -80,6 +80,7 @@ LocalVocal is available in multiple versions to cater to different hardware conf
 - **Windows CPU**: This version is designed for systems without dedicated GPUs, running solely on the CPU.
 - **Windows HIPBLAS**: This version utilizes the HIP framework from AMD that accelerates computation on AMD GPUs. (⚠️ Experimental ⚠️ Please provide feedback)
 - **Windows Vulkan**: This version uses Vulkan for GPU-based acceleration across many vendors like NVidia, AMD, and Intel. (⚠️ Experimental ⚠️ Please provide feedback)
+  - May need the Vulkan runtime which can be downloaded at https://sdk.lunarg.com/sdk/download/1.4.328.1/windows/VulkanRT-X64-1.4.328.1-Installer.exe
 - **macOS Intel (x86_64)**: This version is for Mac computers with Intel processors.
 - **macOS Apple Silicon (arm64)**: This version is optimized for Mac computers with Apple Silicon (M1, M2, etc.) processors.
 - **Linux x86_64**: This version is for Linux systems with x86_64 architecture.
