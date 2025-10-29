@@ -9,7 +9,7 @@
 #include "plugin-support.h"
 #include "model-utils/model-downloader.h"
 
-void update_whisper_model(struct transcription_filter_data *gf)
+void update_whisper_model(struct transcription_filter_data *gf, bool force_whisper_restart)
 {
 	if (gf->context == nullptr) {
 		obs_log(LOG_ERROR, "obs_source_t context is null");
@@ -141,15 +141,22 @@ void update_whisper_model(struct transcription_filter_data *gf)
 		// model path did not change
 		obs_log(gf->log_level, "Model path did not change: %s == %s",
 			gf->whisper_model_path.c_str(), new_model_path.c_str());
-	}
 
-	if (new_dtw_timestamps != gf->enable_token_ts_dtw) {
-		// dtw_token_timestamps changed
-		obs_log(gf->log_level, "dtw_token_timestamps changed from %d to %d",
-			gf->enable_token_ts_dtw, new_dtw_timestamps);
-		gf->enable_token_ts_dtw = new_dtw_timestamps;
-		shutdown_whisper_thread(gf);
-		start_whisper_thread_with_path(gf, gf->whisper_model_path,
-					       silero_vad_model_file_str.c_str());
+		if (new_dtw_timestamps != gf->enable_token_ts_dtw) {
+			// dtw_token_timestamps changed
+			obs_log(gf->log_level, "dtw_token_timestamps changed from %d to %d",
+				gf->enable_token_ts_dtw, new_dtw_timestamps);
+			gf->enable_token_ts_dtw = new_dtw_timestamps;
+			shutdown_whisper_thread(gf, false);
+			start_whisper_thread_with_path(gf, gf->whisper_model_file_currently_loaded,
+						       silero_vad_model_file_str.c_str());
+		}
+
+		if (force_whisper_restart) {
+			obs_log(gf->log_level, "Restarting whisper due to force restart flag");
+			shutdown_whisper_thread(gf, false);
+			start_whisper_thread_with_path(gf, gf->whisper_model_file_currently_loaded,
+						       silero_vad_model_file_str.c_str());
+		}
 	}
 }

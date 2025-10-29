@@ -28,14 +28,6 @@ set(USE_SYSTEM_BLAS
     OFF
     CACHE STRING "Use system BLAS for CPU acceleration")
 
-set(LOCALVOCAL_WITH_CUDA
-    OFF
-    CACHE STRING "Use CUDA for acceleration")
-
-set(LOCALVOCAL_WITH_ROCM
-    OFF
-    CACHE STRING "Use ROCm for acceleration")
-
 if(CMAKE_MAJOR_VERSION EQUAL 4)
   message(STATUS "CMake 4 detected")
   set(CMAKE_POLICY_VERSION_MINIMUM 3.5)

@@ -636,6 +636,26 @@ void add_partial_group_properties(obs_properties_t *ppts)
 				      3000, 50);
 }
 
+void add_whisper_backend_group_properties(obs_properties_t *ppts,
+					  struct transcription_filter_data *gf)
+{
+	// add a group for setting the whisper backend(s) to use
+	obs_properties_t *backend_group = obs_properties_create();
+	obs_properties_add_group(ppts, "backend_group", MT_("backend_group"), OBS_GROUP_NORMAL,
+				 backend_group);
+
+	obs_property_t *backend_device =
+		obs_properties_add_list(backend_group, "backend_device", MT_("backend_device"),
+					OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+
+	obs_property_list_add_int(backend_device, "CPU only", -1);
+	for (size_t i = 0; i < gf->gpu_devices.size(); i++) {
+		auto name = gf->gpu_devices.at(i).device_name;
+		obs_property_list_add_int(backend_device, std::string("GPU: ").append(name).c_str(),
+					  i);
+	}
+}
+
 obs_properties_t *transcription_filter_properties(void *data)
 {
 	struct transcription_filter_data *gf =
@@ -653,6 +673,7 @@ obs_properties_t *transcription_filter_properties(void *data)
 	obs_property_set_modified_callback(advanced_settings, advanced_settings_callback);
 
 	add_general_group_properties(ppts);
+	add_whisper_backend_group_properties(ppts, gf);
 	add_transcription_group_properties(ppts, gf);
 	add_translation_group_properties(ppts);
 	add_translation_cloud_group_properties(ppts);
@@ -743,6 +764,9 @@ void transcription_filter_defaults(obs_data_t *s)
 	// webvtt options
 	obs_data_set_default_int(s, "webvtt_latency_to_video_in_msecs", 10'000);
 	obs_data_set_default_int(s, "webvtt_send_frequency_hz", 2);
+
+	// backend options
+	obs_data_set_default_int(s, "backend_device", -1);
 
 	// Whisper parameters
 	apply_whisper_params_defaults_on_settings(s);

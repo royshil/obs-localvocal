@@ -37,8 +37,7 @@ void whisper_params_pretty_print(whisper_full_params &params)
 	obs_log(LOG_INFO, "language: %s", params.language);
 	obs_log(LOG_INFO, "detect_language: %s", params.detect_language ? "true" : "false");
 	obs_log(LOG_INFO, "suppress_blank: %s", params.suppress_blank ? "true" : "false");
-	obs_log(LOG_INFO, "suppress_nst: %s",
-		params.suppress_nst ? "true" : "false");
+	obs_log(LOG_INFO, "suppress_nst: %s", params.suppress_nst ? "true" : "false");
 	obs_log(LOG_INFO, "temperature: %f", params.temperature);
 	obs_log(LOG_INFO, "max_initial_ts: %f", params.max_initial_ts);
 	obs_log(LOG_INFO, "length_penalty: %f", params.length_penalty);
@@ -129,8 +128,7 @@ void apply_whisper_params_from_settings(whisper_full_params &params, obs_data_t 
 	// params.language = obs_data_get_string(settings, "language");
 	params.detect_language = obs_data_get_bool(settings, "detect_language");
 	params.suppress_blank = obs_data_get_bool(settings, "suppress_blank");
-	params.suppress_nst =
-		obs_data_get_bool(settings, "suppress_nst");
+	params.suppress_nst = obs_data_get_bool(settings, "suppress_nst");
 	params.temperature = (float)obs_data_get_double(settings, "temperature");
 	params.max_initial_ts = (float)obs_data_get_double(settings, "max_initial_ts");
 	params.length_penalty = (float)obs_data_get_double(settings, "length_penalty");

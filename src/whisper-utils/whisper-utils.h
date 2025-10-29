@@ -25,8 +25,9 @@
  * transcription filter data.
  *
  * @param gf Pointer to the transcription filter data structure.
+ * @param clear_model_path Whether or not to clear the model path from the filter data for loading a new model
  */
-void shutdown_whisper_thread(struct transcription_filter_data *gf);
+void shutdown_whisper_thread(struct transcription_filter_data *gf, bool clear_model_path = true);
 
 /**
  * @brief Starts the whisper thread with a specified path.
