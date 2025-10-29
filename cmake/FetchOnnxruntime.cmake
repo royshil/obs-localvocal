@@ -8,7 +8,9 @@ set(CUSTOM_ONNXRUNTIME_HASH
     ""
     CACHE STRING "Hash of a downloaded ONNX Runtime tarball")
 
-set(Onnxruntime_VERSION "1.23.1")
+# v1.20.1 is the last version to support MacOS 12
+# v1.23.0 is the last version to support x86_64 on MacOS, as well as MacOS 13
+set(Onnxruntime_VERSION "1.20.1")
 
 if(CUSTOM_ONNXRUNTIME_URL STREQUAL "")
   set(USE_PREDEFINED_ONNXRUNTIME ON)
@@ -25,17 +27,17 @@ if(USE_PREDEFINED_ONNXRUNTIME)
 
   if(APPLE)
     set(Onnxruntime_URL "${Onnxruntime_BASEURL}/onnxruntime-osx-universal2-${Onnxruntime_VERSION}.tgz")
-    set(Onnxruntime_HASH SHA256=e9fcd200bcf69377cc2c15e529368ca840d625669f34b1cf296a56b175665fc2)
+    set(Onnxruntime_HASH SHA256=da4349e01a7e997f5034563183c7183d069caadc1d95f499b560961787813efd)
   elseif(MSVC)
     set(Onnxruntime_URL "${Onnxruntime_BASEURL}/onnxruntime-win-x64-${Onnxruntime_VERSION}.zip")
-    set(OOnnxruntime_HASH SHA256=d57817ee1e1aec8a7b4973ded0536f9be19ce0aa2152ff06a07952ed44790ed7)
+    set(OOnnxruntime_HASH SHA256=78d447051e48bd2e1e778bba378bec4ece11191c9e538cf7b2c4a4565e8f5581)
   else()
     if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
       set(Onnxruntime_URL "${Onnxruntime_BASEURL}/onnxruntime-linux-aarch64-${Onnxruntime_VERSION}.tgz")
-      set(Onnxruntime_HASH SHA256=263267fa063c1a86d755268f492eabbc62887542c4a9417a21d628219805061a)
+      set(Onnxruntime_HASH SHA256=ae4fedbdc8c18d688c01306b4b50c63de3445cdf2dbd720e01a2fa3810b8106a)
     else()
       set(Onnxruntime_URL "${Onnxruntime_BASEURL}/onnxruntime-linux-x64-gpu-${Onnxruntime_VERSION}.tgz")
-      set(Onnxruntime_HASH SHA256=d759646b084888ded846f3be36aaadea24b62a19accba2d64ff9c2e3fb714a62)
+      set(Onnxruntime_HASH SHA256=6bfb87c6ebe55367a94509b8ef062239e188dccf8d5caac8d6909b2344893bf0)
     endif()
   endif()
 else()
