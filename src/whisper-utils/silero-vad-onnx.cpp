@@ -103,12 +103,6 @@ const char* ort_error_code_str(OrtErrorCode code)
 	  return "INVALID_GRAPH";
 	case OrtErrorCode::ORT_EP_FAIL:
 	  return "EP_FAIL";
-	case OrtErrorCode::ORT_MODEL_LOAD_CANCELED:
-	  return "MODEL_LOAD_CANCELED";
-	case OrtErrorCode::ORT_MODEL_REQUIRES_COMPILATION:
-	  return "MODEL_REQUIRES_COMPILATION";
-	case OrtErrorCode::ORT_NOT_FOUND:
-	  return "NOT_FOUND";
 	default:
 	  return "UNKNOWN_ERROR_CODE";
   }
