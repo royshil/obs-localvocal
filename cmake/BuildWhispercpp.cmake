@@ -175,6 +175,15 @@ else()
     list(APPEND WHISPER_IMPORT_LIBRARIES ggml-vulkan)
   endif()
 
+  find_package(OpenCL QUIET)
+  find_package(Python3 QUIET)
+  if(OpenCL_FOUND AND Python3_FOUND)
+    message(STATUS "OpenCL found, Libraries: ${OpenCL_LIBRARIES}")
+    list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_OPENCL=ON -DGGML_OPENCL_EMBED_KERNELS=ON -DGGML_OPENCL_USE_ADRENO_KERNELS=OFF)
+    list(APPEND WHISPER_LIBRARIES GGMLOpenCL)
+    list(APPEND WHISPER_IMPORT_LIBRARIES ggml-opencl)
+  endif()
+
   foreach(importlib ${WHISPER_IMPORT_LIBRARIES})
     list(APPEND WHISPER_BYPRODUCTS <INSTALL_DIR>/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${importlib}${CMAKE_STATIC_LIBRARY_SUFFIX})
   endforeach(importlib ${WHISPER_IMPORT_LIBRARIES})
@@ -269,6 +278,16 @@ else()
         ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-vulkan${CMAKE_STATIC_LIBRARY_SUFFIX})
     set_target_properties(Whispercpp::GGMLVulkan PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
   endif()
+
+  if(OpenCL_FOUND)
+    add_library(Whispercpp::GGMLOpenCL STATIC IMPORTED)
+    set_target_properties(
+      Whispercpp::GGMLOpenCL
+      PROPERTIES
+        IMPORTED_LOCATION
+        ${INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}ggml-opencl${CMAKE_STATIC_LIBRARY_SUFFIX})
+    set_target_properties(Whispercpp::GGMLOpenCL PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
+  endif()
 endif()
 
 add_library(Whispercpp INTERFACE)
@@ -292,5 +311,8 @@ else()
   endif()
   if(Vulkan_FOUND)
     target_link_libraries(Whispercpp INTERFACE Vulkan::Vulkan)
+  endif()
+  if(OpenCL_FOUND)
+    target_link_libraries(Whispercpp INTERFACE OpenCL::OpenCL)
   endif()
 endif()
