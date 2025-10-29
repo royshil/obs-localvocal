@@ -8,8 +8,8 @@ set(CUSTOM_ONNXRUNTIME_HASH
     ""
     CACHE STRING "Hash of a downloaded ONNX Runtime tarball")
 
-# v1.20.1 is the last version to support MacOS 12
-# v1.23.0 is the last version to support x86_64 on MacOS, as well as MacOS 13
+# v1.20.1 is the last version to support MacOS 12 v1.23.0 is the last version to support x86_64 on MacOS, as well as
+# MacOS 13
 set(Onnxruntime_VERSION "1.20.1")
 
 if(CUSTOM_ONNXRUNTIME_URL STREQUAL "")
