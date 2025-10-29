@@ -84,7 +84,9 @@
       "generator": "Ninja",
       "warnings": {"dev": true, "deprecated": true},
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "USE_SYSTEM_CURL": true,
+        "USE_SYSTEM_ICU": true
       }
     },
     {
