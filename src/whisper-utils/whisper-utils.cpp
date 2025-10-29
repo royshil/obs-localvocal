@@ -6,7 +6,7 @@
 
 #include <obs-module.h>
 
-void shutdown_whisper_thread(struct transcription_filter_data *gf)
+void shutdown_whisper_thread(struct transcription_filter_data *gf, bool clear_model_path)
 {
 	obs_log(gf->log_level, "shutdown_whisper_thread");
 	if (gf->whisper_context != nullptr) {
@@ -19,7 +19,7 @@ void shutdown_whisper_thread(struct transcription_filter_data *gf)
 	if (gf->whisper_thread.joinable()) {
 		gf->whisper_thread.join();
 	}
-	if (!gf->whisper_model_path.empty()) {
+	if (clear_model_path && !gf->whisper_model_path.empty()) {
 		gf->whisper_model_path = "";
 	}
 }

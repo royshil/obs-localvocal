@@ -57,6 +57,36 @@ void disconnect_source_signals(transcription_filter_data *gf, obs_source_t *pare
 	gf->source_signals_set = false;
 }
 
+void enumerate_gpu_devices(transcription_filter_data *gf)
+{
+	// Enumerate backend devices to populate list
+	auto backend_count = ggml_backend_dev_count();
+	size_t gpu_count = 0;
+	for (size_t i = 0; i < backend_count; i++) {
+		auto backend_dev = ggml_backend_dev_get(i);
+		auto name = ggml_backend_dev_name(backend_dev);
+		auto desc = ggml_backend_dev_description(backend_dev);
+		auto type = "UNKNOWN";
+		switch (ggml_backend_dev_type(backend_dev)) {
+		case GGML_BACKEND_DEVICE_TYPE_CPU:
+			type = "CPU";
+			break;
+		case GGML_BACKEND_DEVICE_TYPE_GPU:
+			type = "GPU";
+			gpu_device_info device;
+			device.device_index = i;
+			device.device_name = name;
+			gf->gpu_devices.push_back(device);
+			gpu_count++;
+			break;
+		case GGML_BACKEND_DEVICE_TYPE_ACCEL:
+			type = "ACCEL";
+			break;
+		};
+		obs_log(LOG_INFO, "Backend device %d (%s): %s - %s", i, type, name, desc);
+	};
+}
+
 struct obs_audio_data *transcription_filter_filter_audio(void *data, struct obs_audio_data *audio)
 {
 	if (!audio) {
@@ -483,6 +513,10 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	gf->translate_cloud_config.response_json_path =
 		obs_data_get_string(s, "translate_cloud_response_json_path");
 
+	int new_backend_device = (int)obs_data_get_int(s, "backend_device");
+	bool whisper_backend_changed = gf->gpu_device == new_backend_device;
+	gf->gpu_device = new_backend_device;
+
 	obs_log(gf->log_level, "update text source");
 	// update the text source
 	text_output_source_update(obs_data_get_string(s, "subtitle_sources"), gf->text_source_name,
@@ -499,9 +533,9 @@ void transcription_filter_update(void *data, obs_data_t *s)
 
 		apply_whisper_params_from_settings(gf->whisper_params, s);
 
-		if (gf->whisper_params.abort_callback == nullptr) {
-			gf->whisper_params.abort_callback = whisper_abort_callback;
-		}
+		// if (gf->whisper_params.abort_callback == nullptr) {
+		// 	gf->whisper_params.abort_callback = whisper_abort_callback;
+		// }
 
 		if (!new_translate || gf->translation_model_index != "whisper-based-translation") {
 			const char *whisper_language_select =
@@ -538,7 +572,7 @@ void transcription_filter_update(void *data, obs_data_t *s)
 			gf->active = true;
 			gf->initial_creation = false;
 		} else {
-			// check if the whisper model selection has changed
+			// check if the whisper model selection or backend device has changed
 			const std::string new_model_path =
 				obs_data_get_string(s, "whisper_model_path") != nullptr
 					? obs_data_get_string(s, "whisper_model_path")
@@ -546,6 +580,9 @@ void transcription_filter_update(void *data, obs_data_t *s)
 			if (gf->whisper_model_path != new_model_path) {
 				obs_log(LOG_INFO, "New model selected: %s", new_model_path.c_str());
 				update_whisper_model(gf);
+			} else if (whisper_backend_changed) {
+				obs_log(LOG_INFO, "Whisper backend changed");
+				update_whisper_model(gf, true);
 			}
 		}
 	} else {
@@ -646,6 +683,8 @@ void *transcription_filter_create(obs_data_t *settings, obs_source_t *filter)
 	}
 
 	signal_handler_connect(sh_filter, "enable", enable_callback, gf);
+
+	enumerate_gpu_devices(gf);
 
 	obs_log(gf->log_level, "run update");
 	// get the settings updated on the filter data struct
