@@ -110,7 +110,7 @@ set(USE_SYSTEM_ICU
 
 if(USE_SYSTEM_ICU)
   find_package(
-    ICU 75.1
+    ICU 70.1
     COMPONENTS data uc i18n
     REQUIRED)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${ICU_LIBRARIES}")
