@@ -146,8 +146,10 @@ For other distros where you can't use the CI build script, you can build the plu
 
 1. Clone the repository and install these dependencies using your distribution's package manager:
 
+    * libcurl (with development headers)
     * libssl (with development headers)
     * icu
+    * openblas
     * vulkan headers
 
 1. Install rust via [rustup](https://rust-lang.org/tools/install/) (recommended), or your distribution's package manager
