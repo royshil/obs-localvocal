@@ -290,19 +290,13 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 	try {
 		obs_log(LOG_DEBUG, "-- outputting text (translation: %s) -- %s",
 			translation_type.c_str(), text.c_str());
-		if (gf->buffered_output) {
+		if (gf->buffered_output && translation_type == "none") {
+			// TODO: Fix crash with buffered output and translated text
 			obs_log(LOG_DEBUG, "-- buffered text output -- %s", text.c_str());
-			if (translation_type == "none") {
-				gf->captions_monitor.addSentenceFromStdString(
-					text, get_time_point_from_ms(result.start_timestamp_ms),
-					get_time_point_from_ms(result.end_timestamp_ms),
-					result.result == DETECTION_RESULT_PARTIAL);
-			} else {
-				gf->translation_monitor.addSentenceFromStdString(
-					text, get_time_point_from_ms(result.start_timestamp_ms),
-					get_time_point_from_ms(result.end_timestamp_ms),
-					result.result == DETECTION_RESULT_PARTIAL);
-			}
+			gf->captions_monitor.addSentenceFromStdString(
+				text, get_time_point_from_ms(result.start_timestamp_ms),
+				get_time_point_from_ms(result.end_timestamp_ms),
+				result.result == DETECTION_RESULT_PARTIAL);
 		} else {
 			// non-buffered output - send the sentence to the selected source
 			obs_log(LOG_DEBUG, "-- text output to source %s -- %s",
