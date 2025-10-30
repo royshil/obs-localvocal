@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31...4.12)
+cmake_minimum_required(VERSION 3.28...4.12)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
 
@@ -68,7 +68,6 @@ if(WIN32)
 elseif(UNIX AND NOT APPLE)
   set(BLA_VENDOR OpenBLAS)
   find_package(BLAS REQUIRED)
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${BLAS_LIBRARIES})
 endif()
 
 include(cmake/BuildWhispercpp.cmake)

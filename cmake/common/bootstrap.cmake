@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.31...4.12)
+cmake_minimum_required(VERSION 3.28...4.12)
 
 include_guard(GLOBAL)
 

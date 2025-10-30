@@ -146,6 +146,6 @@ else()
   set_target_properties(ct2::ct2 PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INSTALL_DIR}/include)
 
   add_library(ct2 INTERFACE)
-  target_link_libraries(ct2 INTERFACE ct2::ct2 cpu_features)
+  target_link_libraries(ct2 INTERFACE ct2::ct2 cpu_features ${BLAS_LIBRARIES})
 
 endif()
