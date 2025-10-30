@@ -117,7 +117,8 @@ else()
   endif()
   set(Whispercpp_Build_GIT_TAG "v1.6.2")
   set(WHISPER_EXTRA_CXX_FLAGS "-fPIC")
-  set(WHISPER_ADDITIONAL_CMAKE_ARGS -DWHISPER_BLAS=ON -DWHISPER_BLAS_VENDOR=OpenBLAS -DWHISPER_CUBLAS=OFF -DWHISPER_OPENBLAS=on)
+  set(WHISPER_ADDITIONAL_CMAKE_ARGS -DWHISPER_BLAS=ON -DWHISPER_BLAS_VENDOR=OpenBLAS -DWHISPER_CUBLAS=OFF
+                                    -DWHISPER_OPENBLAS=on)
 
   # On Linux build a static Whisper library
   ExternalProject_Add(
