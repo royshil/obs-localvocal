@@ -410,7 +410,7 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 						result,
 						possible_end_ts,
 						translated_sentence_cloud,
-						gf->translate_cloud_output == "none" ? gf->text_source_name : gf->translate_cloud_output,
+						gf->translate_cloud_output.empty() ? gf->text_source_name : gf->translate_cloud_output,
 						"cloud"
 					);
 				}
@@ -431,14 +431,17 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 				result,
 				possible_end_ts,
 				translated_sentence_local,
-				gf->translation_output == "none" ? gf->text_source_name : gf->translation_output,
+				gf->translation_output.empty() ? gf->text_source_name : gf->translation_output,
 				"local"
 			);
 		}
 	}
 
-	bool cloud_translate_outputs_to_default_source = gf->translate_cloud_output == "none" || (gf->translate_cloud_output == gf->text_source_name);
-	bool local_translate_outputs_to_default_source = gf->translation_output == "none" || (gf->translation_output == gf->text_source_name);
+	obs_log(gf->log_level, "gf->translation_output: %s", gf->translation_output.c_str());
+	obs_log(gf->log_level, "gf->text_source_name: %s", gf->text_source_name.c_str());
+
+	bool cloud_translate_outputs_to_default_source = gf->translate_cloud_output.empty() || (gf->translate_cloud_output == gf->text_source_name);
+	bool local_translate_outputs_to_default_source = gf->translation_output.empty() || (gf->translation_output == gf->text_source_name);
 	bool cloud_translation_overrides_captions = should_translate_cloud && cloud_translate_outputs_to_default_source;
 	bool local_translation_overrides_captions = should_translate_local && local_translate_outputs_to_default_source;
 	if (cloud_translation_overrides_captions) {
@@ -731,6 +734,7 @@ void clear_current_caption(transcription_filter_data *gf_)
 	}
 	send_caption_to_source(gf_->text_source_name, "", gf_);
 	send_caption_to_source(gf_->translation_output, "", gf_);
+	send_caption_to_source(gf_->translate_cloud_output, "", gf_);
 	// reset translation context
 	gf_->last_text_for_translation = "";
 	gf_->last_text_translation = "";
