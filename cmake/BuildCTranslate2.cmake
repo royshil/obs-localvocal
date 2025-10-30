@@ -97,7 +97,6 @@ else()
   # build CTranslate2 from source
   set(CT2_VERSION "4.1.1")
   set(CT2_URL "https://github.com/OpenNMT/CTranslate2.git")
-  set(CT2_OPENBLAS_CMAKE_ARGS -DWITH_OPENBLAS=OFF)
 
   if(CMAKE_MAJOR_VERSION EQUAL 4)
     set(CT2_CMAKE_PLATFORM_OPTIONS -DBUILD_SHARED_LIBS=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON
@@ -125,11 +124,11 @@ else()
                -DWITH_MKL=OFF
                -DWITH_DNNL=OFF
                -DWITH_ACCELERATE=OFF
-               ${CT2_OPENBLAS_CMAKE_ARGS}
+               -DWITH_OPENBLAS=ON
                -DWITH_RUY=OFF
                -DWITH_CUDA=OFF
                -DWITH_CUDNN=OFF
-               -DWITH_TENSOR_PARALLEL=OFF
+               -DWITH_TENSOR_PARALLEL=ON
                -DENABLE_CPU_DISPATCH=ON
                -DENABLE_PROFILING=OFF
                -DBUILD_CLI=OFF
