@@ -329,6 +329,7 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 			str_copy = translated_sentence_local;
 		} else {
 			if (gf->buffered_output) {
+				obs_log(LOG_DEBUG, "-- buffered local translation output -- %s", translated_sentence_local.c_str());
 				// buffered output - add the sentence to the monitor
 				gf->translation_monitor.addSentenceFromStdString(
 					translated_sentence_local,
@@ -336,12 +337,14 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 					get_time_point_from_ms(result.end_timestamp_ms),
 					result.result == DETECTION_RESULT_PARTIAL);
 			} else {
+				obs_log(LOG_DEBUG, "-- local translation output -- %s", translated_sentence_local.c_str());
 				// non-buffered output - send the sentence to the selected source
 				send_caption_to_source(gf->translation_output,
 						       translated_sentence_local, gf);
 			}
 		}
 		if (gf->save_to_file && gf->output_file_path != "") {
+			obs_log(LOG_DEBUG, "-- file local translation output -- %s", translated_sentence_local.c_str());
 			send_translated_sentence_to_file(gf, result, translated_sentence_local,
 							 gf->target_lang);
 		}
@@ -364,6 +367,7 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 					if (target_lang != language_codes_to_whisper.end()) {
 						auto res_copy = result;
 						res_copy.language = target_lang->second;
+						obs_log(LOG_DEBUG, "-- webvtt cloud translation output -- %s", translated_sentence_cloud.c_str());
 						send_caption_to_webvtt(possible_end_ts, res_copy,
 								       translated_sentence_cloud,
 								       *gf);
@@ -371,14 +375,17 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 				}
 #endif
 				if (gf->translate_cloud_output != "none") {
+					obs_log(LOG_DEBUG, "-- cloud translation output to source %s -- %s", gf->translate_cloud_output, translated_sentence_cloud.c_str());
 					send_caption_to_source(gf->translate_cloud_output,
 							       translated_sentence_cloud, gf);
 				} else {
 					// overwrite the original text with the translated text
+					obs_log(LOG_DEBUG, "-- cloud translation output -- %s", translated_sentence_cloud.c_str());
 					send_caption_to_source(gf->text_source_name,
 							       translated_sentence_cloud, gf);
 				}
 				if (gf->save_to_file && gf->output_file_path != "") {
+					obs_log(LOG_DEBUG, "-- file cloud translation output -- %s", translated_sentence_cloud.c_str());
 					send_translated_sentence_to_file(
 						gf, result, translated_sentence_cloud,
 						gf->translate_cloud_target_language);
@@ -388,15 +395,27 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 
 	// send the original text to the output
 	// unless the translation is enabled and set to overwrite the original text
-	if (!((should_translate_cloud && gf->translate_cloud_output == "none") ||
-	      (should_translate_local && gf->translation_output == "none"))) {
+
+	bool cloud_translation_present = (should_translate_cloud && gf->translate_cloud_output != "none");
+	bool local_translation_present = (should_translate_local && gf->translation_output != "none");
+	bool should_output_transcription = !(cloud_translation_present || local_translation_present);
+	obs_log(LOG_DEBUG, "-- translate outputs - cloud: %s, local: %s --", gf->translate_cloud_output.c_str(), gf->translation_output.c_str());
+	obs_log(LOG_DEBUG, "-- should translate - cloud: %s, local: %s --", should_translate_cloud ? "true" : "false", should_translate_local ? "true" : "false");
+	obs_log(LOG_DEBUG, "-- translation present - cloud: %s, local: %s, should output transcription: %s --",
+		cloud_translation_present ? "true" : "false",
+		local_translation_present ? "true" : "false",
+		should_output_transcription ? "true" : "false");
+
+	if (should_output_transcription) {
 		if (gf->buffered_output) {
+			obs_log(LOG_DEBUG, "-- buffered whisper transcription output -- %s", str_copy.c_str());
 			gf->captions_monitor.addSentenceFromStdString(
 				str_copy, get_time_point_from_ms(result.start_timestamp_ms),
 				get_time_point_from_ms(result.end_timestamp_ms),
 				result.result == DETECTION_RESULT_PARTIAL);
 		} else {
 			// non-buffered output - send the sentence to the selected source
+			obs_log(LOG_DEBUG, "-- whisper transcription output -- %s", str_copy.c_str());
 			send_caption_to_source(gf->text_source_name, str_copy, gf);
 		}
 	}
@@ -405,6 +424,7 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 	if (should_translate_local && result.result == DETECTION_RESULT_SPEECH) {
 		auto target_lang = language_codes_to_whisper.find(gf->target_lang);
 		if (target_lang != language_codes_to_whisper.end()) {
+			obs_log(LOG_DEBUG, "-- webvtt local translation output -- %s", translated_sentence_local.c_str());
 			auto res_copy = result;
 			res_copy.language = target_lang->second;
 			send_caption_to_webvtt(possible_end_ts, res_copy, translated_sentence_local,
@@ -415,11 +435,13 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 
 	if (gf->caption_to_stream && result.result == DETECTION_RESULT_SPEECH) {
 		// TODO: add support for partial transcriptions
+		obs_log(LOG_DEBUG, "-- partial whisper transcription output -- %s", str_copy.c_str());
 		send_caption_to_stream(result, str_copy, gf);
 	}
 
 	if (gf->save_to_file && gf->output_file_path != "" &&
 	    result.result == DETECTION_RESULT_SPEECH) {
+			obs_log(LOG_DEBUG, "-- file whisper transcription output -- %s", str_copy.c_str());
 		send_sentence_to_file(gf, result, str_copy, gf->output_file_path, true);
 	}
 
@@ -428,6 +450,7 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 		gf->last_sub_render_time = now_ms();
 		gf->cleared_last_sub = false;
 		if (result.result == DETECTION_RESULT_SPEECH) {
+			obs_log(LOG_DEBUG, "-- store whisper transcription output -- %s", result.text.c_str());
 			// save the last subtitle if it was a full sentence
 			gf->last_transcription_sentence.push_back(result.text);
 			// remove the oldest sentence if the buffer is too long
