@@ -124,7 +124,8 @@ std::optional<ModelInfo> parse_model_json(const nlohmann::json &model)
 		model_info.friendly_name = model["friendly_name"].get<std::string>();
 
 		if (model.contains("local_folder_name") && model["local_folder_name"].is_string()) {
-			model_info.local_folder_name = model["local_folder_name"].get<std::string>();
+			model_info.local_folder_name =
+				model["local_folder_name"].get<std::string>();
 		} else {
 			obs_log(LOG_WARNING, "Missing or invalid 'local_folder_name' for model: %s",
 				model_info.friendly_name.c_str());
@@ -171,7 +172,8 @@ std::optional<ModelInfo> parse_model_json(const nlohmann::json &model)
 			if (extra.contains("language") && extra["language"].is_string())
 				model_info.extra.language = extra["language"].get<std::string>();
 			if (extra.contains("description") && extra["description"].is_string())
-				model_info.extra.description = extra["description"].get<std::string>();
+				model_info.extra.description =
+					extra["description"].get<std::string>();
 			if (extra.contains("source") && extra["source"].is_string())
 				model_info.extra.source = extra["source"].get<std::string>();
 		}

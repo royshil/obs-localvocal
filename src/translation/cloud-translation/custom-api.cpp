@@ -32,9 +32,11 @@ std::string CustomApiTranslator::translate(const std::string &text, const std::s
 	std::unordered_map<std::string, std::string> values = {
 		{"\\{\\{sentence\\}\\}", textStr},
 		{"\\{\\{target_lang\\}\\}", target_lang}, // Kept to avoid breaking existing configs
-		{"\\{\\{target_language\\}\\}", target_lang}, // Matches the default setting for custom API settings
+		{"\\{\\{target_language\\}\\}",
+		 target_lang}, // Matches the default setting for custom API settings
 		{"\\{\\{source_lang\\}\\}", source_lang}, // Kept to avoid breaking existing configs
-		{"\\{\\{source_language\\}\\}", source_lang}}; // Matches the default setting for custom API settings
+		{"\\{\\{source_language\\}\\}",
+		 source_lang}}; // Matches the default setting for custom API settings
 
 	std::string body = replacePlaceholders(body_template_, values);
 	std::string response;
