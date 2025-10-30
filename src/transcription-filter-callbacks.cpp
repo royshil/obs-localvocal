@@ -733,6 +733,7 @@ void clear_current_caption(transcription_filter_data *gf_)
 	if (gf_->captions_monitor.isEnabled()) {
 		gf_->captions_monitor.clear();
 		gf_->translation_monitor.clear();
+		gf_->cloud_translation_monitor.clear();
 	}
 	send_caption_to_source(gf_->text_source_name, "", gf_);
 	send_caption_to_source(gf_->translation_output, "", gf_);

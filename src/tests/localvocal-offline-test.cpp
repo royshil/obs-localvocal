@@ -290,6 +290,7 @@ void clear_current_caption(transcription_filter_data *gf_)
 	if (gf_->captions_monitor.isEnabled()) {
 		gf_->captions_monitor.clear();
 		gf_->translation_monitor.clear();
+		gf_->cloud_translation_monitor.clear();
 	}
 	// reset translation context
 	gf_->last_text_for_translation = "";

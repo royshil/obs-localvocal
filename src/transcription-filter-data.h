@@ -201,6 +201,7 @@ struct transcription_filter_data {
 	bool buffered_output = false;
 	TokenBufferThread captions_monitor;
 	TokenBufferThread translation_monitor;
+	TokenBufferThread cloud_translation_monitor;
 	int buffered_output_num_lines = 2;
 	int buffered_output_num_chars = 30;
 	TokenBufferSegmentation buffered_output_output_type =
