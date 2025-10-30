@@ -1,5 +1,6 @@
 #include "custom-api.h"
 #include "curl-helper.h"
+#include "plugin-support.h"
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <regex>
@@ -30,8 +31,10 @@ std::string CustomApiTranslator::translate(const std::string &text, const std::s
 	// then replace the placeholders in the body template
 	std::unordered_map<std::string, std::string> values = {
 		{"\\{\\{sentence\\}\\}", textStr},
-		{"\\{\\{target_lang\\}\\}", target_lang},
-		{"\\{\\{source_lang\\}\\}", source_lang}};
+		{"\\{\\{target_lang\\}\\}", target_lang}, // Kept to avoid breaking existing configs
+		{"\\{\\{target_language\\}\\}", target_lang}, // Matches the default setting for custom API settings
+		{"\\{\\{source_lang\\}\\}", source_lang}, // Kept to avoid breaking existing configs
+		{"\\{\\{source_language\\}\\}", source_lang}}; // Matches the default setting for custom API settings
 
 	std::string body = replacePlaceholders(body_template_, values);
 	std::string response;
@@ -71,6 +74,8 @@ std::string CustomApiTranslator::translate(const std::string &text, const std::s
 			throw TranslationError(std::string("CURL request failed: ") +
 					       curl_easy_strerror(res));
 		}
+
+		obs_log(400, "Response from custom API: %s", response.c_str());
 
 		return parseResponse(response);
 

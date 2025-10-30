@@ -738,7 +738,7 @@ void transcription_filter_defaults(obs_data_t *s)
 				    "http://localhost:5000/translate");
 	obs_data_set_default_string(
 		s, "translate_cloud_body",
-		"{\n\t\"text\":\"{{sentence}}\",\n\t\"target\":\"{{target_language}}\"\n}");
+		"{\n\t\"text\":\"{{sentence}}\",\n\t\"source\":\"{{source_language}}\",\n\t\"target\":\"{{target_language}}\"\n}");
 	obs_data_set_default_string(s, "translate_cloud_response_json_path", "translations.0.text");
 
 	// webvtt options
