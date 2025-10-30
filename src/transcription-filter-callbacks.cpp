@@ -96,34 +96,40 @@ void send_sentence_to_cloud_translation_async(const std::string &sentence,
 					      std::function<void(const std::string &)> callback)
 {
 	std::thread([sentence, gf, source_language, callback]() {
-		const std::string last_text = gf->last_text_for_cloud_translation;
-		gf->last_text_for_cloud_translation = sentence;
-		if (gf->translate_cloud && !sentence.empty()) {
-			obs_log(gf->log_level, "Translating text with cloud provider %s. %s -> %s",
-				gf->translate_cloud_config.provider.c_str(),
-				source_language.c_str(),
-				gf->translate_cloud_target_language.c_str());
-			std::string translated_text;
-			if (sentence == last_text) {
-				// do not translate the same sentence twice
-				callback(gf->last_text_cloud_translation);
-				return;
-			}
-
-			translated_text = translate_cloud(gf->translate_cloud_config, sentence,
-							  gf->translate_cloud_target_language,
-							  source_language);
-			if (!translated_text.empty()) {
-				if (gf->log_words) {
-					obs_log(LOG_INFO, "Cloud Translation: '%s' -> '%s'",
-						sentence.c_str(), translated_text.c_str());
+		try {
+			const std::string last_text = gf->last_text_for_cloud_translation;
+			gf->last_text_for_cloud_translation = sentence;
+			if (gf->translate_cloud && !sentence.empty()) {
+				obs_log(gf->log_level, "Translating text with cloud provider %s. %s -> %s",
+					gf->translate_cloud_config.provider.c_str(),
+					source_language.c_str(),
+					gf->translate_cloud_target_language.c_str());
+				std::string translated_text;
+				if (sentence == last_text) {
+					// do not translate the same sentence twice
+					callback(gf->last_text_cloud_translation);
+					return;
 				}
-				gf->last_text_translation = translated_text;
-				callback(translated_text);
-				return;
-			} else {
-				obs_log(gf->log_level, "Failed to translate text");
+
+				translated_text = translate_cloud(gf->translate_cloud_config, sentence,
+								gf->translate_cloud_target_language,
+								source_language);
+				if (!translated_text.empty()) {
+					if (gf->log_words) {
+						obs_log(LOG_INFO, "Cloud Translation: '%s' -> '%s'",
+							sentence.c_str(), translated_text.c_str());
+					}
+					gf->last_text_translation = translated_text;
+					callback(translated_text);
+					return;
+				} else {
+					obs_log(gf->log_level, "Failed to translate text");
+				}
 			}
+		} catch (const std::exception &e) {
+			obs_log(LOG_ERROR, "Error translating text with cloud: %s", e.what());
+		} catch (...) {
+			obs_log(LOG_ERROR, "Error translating text with cloud");
 		}
 		callback("");
 	}).detach();
@@ -276,6 +282,73 @@ void send_caption_to_webvtt(uint64_t possible_end_ts_ms, DetectionResultWithText
 }
 #endif
 
+void output_text(struct transcription_filter_data *gf, const DetectionResultWithText &result, uint64_t possible_end_ts,
+				 std::string text, std::string output_source, std::string translation_type)
+{
+	try {
+		obs_log(LOG_DEBUG, "-- outputting text (translation: %s) -- %s", translation_type.c_str(), text.c_str());
+		if (gf->buffered_output) {
+			obs_log(LOG_DEBUG, "-- buffered text output -- %s", text.c_str());
+			if (translation_type == "none") {
+				gf->captions_monitor.addSentenceFromStdString(
+					text,
+					get_time_point_from_ms(result.start_timestamp_ms),
+					get_time_point_from_ms(result.end_timestamp_ms),
+					result.result == DETECTION_RESULT_PARTIAL
+				);
+			}
+			else {
+				gf->translation_monitor.addSentenceFromStdString(
+					text,
+					get_time_point_from_ms(result.start_timestamp_ms),
+					get_time_point_from_ms(result.end_timestamp_ms),
+					result.result == DETECTION_RESULT_PARTIAL
+				);
+			}
+		} else {
+			// non-buffered output - send the sentence to the selected source
+			obs_log(LOG_DEBUG, "-- text output to source %s -- %s", output_source.c_str(), text.c_str());
+			send_caption_to_source(output_source, text, gf);
+		}
+
+		if (gf->caption_to_stream && translation_type == "none" && result.result == DETECTION_RESULT_SPEECH) {
+			// TODO: add support for partial transcriptions
+			if (translation_type == "none" || output_source == gf->text_source_name) {
+				obs_log(LOG_DEBUG, "-- stream captions output -- %s", text.c_str());
+				send_caption_to_stream(result, text, gf);
+			}
+		}
+
+		if (gf->save_to_file && gf->output_file_path != "" &&
+			result.result == DETECTION_RESULT_SPEECH) {
+				obs_log(LOG_DEBUG, "-- file output -- %s", text.c_str());
+			send_sentence_to_file(gf, result, text, gf->output_file_path, true);
+		}
+#ifdef ENABLE_WEBVTT
+		if (result.result == DETECTION_RESULT_SPEECH) {
+			obs_log(LOG_DEBUG, "-- webvtt output -- %s", text.c_str());
+			if (translation_type == "none") {
+				send_caption_to_webvtt(possible_end_ts, result, text, *gf);
+			} else {
+				auto target_language_code = translation_type == "local" ? gf->target_lang : gf->translate_cloud_target_language;
+				auto target_lang = language_codes_to_whisper.find(target_language_code);
+				if (target_lang != language_codes_to_whisper.end()) {
+					auto res_copy = result;
+					res_copy.language = target_lang->second;
+					send_caption_to_webvtt(possible_end_ts, res_copy, text, *gf);
+				}
+			}
+		}
+#endif
+	}
+	catch (const std::exception& e) {
+		obs_log(LOG_ERROR, "Error outputting text: %s", e.what());
+	}
+	catch (...) {
+		obs_log(LOG_ERROR, "Error outputting text");
+	}
+}
+
 void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_data *gf,
 		       const DetectionResultWithText &resultIn)
 {
@@ -315,134 +388,73 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 		send_caption_to_webvtt(possible_end_ts, result, str_copy, *gf);
 #endif
 
-	bool should_translate_local =
-		gf->translate_only_full_sentences ? result.result == DETECTION_RESULT_SPEECH : true;
-
-	// send the sentence to translation (if enabled)
-	std::string translated_sentence_local =
-		should_translate_local ? send_sentence_to_translation(str_copy, gf, result.language)
-				       : "";
-
-	if (gf->translate) {
-		if (gf->translation_output == "none") {
-			// overwrite the original text with the translated text
-			str_copy = translated_sentence_local;
-		} else {
-			if (gf->buffered_output) {
-				obs_log(LOG_DEBUG, "-- buffered local translation output -- %s", translated_sentence_local.c_str());
-				// buffered output - add the sentence to the monitor
-				gf->translation_monitor.addSentenceFromStdString(
-					translated_sentence_local,
-					get_time_point_from_ms(result.start_timestamp_ms),
-					get_time_point_from_ms(result.end_timestamp_ms),
-					result.result == DETECTION_RESULT_PARTIAL);
-			} else {
-				obs_log(LOG_DEBUG, "-- local translation output -- %s", translated_sentence_local.c_str());
-				// non-buffered output - send the sentence to the selected source
-				send_caption_to_source(gf->translation_output,
-						       translated_sentence_local, gf);
-			}
-		}
-		if (gf->save_to_file && gf->output_file_path != "") {
-			obs_log(LOG_DEBUG, "-- file local translation output -- %s", translated_sentence_local.c_str());
-			send_translated_sentence_to_file(gf, result, translated_sentence_local,
-							 gf->target_lang);
-		}
-	}
-
 	bool should_translate_cloud = (gf->translate_cloud_only_full_sentences
 					       ? result.result == DETECTION_RESULT_SPEECH
 					       : true) &&
 				      gf->translate_cloud;
+	bool should_translate_local = (gf->translate_only_full_sentences
+							? result.result == DETECTION_RESULT_SPEECH
+							: true) &&
+						gf->translate;
+
+	bool cloud_translation_overrides_local = should_translate_cloud && (gf->translate_cloud_output == gf->translation_output);
 
 	if (should_translate_cloud) {
 		send_sentence_to_cloud_translation_async(
 			str_copy, gf, result.language,
 			[gf, result,
 			 possible_end_ts](const std::string &translated_sentence_cloud) {
-#ifdef ENABLE_WEBVTT
-				if (result.result == DETECTION_RESULT_SPEECH) {
-					auto target_lang = language_codes_to_whisper.find(
-						gf->translate_cloud_target_language);
-					if (target_lang != language_codes_to_whisper.end()) {
-						auto res_copy = result;
-						res_copy.language = target_lang->second;
-						obs_log(LOG_DEBUG, "-- webvtt cloud translation output -- %s", translated_sentence_cloud.c_str());
-						send_caption_to_webvtt(possible_end_ts, res_copy,
-								       translated_sentence_cloud,
-								       *gf);
-					}
-				}
-#endif
-				if (gf->translate_cloud_output != "none") {
-					obs_log(LOG_DEBUG, "-- cloud translation output to source %s -- %s", gf->translate_cloud_output, translated_sentence_cloud.c_str());
-					send_caption_to_source(gf->translate_cloud_output,
-							       translated_sentence_cloud, gf);
-				} else {
-					// overwrite the original text with the translated text
-					obs_log(LOG_DEBUG, "-- cloud translation output -- %s", translated_sentence_cloud.c_str());
-					send_caption_to_source(gf->text_source_name,
-							       translated_sentence_cloud, gf);
-				}
-				if (gf->save_to_file && gf->output_file_path != "") {
-					obs_log(LOG_DEBUG, "-- file cloud translation output -- %s", translated_sentence_cloud.c_str());
-					send_translated_sentence_to_file(
-						gf, result, translated_sentence_cloud,
-						gf->translate_cloud_target_language);
+				if (!translated_sentence_cloud.empty()) {
+					output_text(
+						gf,
+						result,
+						possible_end_ts,
+						translated_sentence_cloud,
+						gf->translate_cloud_output == "none" ? gf->text_source_name : gf->translate_cloud_output,
+						"cloud"
+					);
 				}
 			});
 	}
 
-	// send the original text to the output
-	// unless the translation is enabled and set to overwrite the original text
-
-	bool cloud_translation_present = (should_translate_cloud && gf->translate_cloud_output != "none");
-	bool local_translation_present = (should_translate_local && gf->translation_output != "none");
-	bool should_output_transcription = !(cloud_translation_present || local_translation_present);
-	obs_log(LOG_DEBUG, "-- translate outputs - cloud: %s, local: %s --", gf->translate_cloud_output.c_str(), gf->translation_output.c_str());
-	obs_log(LOG_DEBUG, "-- should translate - cloud: %s, local: %s --", should_translate_cloud ? "true" : "false", should_translate_local ? "true" : "false");
-	obs_log(LOG_DEBUG, "-- translation present - cloud: %s, local: %s, should output transcription: %s --",
-		cloud_translation_present ? "true" : "false",
-		local_translation_present ? "true" : "false",
-		should_output_transcription ? "true" : "false");
-
-	if (should_output_transcription) {
-		if (gf->buffered_output) {
-			obs_log(LOG_DEBUG, "-- buffered whisper transcription output -- %s", str_copy.c_str());
-			gf->captions_monitor.addSentenceFromStdString(
-				str_copy, get_time_point_from_ms(result.start_timestamp_ms),
-				get_time_point_from_ms(result.end_timestamp_ms),
-				result.result == DETECTION_RESULT_PARTIAL);
+	if (should_translate_local) {
+		if (cloud_translation_overrides_local) {
+			obs_log(gf->log_level, "Skipping local translation as cloud translation outputs to same source");
 		} else {
-			// non-buffered output - send the sentence to the selected source
-			obs_log(LOG_DEBUG, "-- whisper transcription output -- %s", str_copy.c_str());
-			send_caption_to_source(gf->text_source_name, str_copy, gf);
+			// send the sentence to translation (if enabled)
+			std::string translated_sentence_local =
+				should_translate_local ? send_sentence_to_translation(str_copy, gf, result.language)
+							: "";
+
+			output_text(
+				gf,
+				result,
+				possible_end_ts,
+				translated_sentence_local,
+				gf->translation_output == "none" ? gf->text_source_name : gf->translation_output,
+				"local"
+			);
 		}
 	}
 
-#ifdef ENABLE_WEBVTT
-	if (should_translate_local && result.result == DETECTION_RESULT_SPEECH) {
-		auto target_lang = language_codes_to_whisper.find(gf->target_lang);
-		if (target_lang != language_codes_to_whisper.end()) {
-			obs_log(LOG_DEBUG, "-- webvtt local translation output -- %s", translated_sentence_local.c_str());
-			auto res_copy = result;
-			res_copy.language = target_lang->second;
-			send_caption_to_webvtt(possible_end_ts, res_copy, translated_sentence_local,
-					       *gf);
-		}
-	}
-#endif
-
-	if (gf->caption_to_stream && result.result == DETECTION_RESULT_SPEECH) {
-		// TODO: add support for partial transcriptions
-		obs_log(LOG_DEBUG, "-- partial whisper transcription output -- %s", str_copy.c_str());
-		send_caption_to_stream(result, str_copy, gf);
-	}
-
-	if (gf->save_to_file && gf->output_file_path != "" &&
-	    result.result == DETECTION_RESULT_SPEECH) {
-			obs_log(LOG_DEBUG, "-- file whisper transcription output -- %s", str_copy.c_str());
-		send_sentence_to_file(gf, result, str_copy, gf->output_file_path, true);
+	bool cloud_translate_outputs_to_default_source = gf->translate_cloud_output == "none" || (gf->translate_cloud_output == gf->text_source_name);
+	bool local_translate_outputs_to_default_source = gf->translation_output == "none" || (gf->translation_output == gf->text_source_name);
+	bool cloud_translation_overrides_captions = should_translate_cloud && cloud_translate_outputs_to_default_source;
+	bool local_translation_overrides_captions = should_translate_local && local_translate_outputs_to_default_source;
+	if (cloud_translation_overrides_captions) {
+		obs_log(gf->log_level, "Skipping caption output as cloud translation outputs to same source");
+	} else if (local_translation_overrides_captions) {
+		obs_log(gf->log_level, "Skipping caption output as local translation outputs to same source");
+	} else {
+		// not translating or translation outputting to separate source
+		output_text(
+			gf,
+			result,
+			possible_end_ts,
+			str_copy,
+			gf->text_source_name,
+			"none"
+		);
 	}
 
 	if (!result.text.empty() && (result.result == DETECTION_RESULT_SPEECH ||

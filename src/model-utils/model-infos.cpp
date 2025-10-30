@@ -115,67 +115,72 @@ std::optional<ModelInfo> parse_model_json(const nlohmann::json &model)
 {
 	ModelInfo model_info;
 
-	if (!model.contains("friendly_name") || !model["friendly_name"].is_string()) {
-		obs_log(LOG_WARNING,
-			"Missing or invalid 'friendly_name' for a model. Skipping this model.");
+	try {
+		if (!model.contains("friendly_name") || !model["friendly_name"].is_string()) {
+			obs_log(LOG_WARNING,
+				"Missing or invalid 'friendly_name' for a model. Skipping this model.");
+			return std::nullopt;
+		}
+		model_info.friendly_name = model["friendly_name"].get<std::string>();
+
+		if (model.contains("local_folder_name") && model["local_folder_name"].is_string()) {
+			model_info.local_folder_name = model["local_folder_name"].get<std::string>();
+		} else {
+			obs_log(LOG_WARNING, "Missing or invalid 'local_folder_name' for model: %s",
+				model_info.friendly_name.c_str());
+		}
+
+		if (model.contains("type") && model["type"].is_string()) {
+			const std::string &type_str = model["type"].get<std::string>();
+			if (type_str == "MODEL_TYPE_TRANSCRIPTION")
+				model_info.type = ModelType::MODEL_TYPE_TRANSCRIPTION;
+			else if (type_str == "MODEL_TYPE_TRANSLATION")
+				model_info.type = ModelType::MODEL_TYPE_TRANSLATION;
+			else
+				obs_log(LOG_WARNING, "Invalid 'type' for model: %s",
+					model_info.friendly_name.c_str());
+		} else {
+			obs_log(LOG_WARNING, "Missing or invalid 'type' for model: %s",
+				model_info.friendly_name.c_str());
+		}
+
+		if (model.contains("files") && model["files"].is_array()) {
+			for (const auto &file : model["files"]) {
+				ModelFileDownloadInfo file_info;
+
+				if (file.contains("url") && file["url"].is_string())
+					file_info.url = file["url"].get<std::string>();
+				else
+					obs_log(LOG_WARNING,
+						"Missing or invalid 'url' for a file in model: %s",
+						model_info.friendly_name.c_str());
+
+				if (file.contains("sha256") && file["sha256"].is_string())
+					file_info.sha256 = file["sha256"].get<std::string>();
+
+				model_info.files.push_back(file_info);
+			}
+		} else {
+			obs_log(LOG_WARNING, "Missing or invalid 'files' array for model: %s",
+				model_info.friendly_name.c_str());
+		}
+
+		// Parse the new "extra" field
+		if (model.contains("extra") && model["extra"].is_object()) {
+			const auto &extra = model["extra"];
+			if (extra.contains("language") && extra["language"].is_string())
+				model_info.extra.language = extra["language"].get<std::string>();
+			if (extra.contains("description") && extra["description"].is_string())
+				model_info.extra.description = extra["description"].get<std::string>();
+			if (extra.contains("source") && extra["source"].is_string())
+				model_info.extra.source = extra["source"].get<std::string>();
+		}
+
+		return model_info;
+	} catch (const std::exception &e) {
+		obs_log(LOG_ERROR, "Error parsing model: %s", e.what());
 		return std::nullopt;
 	}
-	model_info.friendly_name = model["friendly_name"].get<std::string>();
-
-	if (model.contains("local_folder_name") && model["local_folder_name"].is_string()) {
-		model_info.local_folder_name = model["local_folder_name"].get<std::string>();
-	} else {
-		obs_log(LOG_WARNING, "Missing or invalid 'local_folder_name' for model: %s",
-			model_info.friendly_name.c_str());
-	}
-
-	if (model.contains("type") && model["type"].is_string()) {
-		const std::string &type_str = model["type"].get<std::string>();
-		if (type_str == "MODEL_TYPE_TRANSCRIPTION")
-			model_info.type = ModelType::MODEL_TYPE_TRANSCRIPTION;
-		else if (type_str == "MODEL_TYPE_TRANSLATION")
-			model_info.type = ModelType::MODEL_TYPE_TRANSLATION;
-		else
-			obs_log(LOG_WARNING, "Invalid 'type' for model: %s",
-				model_info.friendly_name.c_str());
-	} else {
-		obs_log(LOG_WARNING, "Missing or invalid 'type' for model: %s",
-			model_info.friendly_name.c_str());
-	}
-
-	if (model.contains("files") && model["files"].is_array()) {
-		for (const auto &file : model["files"]) {
-			ModelFileDownloadInfo file_info;
-
-			if (file.contains("url") && file["url"].is_string())
-				file_info.url = file["url"].get<std::string>();
-			else
-				obs_log(LOG_WARNING,
-					"Missing or invalid 'url' for a file in model: %s",
-					model_info.friendly_name.c_str());
-
-			if (file.contains("sha256") && file["sha256"].is_string())
-				file_info.sha256 = file["sha256"].get<std::string>();
-
-			model_info.files.push_back(file_info);
-		}
-	} else {
-		obs_log(LOG_WARNING, "Missing or invalid 'files' array for model: %s",
-			model_info.friendly_name.c_str());
-	}
-
-	// Parse the new "extra" field
-	if (model.contains("extra") && model["extra"].is_object()) {
-		const auto &extra = model["extra"];
-		if (extra.contains("language") && extra["language"].is_string())
-			model_info.extra.language = extra["language"].get<std::string>();
-		if (extra.contains("description") && extra["description"].is_string())
-			model_info.extra.description = extra["description"].get<std::string>();
-		if (extra.contains("source") && extra["source"].is_string())
-			model_info.extra.source = extra["source"].get<std::string>();
-	}
-
-	return model_info;
 }
 
 /**

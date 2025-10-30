@@ -255,7 +255,11 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	if (filter_words_replace != nullptr && strlen(filter_words_replace) > 0) {
 		obs_log(gf->log_level, "filter_words_replace: %s", filter_words_replace);
 		// deserialize the filter words replace
-		gf->filter_words_replace = deserialize_filter_words_replace(filter_words_replace);
+		try {
+			gf->filter_words_replace = deserialize_filter_words_replace(filter_words_replace);
+		} catch (const std::exception &e) {
+			obs_log(LOG_ERROR, "Error deserialising filter words: %s", e.what());
+		}
 	} else {
 		// clear the filter words replace
 		gf->filter_words_replace.clear();
