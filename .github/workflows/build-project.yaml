@@ -123,10 +123,16 @@ jobs:
       - uses: actions/cache@v4
         id: icu-cache
         with:
-          path: ${{ github.workspace }}/build_macos/ICU_build-prefix
-          key: ${{ runner.os }}-icu-${{ needs.check-event.outputs.config }}-${{ matrix.architecture }}
+          path: |
+            ${{ github.workspace }}/build_macos/ICU_build-prefix/bin
+            ${{ github.workspace }}/build_macos/ICU_build-prefix/include
+            ${{ github.workspace }}/build_macos/ICU_build-prefix/lib
+            ${{ github.workspace }}/build_macos/ICU_build-prefix/sbin
+            ${{ github.workspace }}/build_macos/ICU_build-prefix/share
+            ${{ github.workspace }}/build_macos/ICU_build-prefix/tmp
+          key: ${{ runner.os }}-icu-build-${{ needs.check-event.outputs.config }}-${{ matrix.architecture }}
           restore-keys: |
-            ${{ runner.os }}-icu-${{ matrix.architecture }}-
+            ${{ runner.os }}-icu-build-${{ matrix.architecture }}-
 
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         if: matrix.architecture == 'arm64'
@@ -161,6 +167,7 @@ jobs:
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
         env:
           MACOS_ARCH: ${{ matrix.architecture }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
 
       - name: Package Plugin 📀
         uses: ./.github/actions/package-plugin

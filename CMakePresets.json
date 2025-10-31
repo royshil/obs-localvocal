@@ -40,7 +40,9 @@
       "description": "Build for macOS 12.0+ (Universal binary) for CI",
       "generator": "Xcode",
       "cacheVariables": {
-        "CMAKE_COMPILE_WARNING_AS_ERROR": true
+        "CMAKE_COMPILE_WARNING_AS_ERROR": true,
+        "USE_SYSTEM_ICU": true,
+        "CMAKE_PREFIX_PATH": "$penv{GITHUB_WORKSPACE}/build_macos/ICU_build-prefix"
       }
     },
     {
