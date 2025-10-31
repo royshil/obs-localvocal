@@ -20,9 +20,8 @@ set(USE_SYSTEM_ONNXRUNTIME
     OFF
     CACHE STRING "Use system ONNX Runtime")
 
-set(DISABLE_ONNXRUNTIME_GPU
-    OFF
-    CACHE STRING "Disables GPU support of ONNX Runtime (Only valid on Linux)")
+# Doesn't seem to do anything set(DISABLE_ONNXRUNTIME_GPU OFF CACHE STRING "Disables GPU support of ONNX Runtime (Only
+# valid on Linux)")
 
 set(USE_SYSTEM_BLAS
     OFF
@@ -93,9 +92,8 @@ include(cmake/BuildCTranslate2.cmake)
 include(cmake/BuildSentencepiece.cmake)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ct2 sentencepiece)
 
-if(DISABLE_ONNXRUNTIME_GPU)
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DISABLE_ONNXRUNTIME_GPU)
-endif()
+# Doesn't seem to do anything if(DISABLE_ONNXRUNTIME_GPU) target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+# DISABLE_ONNXRUNTIME_GPU) endif()
 
 if(USE_SYSTEM_ONNXRUNTIME)
   if(OS_LINUX)
