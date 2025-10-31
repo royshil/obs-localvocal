@@ -72,6 +72,11 @@ public:
 	{
 		segmentation = segmentation_;
 	}
+	void setCaptionPresentationCallback(
+	  std::function<void(const std::string&)> captionPresentationCallback_)
+	{
+		this->captionPresentationCallback = captionPresentationCallback_;
+	}
 
 private:
 	void monitor();
