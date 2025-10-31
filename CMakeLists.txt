@@ -120,7 +120,9 @@ else()
   find_library(ICU_UC_LIB icuuc OPTIONAL)
   find_library(ICU_I18N_LIB icui18n OPTIONAL)
 
-  if((${ICU_DATA_LIB} EQUAL ICU_DATA_LIB-NOTFOUND) OR (${ICU_UC_LIB} EQUAL ICU_UC-NOTFOUND) OR (${ICU_I18N_LIB} EQUAL ICU_I18N_LIB-NOTFOUND))
+  if((${ICU_DATA_LIB} EQUAL ICU_DATA_LIB-NOTFOUND)
+     OR (${ICU_UC_LIB} EQUAL ICU_UC-NOTFOUND)
+     OR (${ICU_I18N_LIB} EQUAL ICU_I18N_LIB-NOTFOUND))
     include(cmake/BuildICU.cmake)
     # Add ICU to the target
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU)
