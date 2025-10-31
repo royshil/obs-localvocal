@@ -220,10 +220,13 @@ jobs:
             libgles2-mesa-dev
             libopenblas-dev
             libopenblas-openmp-dev
+            libqt6svg6-dev
             libsimde-dev
             libvulkan-dev
             obs-studio
             pkg-config
+            qt6-base-dev
+            qt6-base-private-dev
           add-repository: ppa:obsproject/obs-studio
           version: 1.0
 
