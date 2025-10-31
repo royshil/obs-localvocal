@@ -41,6 +41,7 @@
       "generator": "Xcode",
       "cacheVariables": {
         "CMAKE_COMPILE_WARNING_AS_ERROR": true,
+        "CI": true,
         "CMAKE_PREFIX_PATH": "$penv{GITHUB_WORKSPACE}/build_macos/ICU_build-prefix"
       }
     },
@@ -68,7 +69,8 @@
       "displayName": "Windows x64 CI build",
       "description": "Build for Windows x64 on CI",
       "cacheVariables": {
-        "CMAKE_COMPILE_WARNING_AS_ERROR": true
+        "CMAKE_COMPILE_WARNING_AS_ERROR": true,
+        "CI": true
       }
     },
     {
@@ -98,6 +100,7 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_COMPILE_WARNING_AS_ERROR": true,
+        "CI": true,
         "USE_SYSTEM_ICU": false
       }
     },
@@ -125,7 +128,8 @@
       "description": "Build for Linux aarch64 on CI",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "CMAKE_COMPILE_WARNING_AS_ERROR": true
+        "CMAKE_COMPILE_WARNING_AS_ERROR": true,
+        "CI": true
       }
     }
   ],

@@ -23,10 +23,6 @@ set(USE_SYSTEM_ONNXRUNTIME
 # Doesn't seem to do anything set(DISABLE_ONNXRUNTIME_GPU OFF CACHE STRING "Disables GPU support of ONNX Runtime (Only
 # valid on Linux)")
 
-set(USE_SYSTEM_BLAS
-    OFF
-    CACHE STRING "Use system BLAS for CPU acceleration")
-
 if(CMAKE_MAJOR_VERSION EQUAL 4)
   message(STATUS "CMake 4 detected")
   set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
