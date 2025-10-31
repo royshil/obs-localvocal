@@ -1,16 +1,17 @@
 include(FetchContent)
 include(ExternalProject)
 
-set(ICU_VERSION "75.1")
-set(ICU_VERSION_UNDERSCORE "75_1")
-set(ICU_VERSION_DASH "75-1")
-set(ICU_VERSION_NO_MINOR "75")
+# 76 only needed on Windows. 70 works for other platforms
+set(ICU_VERSION "76.1")
+set(ICU_VERSION_UNDERSCORE "76_1")
+set(ICU_VERSION_DASH "76-1")
+set(ICU_VERSION_NO_MINOR "76")
 
 if(WIN32)
   set(ICU_URL
       "https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION_DASH}/icu4c-${ICU_VERSION_UNDERSCORE}-Win64-MSVC2022.zip"
   )
-  set(ICU_HASH "SHA256=7ac9c0dc6ccc1ec809c7d5689b8d831c5b8f6b11ecf70fdccc55f7ae8731ac8f")
+  set(ICU_HASH "SHA256=bedba77dd1feca09e9ae9922109a285c0ecf46d09c80b65eae6eae63a4e155dc")
 
   FetchContent_Declare(
     ICU_build
@@ -60,7 +61,7 @@ else()
   set(ICU_URL
       "https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION_DASH}/icu4c-${ICU_VERSION_UNDERSCORE}-src.tgz"
   )
-  set(ICU_HASH "SHA256=cb968df3e4d2e87e8b11c49a5d01c787bd13b9545280fc6642f826527618caef")
+  set(ICU_HASH "SHA256=dfacb46bfe4747410472ce3e1144bf28a102feeaa4e3875bac9b4c6cf30f4f3e")
   if(APPLE)
     set(ICU_PLATFORM "MacOSX")
     set(TARGET_ARCH -arch\ $ENV{MACOS_ARCH})

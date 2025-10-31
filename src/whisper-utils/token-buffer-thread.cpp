@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <string_view>
 
 #include <unicode/schriter.h>
 #include <unicode/unistr.h>
@@ -128,13 +129,22 @@ void TokenBufferThread::addSentenceFromStdString(const std::string &sentence,
 		} else if (this->segmentation == SEGMENTATION_TOKEN) {
 			// split to characters
 			std::vector<TokenBufferString> characters;
+#ifdef _WIN32
+			icu::UnicodeString ustr = sentence_ws.c_str();
+			std::wstring_view char_str;
+#else
 			icu::UnicodeString ustr = icu::UnicodeString::fromUTF8(sentence_ws);
+			std::string char_str;
+#endif
 			icu::StringCharacterIterator it{ustr};
 			for (auto c = it.firstPostInc(); c != icu::StringCharacterIterator::DONE;
 			     c = it.nextPostInc()) {
 				icu::UnicodeString chr = c;
-				std::string char_str;
+#ifdef _WIN32
+				char_str = chr;
+#else
 				chr.toUTF8String(char_str);
+#endif
 				characters.push_back(TokenBufferString(char_str));
 			}
 			// add the characters to a sentece
