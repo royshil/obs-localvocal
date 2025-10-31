@@ -317,8 +317,12 @@ void transcription_filter_update(void *data, obs_data_t *s)
 				gf,
 				[gf](const std::string &translated_text) {
 					if (gf->buffered_output) {
-						send_caption_to_source((gf->translation_output.empty() || (gf->translation_output == "none")) ? gf->text_source_name : gf->translation_output,
-								       translated_text, gf);
+						send_caption_to_source(
+							(gf->translation_output.empty() ||
+							 (gf->translation_output == "none"))
+								? gf->text_source_name
+								: gf->translation_output,
+							translated_text, gf);
 					}
 				},
 				new_buffer_num_lines, new_buffer_num_chars_per_line,
@@ -327,8 +331,12 @@ void transcription_filter_update(void *data, obs_data_t *s)
 				gf,
 				[gf](const std::string &translated_text) {
 					if (gf->buffered_output) {
-						send_caption_to_source((gf->translate_cloud_output.empty() ||(gf->translate_cloud_output == "none")) ? gf->text_source_name : gf->translate_cloud_output,
-								       translated_text, gf);
+						send_caption_to_source(
+							(gf->translate_cloud_output.empty() ||
+							 (gf->translate_cloud_output == "none"))
+								? gf->text_source_name
+								: gf->translate_cloud_output,
+							translated_text, gf);
 					}
 				},
 				new_buffer_num_lines, new_buffer_num_chars_per_line,
@@ -381,7 +389,7 @@ void transcription_filter_update(void *data, obs_data_t *s)
 							send_caption_to_source(
 								(gf->translate_cloud_output.empty() ||
 								 (gf->translate_cloud_output ==
-									  "none"))
+								  "none"))
 									? gf->text_source_name
 									: gf->translate_cloud_output,
 								translated_text, gf);
