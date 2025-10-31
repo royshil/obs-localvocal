@@ -116,10 +116,24 @@ if(USE_SYSTEM_ICU)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${ICU_LIBRARIES}")
   target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC "${ICU_INCLUDE_DIRS}")
 else()
-  include(cmake/BuildICU.cmake)
-  # Add ICU to the target
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU)
-  target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC ${ICU_INCLUDE_DIR})
+  find_library(ICU_DATA_LIB icudata OPTIONAL)
+  find_library(ICU_UC_LIB icuuc OPTIONAL)
+  find_library(ICU_I18N_LIB icui18n OPTIONAL)
+
+  if((${ICU_DATA_LIB} EQUAL ICU_DATA_LIB-NOTFOUND) OR (${ICU_UC_LIB} EQUAL ICU_UC-NOTFOUND) OR (${ICU_I18N_LIB} EQUAL ICU_I18N_LIB-NOTFOUND))
+    include(cmake/BuildICU.cmake)
+    # Add ICU to the target
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ICU)
+    target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC ${ICU_INCLUDE_DIR})
+  else()
+    list(APPEND ICU_LIBRARIES ${ICU_DATA_LIB} ${ICU_UC_LIB} ${ICU_I18N_LIB})
+    message(STATUS "Cached ICU libs: " ${ICU_LIBRARIES})
+    set(ICU_INCLUDE_DIR "${CMAKE_BINARY_DIR}/ICU_build-prefix/include")
+    message(STATUS "Cached ICU include dir: " ${ICU_INCLUDE_DIR})
+
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${ICU_LIBRARIES}")
+    target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC ${ICU_INCLUDE_DIR})
+  endif()
 endif()
 
 # check env var for extra verbose logging

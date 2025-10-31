@@ -41,7 +41,6 @@
       "generator": "Xcode",
       "cacheVariables": {
         "CMAKE_COMPILE_WARNING_AS_ERROR": true,
-        "USE_SYSTEM_ICU": true,
         "CMAKE_PREFIX_PATH": "$penv{GITHUB_WORKSPACE}/build_macos/ICU_build-prefix"
       }
     },
