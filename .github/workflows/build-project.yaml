@@ -120,6 +120,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-${{ matrix.architecture }}-
 
+      - uses: actions/cache@v4
+        id: icu-cache
+        with:
+          path: ${{ github.workspace }}/build_macos/ICU_build-prefix
+          key: ${{ runner.os }}-icu-${{ needs.check-event.outputs.config }}-${{ matrix.architecture }}
+          restore-keys: |
+            ${{ runner.os }}-icu-${{ matrix.architecture }}-
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         if: matrix.architecture == 'arm64'
         with:
@@ -217,6 +225,14 @@ jobs:
           key: ${{ runner.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
           restore-keys: |
             ${{ runner.os }}-ccache-x86_64-
+
+      - uses: actions/cache@v4
+        id: icu-cache
+        with:
+          path: ${{ github.workspace }}/build_x86_64/ICU_build-prefix
+          key: ${{ runner.os }}-icu-${{ needs.check-event.outputs.config }}
+          restore-keys: |
+            ${{ runner.os }}-icu-x86_64-
 
       - name: Set up Homebrew 🍺
         uses: Homebrew/actions/setup-homebrew@master
