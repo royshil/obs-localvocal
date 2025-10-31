@@ -12,8 +12,6 @@ if (( ! ${+target} )) {
 
 pushd ${project_root}
 
-typeset -g QT_VERSION
-
 local -a apt_args=(
   ${CI:+-y}
   --no-install-recommends
@@ -45,20 +43,11 @@ if (( ! (${skips[(Ie)all]} + ${skips[(Ie)deps]}) )) {
 
   local -a _qt_packages=()
 
-  if (( QT_VERSION == 5 )) {
-    _qt_packages+=(
-      qtbase5-dev${suffix}
-      libqt5svg5-dev${suffix}
-      qtbase5-private-dev${suffix}
-      libqt5x11extras5-dev${suffix}
-    )
-  } else {
-    _qt_packages+=(
-      qt6-base-dev${suffix}
-      libqt6svg6-dev${suffix}
-      qt6-base-private-dev${suffix}
-    )
-  }
+  _qt_packages+=(
+    qt6-base-dev${suffix}
+    libqt6svg6-dev${suffix}
+    qt6-base-private-dev${suffix}
+  )
 
   sudo apt-get install ${apt_args} ${_qt_packages}
   log_group

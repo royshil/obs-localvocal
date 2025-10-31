@@ -211,6 +211,22 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: |
+            ccache
+            libcurl4-openssl-dev
+            libicu-dev
+            libgles2-mesa-dev
+            libopenblas-dev
+            libopenblas-openmp-dev
+            libsimde-dev
+            libvulkan-dev
+            obs-studio
+            pkg-config
+          add-repository: ppa:obsproject/obs-studio
+          version: 1.0
+
       - name: Set Up Environment 🔧
         id: setup
         run: |
