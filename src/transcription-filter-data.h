@@ -259,6 +259,8 @@ struct transcription_filter_audio_info {
 	uint64_t timestamp_offset_ns; // offset (since start of processing) timestamp in ns
 };
 
+enum TranslationType { NO_TRANSLATION = 0, LOCAL_TRANSLATION = 1, CLOUD_TRANSLATION = 2 };
+
 // Callback sent when the transcription has a new result
 void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_data *gf,
 		       const DetectionResultWithText &str);

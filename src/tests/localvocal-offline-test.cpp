@@ -295,6 +295,8 @@ void clear_current_caption(transcription_filter_data *gf_)
 	// reset translation context
 	gf_->last_text_for_translation = "";
 	gf_->last_text_translation = "";
+	gf_->last_text_for_cloud_translation = "";
+	gf_->last_text_cloud_translation = "";
 	gf_->translation_ctx.last_input_tokens.clear();
 	gf_->translation_ctx.last_translation_tokens.clear();
 	gf_->last_transcription_sentence.clear();

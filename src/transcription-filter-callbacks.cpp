@@ -285,18 +285,33 @@ void send_caption_to_webvtt(uint64_t possible_end_ts_ms, DetectionResultWithText
 
 void output_text(struct transcription_filter_data *gf, const DetectionResultWithText &result,
 		 uint64_t possible_end_ts, std::string text, std::string output_source,
-		 std::string translation_type)
+		 TranslationType translation_type)
 {
 	try {
-		obs_log(LOG_DEBUG, "-- outputting text (translation: %s) -- %s",
-			translation_type.c_str(), text.c_str());
-		if (gf->buffered_output && translation_type == "none") {
-			// TODO: Fix crash with buffered output and translated text
+		obs_log(LOG_DEBUG, "-- outputting text (translation: %d) -- %s", translation_type,
+			text.c_str());
+		if (gf->buffered_output) {
 			obs_log(LOG_DEBUG, "-- buffered text output -- %s", text.c_str());
-			gf->captions_monitor.addSentenceFromStdString(
-				text, get_time_point_from_ms(result.start_timestamp_ms),
-				get_time_point_from_ms(result.end_timestamp_ms),
-				result.result == DETECTION_RESULT_PARTIAL);
+			TokenBufferThread *monitor;
+			switch (translation_type) {
+			case NO_TRANSLATION:
+				monitor = &gf->captions_monitor;
+				break;
+			case LOCAL_TRANSLATION:
+				monitor = &gf->translation_monitor;
+				break;
+			case CLOUD_TRANSLATION:
+				monitor = &gf->cloud_translation_monitor;
+				break;
+			default:
+				monitor = nullptr;
+			}
+			if (monitor != nullptr) {
+				monitor->addSentenceFromStdString(
+					text, get_time_point_from_ms(result.start_timestamp_ms),
+					get_time_point_from_ms(result.end_timestamp_ms),
+					result.result == DETECTION_RESULT_PARTIAL);
+			}
 		} else {
 			// non-buffered output - send the sentence to the selected source
 			obs_log(LOG_DEBUG, "-- text output to source %s -- %s",
@@ -304,10 +319,10 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 			send_caption_to_source(output_source, text, gf);
 		}
 
-		if (gf->caption_to_stream && translation_type == "none" &&
+		if (gf->caption_to_stream && translation_type == NO_TRANSLATION &&
 		    result.result == DETECTION_RESULT_SPEECH) {
 			// TODO: add support for partial transcriptions
-			if (translation_type == "none" || output_source == gf->text_source_name) {
+			if (output_source == gf->text_source_name) {
 				obs_log(LOG_DEBUG, "-- stream captions output -- %s", text.c_str());
 				send_caption_to_stream(result, text, gf);
 			}
@@ -321,11 +336,11 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 #ifdef ENABLE_WEBVTT
 		if (result.result == DETECTION_RESULT_SPEECH) {
 			obs_log(LOG_DEBUG, "-- webvtt output -- %s", text.c_str());
-			if (translation_type == "none") {
+			if (translation_type == NO_TRANSLATION) {
 				send_caption_to_webvtt(possible_end_ts, result, text, *gf);
 			} else {
 				auto target_language_code =
-					translation_type == "local"
+					translation_type == LOCAL_TRANSLATION
 						? gf->target_lang
 						: gf->translate_cloud_target_language;
 				auto target_lang =
@@ -408,7 +423,7 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 						    gf->translate_cloud_output.empty()
 							    ? gf->text_source_name
 							    : gf->translate_cloud_output,
-						    "cloud");
+						    CLOUD_TRANSLATION);
 				}
 			});
 	}
@@ -428,7 +443,7 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 			output_text(gf, result, possible_end_ts, translated_sentence_local,
 				    gf->translation_output.empty() ? gf->text_source_name
 								   : gf->translation_output,
-				    "local");
+				    LOCAL_TRANSLATION);
 		}
 	}
 
@@ -452,7 +467,8 @@ void set_text_callback(uint64_t possible_end_ts, struct transcription_filter_dat
 			"Skipping caption output as local translation outputs to same source");
 	} else {
 		// not translating or translation outputting to separate source
-		output_text(gf, result, possible_end_ts, str_copy, gf->text_source_name, "none");
+		output_text(gf, result, possible_end_ts, str_copy, gf->text_source_name,
+			    NO_TRANSLATION);
 	}
 
 	if (!result.text.empty() && (result.result == DETECTION_RESULT_SPEECH ||

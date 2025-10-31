@@ -311,9 +311,8 @@ void transcription_filter_update(void *data, obs_data_t *s)
 								       gf);
 					}
 				},
-				[gf](const std::string &) {}, new_buffer_num_lines,
-				new_buffer_num_chars_per_line, std::chrono::seconds(3),
-				new_buffer_output_type);
+				new_buffer_num_lines, new_buffer_num_chars_per_line,
+				std::chrono::seconds(3), new_buffer_output_type);
 			gf->translation_monitor.initialize(
 				gf,
 				[gf](const std::string &translated_text) {
@@ -323,9 +322,8 @@ void transcription_filter_update(void *data, obs_data_t *s)
 								       translated_text, gf);
 					}
 				},
-				[gf](const std::string &) {}, new_buffer_num_lines,
-				new_buffer_num_chars_per_line, std::chrono::seconds(3),
-				new_buffer_output_type);
+				new_buffer_num_lines, new_buffer_num_chars_per_line,
+				std::chrono::seconds(3), new_buffer_output_type);
 			gf->cloud_translation_monitor.initialize(
 				gf,
 				[gf](const std::string &translated_text) {
@@ -335,9 +333,8 @@ void transcription_filter_update(void *data, obs_data_t *s)
 								       translated_text, gf);
 					}
 				},
-				[gf](const std::string &) {}, new_buffer_num_lines,
-				new_buffer_num_chars_per_line, std::chrono::seconds(3),
-				new_buffer_output_type);
+				new_buffer_num_lines, new_buffer_num_chars_per_line,
+				std::chrono::seconds(3), new_buffer_output_type);
 		} else {
 			if (new_buffer_num_lines != gf->buffered_output_num_lines ||
 			    new_buffer_num_chars_per_line != gf->buffered_output_num_chars ||

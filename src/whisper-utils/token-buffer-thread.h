@@ -53,7 +53,6 @@ public:
 	~TokenBufferThread();
 	void initialize(struct transcription_filter_data *gf,
 			std::function<void(const std::string &)> captionPresentationCallback_,
-			std::function<void(const std::string &)> sentenceOutputCallback_,
 			size_t numSentences_, size_t numTokensPerSentence_,
 			std::chrono::seconds maxTime_,
 			TokenBufferSegmentation segmentation_ = SEGMENTATION_TOKEN);
@@ -86,7 +85,6 @@ private:
 	std::mutex inputQueueMutex;
 	std::mutex presentationQueueMutex;
 	std::function<void(std::string)> captionPresentationCallback;
-	std::function<void(std::string)> sentenceOutputCallback;
 	std::condition_variable cv;
 	std::chrono::seconds maxTime;
 	std::atomic<bool> stop;

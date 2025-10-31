@@ -9,6 +9,10 @@
 #include <iostream>
 #include <sstream>
 
+#include <unicode/schriter.h>
+#include <unicode/unistr.h>
+#include <unicode/uchar.h>
+
 #include <obs-module.h>
 
 #ifdef _WIN32
@@ -39,14 +43,12 @@ TokenBufferThread::~TokenBufferThread()
 
 void TokenBufferThread::initialize(
 	struct transcription_filter_data *gf_,
-	std::function<void(const std::string &)> captionPresentationCallback_,
-	std::function<void(const std::string &)> sentenceOutputCallback_, size_t numSentences_,
+	std::function<void(const std::string &)> captionPresentationCallback_, size_t numSentences_,
 	size_t numPerSentence_, std::chrono::seconds maxTime_,
 	TokenBufferSegmentation segmentation_)
 {
 	this->gf = gf_;
 	this->captionPresentationCallback = captionPresentationCallback_;
-	this->sentenceOutputCallback = sentenceOutputCallback_;
 	this->numSentences = numSentences_;
 	this->numPerSentence = numPerSentence_;
 	this->segmentation = segmentation_;
@@ -126,8 +128,14 @@ void TokenBufferThread::addSentenceFromStdString(const std::string &sentence,
 		} else if (this->segmentation == SEGMENTATION_TOKEN) {
 			// split to characters
 			std::vector<TokenBufferString> characters;
-			for (const auto &c : sentence_ws) {
-				characters.push_back(TokenBufferString(1, c));
+			icu::UnicodeString ustr = icu::UnicodeString::fromUTF8(sentence_ws);
+			icu::StringCharacterIterator it{ustr};
+			for (auto c = it.firstPostInc(); c != icu::StringCharacterIterator::DONE;
+			     c = it.nextPostInc()) {
+				icu::UnicodeString chr = c;
+				std::string char_str;
+				chr.toUTF8String(char_str);
+				characters.push_back(TokenBufferString(char_str));
 			}
 			// add the characters to a sentece
 			for (const auto &character : characters) {
@@ -387,7 +395,6 @@ void TokenBufferThread::monitor()
 					obs_log(gf->log_level,
 						"TokenBufferThread::monitor: output '%s'",
 						contribution_out.c_str());
-					this->sentenceOutputCallback(contribution_out);
 					lastContributionIsSent = true;
 				}
 			} else {
