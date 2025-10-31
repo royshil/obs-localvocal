@@ -226,14 +226,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-x86_64-
 
-      - uses: actions/cache@v4
-        id: icu-cache
-        with:
-          path: ${{ github.workspace }}/build_x86_64/ICU_build-prefix
-          key: ${{ runner.os }}-icu-${{ needs.check-event.outputs.config }}
-          restore-keys: |
-            ${{ runner.os }}-icu-x86_64-
-
       - name: Set up Homebrew 🍺
         uses: Homebrew/actions/setup-homebrew@master
 
