@@ -5,6 +5,8 @@ set(PREBUILT_WHISPERCPP_VERSION "0.0.9")
 set(PREBUILT_WHISPERCPP_URL_BASE
     "https://github.com/locaal-ai/occ-ai-dep-whispercpp/releases/download/${PREBUILT_WHISPERCPP_VERSION}")
 
+add_library(Whispercpp INTERFACE)
+
 # Get the name for the whisper library file from the CMake component name
 function(LIB_NAME COMPONENT IMPORT_LIB)
   if((COMPONENT STREQUAL "Whisper") OR (COMPONENT STREQUAL "GGML"))
@@ -15,36 +17,44 @@ function(LIB_NAME COMPONENT IMPORT_LIB)
   else()
     string(REGEX REPLACE "GGML(.*)" "\\1" LIB_SUFFIX ${COMPONENT})
     string(TOLOWER ${LIB_SUFFIX} IMPORT_LIB_SUFFIX)
-    set(${IMPORT_LIB}
-        "ggml-${IMPORT_LIB_SUFFIX}"
-        PARENT_SCOPE)
+    set(IMPORT_LIB "ggml-${IMPORT_LIB_SUFFIX}" PARENT_SCOPE)
   endif()
 endfunction()
 
-# Add a Whisper component to the build
-function(ADD_WHISPER_COMPONENT COMPONENT LIB_TYPE INCLUDE_HEADERS SOURCE_DIR)
-  set(WHISPER_LIB "Whispercpp::${COMPONENT}")
-
+# Get library paths for Whisper libs
+function(WHISPER_LIB_PATHS COMPONENT SOURCE_DIR WHISPER_STATIC_LIB_PATH WHISPER_SHARED_LIB_PATH)
   lib_name(${COMPONENT} IMPORT_LIB)
 
+  set(WHISPER_STATIC_LIB_PATH
+      "${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${IMPORT_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX}"
+      PARENT_SCOPE)
+  set(WHISPER_SHARED_LIB_PATH
+      "${SOURCE_DIR}/${CMAKE_INSTALL_BINDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+      PARENT_SCOPE)
+
+  # Debugging
   set(WHISPER_STATIC_LIB_PATH
       "${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}${IMPORT_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX}")
   set(WHISPER_SHARED_LIB_PATH
       "${SOURCE_DIR}/${CMAKE_INSTALL_BINDIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}")
   message(STATUS "Whisper lib import path: " ${WHISPER_STATIC_LIB_PATH})
   message(STATUS "Whisper shared lib import path: " ${WHISPER_SHARED_LIB_PATH})
+endfunction()
 
-  add_library(${WHISPER_LIB} ${LIB_TYPE} IMPORTED)
+# Add a Whisper component to the build
+function(ADD_WHISPER_COMPONENT COMPONENT LIB_TYPE SOURCE_DIR)
+  whisper_lib_paths(${COMPONENT} ${SOURCE_DIR} WHISPER_STATIC_LIB_PATH WHISPER_SHARED_LIB_PATH)
+
+  add_library(${COMPONENT} ${LIB_TYPE} IMPORTED)
   if(LIB_TYPE STREQUAL STATIC)
-    set_target_properties(${WHISPER_LIB} PROPERTIES IMPORTED_LOCATION ${WHISPER_STATIC_LIB_PATH})
+    #add_library(${COMPONENT} STATIC IMPORTED)
+    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_STATIC_LIB_PATH}")
   else()
-    set_target_properties(${WHISPER_LIB} PROPERTIES IMPORTED_LOCATION ${WHISPER_SHARED_LIB_PATH})
-    set_target_properties(${WHISPER_LIB} PROPERTIES IMPORTED_IMPLIB ${WHISPER_STATIC_LIB_PATH})
+    #add_library(${COMPONENT} SHARED IMPORTED)
+    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_SHARED_LIB_PATH}")
+    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_IMPLIB "${WHISPER_STATIC_LIB_PATH}")
   endif()
-  if(INCLUDE_HEADERS)
-    set_target_properties(${WHISPER_LIB} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${SOURCE_DIR}/include)
-    message(STATUS "Whisper include path: ${SOURCE_DIR}/include")
-  endif()
+  target_link_libraries(Whispercpp INTERFACE ${lib})
 endfunction()
 
 if(APPLE)
@@ -63,6 +73,7 @@ if(APPLE)
 
   set(WHISPER_LIBRARIES Whisper WhisperCoreML GGML GGMLBase GGMLCPU GGMLMetal GGMLBlas)
   set(WHISPER_DEPENDENCY_LIBRARIES "-framework Accelerate" "-framework CoreML" "-framework Metal" ${BLAS_LIBRARIES})
+  set(WHISPER_LIBRARY_TYPE STATIC)
 
   FetchContent_Declare(
     whispercpp_fetch
@@ -70,23 +81,20 @@ if(APPLE)
     URL_HASH SHA256=${WHISPER_CPP_HASH})
   FetchContent_MakeAvailable(whispercpp_fetch)
 
-  foreach(lib ${WHISPER_LIBRARIES})
-    message(STATUS "Adding " ${lib} " to build")
-    add_whisper_component(${lib} STATIC TRUE ${whispercpp_fetch_SOURCE_DIR})
-  endforeach(lib ${WHISPER_LIBRARIES})
+  set(WHISPER_SOURCE_DIR ${whispercpp_fetch_SOURCE_DIR})
 elseif(WIN32)
   if(NOT DEFINED ACCELERATION)
     message(FATAL_ERROR "ACCELERATION is not set. Please set it to either `cpu`, `cuda`, `vulkan` or `hipblas`")
   endif()
 
   set(WHISPER_LIBRARIES Whisper GGML GGMLBase GGMLCPU GGMLBlas)
+  set(WHISPER_LIBRARY_TYPE SHARED)
 
   set(ARCH_PREFIX ${ACCELERATION})
   set(WHISPER_CPP_URL
       "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-windows-${ARCH_PREFIX}-${PREBUILT_WHISPERCPP_VERSION}.zip")
   if(${ACCELERATION} STREQUAL "cpu")
     set(WHISPER_CPP_HASH "c735eb53c1d0bac47a21590f290055e5769e886fa701ee8d3155cf9ebaa87988")
-    list(APPEND WHISPER_LIBRARIES GGMLBlas)
   elseif(${ACCELERATION} STREQUAL "cuda")
     set(WHISPER_CPP_HASH "35a0828c537ade5f5a634b5521853216b22881b3f5c8c67fa7b7f618b0dba559")
     list(APPEND WHISPER_LIBRARIES GGMLCUDA)
@@ -110,10 +118,8 @@ elseif(WIN32)
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
   FetchContent_MakeAvailable(whispercpp_fetch)
 
-  foreach(lib ${WHISPER_LIBRARIES})
-    message(STATUS "Adding " ${lib} " (shared) to build")
-    add_whisper_component(${lib} SHARED TRUE ${whispercpp_fetch_SOURCE_DIR})
-  endforeach(lib ${WHISPER_LIBRARIES})
+  set(WHISPER_SOURCE_DIR ${whispercpp_fetch_SOURCE_DIR})
+  set(WHISPER_DEPENDENCY_LIBRARIES "${whispercpp_fetch_SOURCE_DIR}/lib/libopenblas.lib")
 
   # glob all dlls in the bin directory and install them
   file(GLOB WHISPER_DLLS ${whispercpp_fetch_SOURCE_DIR}/bin/*.dll)
@@ -153,6 +159,7 @@ else()
   set(WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS)
   set(WHISPER_LIBRARIES Whisper GGML GGMLBase GGMLCPU GGMLBlas)
   set(WHISPER_DEPENDENCY_LIBRARIES ${BLAS_LIBRARIES})
+  set(WHISPER_LIBRARY_TYPE STATIC)
 
   # TODO: Add SYCL support
 
@@ -251,22 +258,19 @@ else()
 
   ExternalProject_Get_Property(Whispercpp_Build INSTALL_DIR)
 
-  foreach(lib ${WHISPER_LIBRARIES})
-    message(STATUS "Adding " ${lib} " to build")
-    add_whisper_component(${lib} STATIC TRUE ${INSTALL_DIR})
-  endforeach(lib ${WHISPER_LIBRARIES})
+  set(WHISPER_SOURCE_DIR ${INSTALL_DIR})
 endif()
 
-add_library(Whispercpp INTERFACE)
+foreach(lib ${WHISPER_LIBRARIES})
+  message(STATUS "Adding " ${lib} " to build")
+  add_whisper_component(${lib} STATIC ${WHISPER_SOURCE_DIR})
+endforeach(lib ${WHISPER_LIBRARIES})
+
+foreach(lib ${WHISPER_DEPENDENCY_LIBRARIES})
+  message(STATUS "Adding dependency " ${lib} " to linker")
+  target_link_libraries(Whispercpp INTERFACE ${lib})
+endforeach(lib ${WHISPER_DEPENDENCY_LIBRARIES})
+
+set_target_properties(Whispercpp PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${WHISPER_SOURCE_DIR}/include")
 add_dependencies(Whispercpp Whispercpp_Build)
 
-if(UNIX)
-  foreach(lib ${WHISPER_LIBRARIES})
-    message(STATUS "Adding " ${lib} " to linker")
-    target_link_libraries(Whispercpp INTERFACE Whispercpp::${lib})
-  endforeach(lib ${WHISPER_LIBRARIES})
-  foreach(lib ${WHISPER_DEPENDENCY_LIBRARIES})
-    message(STATUS "Adding dependency " ${lib} " to linker")
-    target_link_libraries(Whispercpp INTERFACE ${lib})
-  endforeach(lib ${WHISPER_DEPENDENCY_LIBRARIES})
-endif()
