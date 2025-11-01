@@ -8,6 +8,21 @@ option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 option(ENABLE_TESTS "Enable tests" OFF)
 
+set(USE_SYSTEM_CURL
+    OFF
+    CACHE STRING "Use system cURL")
+
+set(USE_SYSTEM_ICU
+    OFF
+    CACHE STRING "Use system ICU")
+
+set(USE_SYSTEM_ONNXRUNTIME
+    OFF
+    CACHE STRING "Use system ONNX Runtime")
+
+# Doesn't seem to do anything set(DISABLE_ONNXRUNTIME_GPU OFF CACHE STRING "Disables GPU support of ONNX Runtime (Only
+# valid on Linux)")
+
 if(CMAKE_MAJOR_VERSION EQUAL 4)
   message(STATUS "CMake 4 detected")
   set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
@@ -39,10 +54,6 @@ if(ENABLE_QT)
                AUTOUIC ON
                AUTORCC ON)
 endif()
-
-set(USE_SYSTEM_CURL
-    OFF
-    CACHE STRING "Use system cURL")
 
 if(USE_SYSTEM_CURL)
   find_package(CURL REQUIRED)
@@ -77,17 +88,8 @@ include(cmake/BuildCTranslate2.cmake)
 include(cmake/BuildSentencepiece.cmake)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ct2 sentencepiece)
 
-set(USE_SYSTEM_ONNXRUNTIME
-    OFF
-    CACHE STRING "Use system ONNX Runtime")
-
-set(DISABLE_ONNXRUNTIME_GPU
-    OFF
-    CACHE STRING "Disables GPU support of ONNX Runtime (Only valid on Linux)")
-
-if(DISABLE_ONNXRUNTIME_GPU)
-  target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE DISABLE_ONNXRUNTIME_GPU)
-endif()
+# Doesn't seem to do anything if(DISABLE_ONNXRUNTIME_GPU) target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
+# DISABLE_ONNXRUNTIME_GPU) endif()
 
 if(USE_SYSTEM_ONNXRUNTIME)
   if(OS_LINUX)
@@ -103,10 +105,6 @@ if(USE_SYSTEM_ONNXRUNTIME)
 else()
   include(cmake/FetchOnnxruntime.cmake)
 endif()
-
-set(USE_SYSTEM_ICU
-    OFF
-    CACHE STRING "Use system ICU")
 
 if(USE_SYSTEM_ICU)
   find_package(

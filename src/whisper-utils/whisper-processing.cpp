@@ -57,19 +57,31 @@ struct whisper_context *init_whisper_context(const std::string &model_path_in,
 		gf);
 
 	struct whisper_context_params cparams = whisper_context_default_params();
-#ifdef LOCALVOCAL_WITH_CUDA
-	cparams.use_gpu = true;
-	obs_log(LOG_INFO, "Using CUDA GPU for inference, device %d", cparams.gpu_device);
-#elif defined(LOCALVOCAL_WITH_HIPBLAS)
-	cparams.use_gpu = true;
-	obs_log(LOG_INFO, "Using hipBLAS for inference");
-#elif defined(__APPLE__)
-	cparams.use_gpu = true;
-	obs_log(LOG_INFO, "Using Metal/CoreML for inference");
-#else
-	cparams.use_gpu = false;
-	obs_log(LOG_INFO, "Using CPU for inference");
-#endif
+
+	if (gf->gpu_device < 0) {
+		cparams.use_gpu = false;
+		obs_log(LOG_INFO, "Using CPU for inference");
+	} else {
+		try {
+			if (gf->gpu_device >= (int)gf->gpu_devices.size()) {
+				obs_log(LOG_WARNING,
+					"Invalid GPU device selected: %d. Using CPU for inference",
+					cparams.gpu_device);
+				cparams.use_gpu = false;
+			} else {
+				cparams.use_gpu = true;
+				cparams.gpu_device = gf->gpu_device;
+				obs_log(LOG_INFO, "Using GPU device %d (%s) for inference",
+					cparams.gpu_device,
+					gf->gpu_devices.at(cparams.gpu_device).device_name);
+			}
+		} catch (const std::exception &e) {
+			obs_log(LOG_WARNING,
+				"Error retrieving selected GPU device. Using CPU for inference. Error: %s",
+				e.what());
+			cparams.use_gpu = false;
+		}
+	}
 
 	cparams.dtw_token_timestamps = gf->enable_token_ts_dtw;
 	if (gf->enable_token_ts_dtw) {
