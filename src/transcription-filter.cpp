@@ -67,22 +67,30 @@ void enumerate_gpu_devices(transcription_filter_data *gf)
 		auto name = ggml_backend_dev_name(backend_dev);
 		auto desc = ggml_backend_dev_description(backend_dev);
 		auto type = "UNKNOWN";
+		bool add_device_to_config = false;
 		switch (ggml_backend_dev_type(backend_dev)) {
 		case GGML_BACKEND_DEVICE_TYPE_CPU:
 			type = "CPU";
 			break;
 		case GGML_BACKEND_DEVICE_TYPE_GPU:
 			type = "GPU";
+			add_device_to_config = true;
+			break;
+		case GGML_BACKEND_DEVICE_TYPE_ACCEL:
+			type = "ACCEL";
+			break;
+		case GGML_BACKEND_DEVICE_TYPE_IGPU:
+			type = "IGPU";
+			add_device_to_config = true;
+			break;
+		};
+		if (add_device_to_config) {
 			gpu_device_info device;
 			device.device_index = i;
 			device.device_name = name;
 			gf->gpu_devices.push_back(device);
 			gpu_count++;
-			break;
-		case GGML_BACKEND_DEVICE_TYPE_ACCEL:
-			type = "ACCEL";
-			break;
-		};
+		}
 		obs_log(LOG_INFO, "Backend device %d (%s): %s - %s", i, type, name, desc);
 	};
 }
