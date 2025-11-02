@@ -12,7 +12,7 @@ if (( ! ${+target} )) {
 
 pushd ${project_root}
 
-if (( ! ${+CI} )) {
+if (( ${+CI} )) {
   # Dependencies already installed and cached
   return 0
 }

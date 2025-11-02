@@ -1,6 +1,6 @@
 autoload -Uz log_info log_status log_error log_debug log_warning log_group
 
-if (( ! ${+CI} )) {
+if (( ${+CI} )) {
   # Dependencies already installed and cached
   return 0
 }
