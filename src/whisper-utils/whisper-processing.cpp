@@ -82,6 +82,7 @@ struct whisper_context *init_whisper_context(const std::string &model_path_in,
 			cparams.use_gpu = false;
 		}
 	}
+	cparams.flash_attn = gf->enable_flash_attn;
 
 	cparams.dtw_token_timestamps = gf->enable_token_ts_dtw;
 	if (gf->enable_token_ts_dtw) {

@@ -651,9 +651,16 @@ void add_whisper_backend_group_properties(obs_properties_t *ppts,
 	obs_property_list_add_int(backend_device, "CPU only", -1);
 	for (size_t i = 0; i < gf->gpu_devices.size(); i++) {
 		auto name = gf->gpu_devices.at(i).device_name;
-		obs_property_list_add_int(backend_device, std::string("GPU: ").append(name).c_str(),
-					  i);
+		auto description = gf->gpu_devices.at(i).device_description;
+		obs_property_list_add_int(
+			backend_device,
+			std::string("GPU: ").append(name).append(" - ").append(description).c_str(),
+			i);
 	}
+
+	obs_property_t *enable_flash_attn = obs_properties_add_bool(
+		backend_group, "enable_flash_attn", MT_("enable_flash_attn"));
+	obs_property_set_long_description(enable_flash_attn, MT_("enable_flash_attn_tooltip"));
 }
 
 obs_properties_t *transcription_filter_properties(void *data)
@@ -767,6 +774,7 @@ void transcription_filter_defaults(obs_data_t *s)
 
 	// backend options
 	obs_data_set_default_int(s, "backend_device", -1);
+	obs_data_set_default_bool(s, "enable_flash_attn", false);
 
 	// Whisper parameters
 	apply_whisper_params_defaults_on_settings(s);

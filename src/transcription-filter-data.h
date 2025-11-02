@@ -93,6 +93,7 @@ struct webvtt_buffer_deleter {
 struct gpu_device_info {
 	size_t device_index;
 	const char *device_name;
+	const char *device_description;
 };
 
 struct transcription_filter_data {
@@ -118,6 +119,7 @@ struct transcription_filter_data {
 	// GPU device to use, or -1 for CPU only
 	int gpu_device;
 	std::vector<gpu_device_info> gpu_devices;
+	bool enable_flash_attn;
 
 	/* PCM buffers */
 	float *copy_buffers[MAX_PREPROC_CHANNELS];

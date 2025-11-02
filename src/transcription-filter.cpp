@@ -88,6 +88,7 @@ void enumerate_gpu_devices(transcription_filter_data *gf)
 			gpu_device_info device;
 			device.device_index = i;
 			device.device_name = name;
+			device.device_description = desc;
 			gf->gpu_devices.push_back(device);
 			gpu_count++;
 		}
@@ -522,8 +523,11 @@ void transcription_filter_update(void *data, obs_data_t *s)
 		obs_data_get_string(s, "translate_cloud_response_json_path");
 
 	int new_backend_device = (int)obs_data_get_int(s, "backend_device");
-	bool whisper_backend_changed = gf->gpu_device == new_backend_device;
+	bool enable_flash_attn = obs_data_get_bool(s, "enable_flash_attn");
+	bool whisper_backend_changed = (gf->gpu_device == new_backend_device) ||
+				       (enable_flash_attn != gf->enable_flash_attn);
 	gf->gpu_device = new_backend_device;
+	gf->enable_flash_attn = enable_flash_attn;
 
 	obs_log(gf->log_level, "update text source");
 	// update the text source
