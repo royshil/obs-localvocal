@@ -12,6 +12,11 @@ if (( ! ${+target} )) {
 
 pushd ${project_root}
 
+if (( ! ${+CI} )) {
+  # Dependencies already installed and cached
+  return 0
+}
+
 local -a apt_args=(
   ${CI:+-y}
   --no-install-recommends

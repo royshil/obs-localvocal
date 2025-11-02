@@ -205,6 +205,8 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      CI: 1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -218,6 +220,9 @@ jobs:
             libcurl4-openssl-dev
             libicu-dev
             libgles2-mesa-dev
+            libopenblas0
+            libopenblas0-openmp
+            libopenblas0-pthread
             libopenblas-dev
             libopenblas-openmp-dev
             libqt6svg6-dev
