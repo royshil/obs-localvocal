@@ -1,10 +1,5 @@
 autoload -Uz log_info log_status log_error log_debug log_warning log_group
 
-if (( ${+CI} )) {
-  # Dependencies already installed and cached
-  return 0
-}
-
 log_group 'Check Linux build requirements'
 log_debug 'Checking Linux distribution name and version...'
 

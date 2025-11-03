@@ -244,6 +244,7 @@ jobs:
             vulkan-sdk
           add-repository: ppa:obsproject/obs-studio
           version: 1.0
+          execute_install_scripts: true
 
       - name: Set Up Environment 🔧
         id: setup

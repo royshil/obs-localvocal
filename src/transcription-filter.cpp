@@ -4,6 +4,7 @@
 #include <util/platform.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
@@ -59,6 +60,14 @@ void disconnect_source_signals(transcription_filter_data *gf, obs_source_t *pare
 
 void enumerate_gpu_devices(transcription_filter_data *gf)
 {
+#ifdef WHISPER_DYNAMIC_BACKENDS
+	// Load CPU backends
+	auto path = std::filesystem::path(obs_get_module_binary_path(obs_current_module()))
+			    .parent_path() /= "obs-localvocal";
+	obs_log(LOG_INFO, "Loading dynamic backends from %s", path.c_str());
+	ggml_backend_load_all_from_path(path.c_str());
+#endif
+
 	// Enumerate backend devices to populate list
 	auto backend_count = ggml_backend_dev_count();
 	size_t gpu_count = 0;

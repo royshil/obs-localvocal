@@ -250,7 +250,7 @@ ${_usage_host:-}"
           -G "${generator}"
           -DQT_VERSION=${QT_VERSION:-6}
           -DCMAKE_BUILD_TYPE=${config}
-          -DCMAKE_INSTALL_PREFIX=/usr
+          -DCMAKE_INSTALL_PREFIX=${project_root}/release/${config}
         )
 
         local cmake_version
