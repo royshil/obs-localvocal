@@ -23,12 +23,11 @@ void start_translation(struct transcription_filter_data *gf)
 	}
 
 	const ModelInfo &translation_model_info = models_info().at(gf->translation_model_index);
-	std::string model_file_found = find_model_folder(translation_model_info);
-	if (model_file_found == "") {
+	auto model_file_found = find_model_folder(translation_model_info);
+	if (!model_file_found.has_value()) {
 		obs_log(LOG_INFO, "Translation CT2 model does not exist. Downloading...");
 		download_model_with_ui_dialog(
-			translation_model_info,
-			[gf, model_file_found](int download_status, const std::string &path) {
+			translation_model_info, [gf](int download_status, const std::string &path) {
 				if (download_status == 0) {
 					obs_log(LOG_INFO, "CT2 model download complete");
 					build_and_enable_translation(gf, path);
@@ -39,6 +38,6 @@ void start_translation(struct transcription_filter_data *gf)
 			});
 	} else {
 		// Model exists, just load it
-		build_and_enable_translation(gf, model_file_found);
+		build_and_enable_translation(gf, model_file_found.value());
 	}
 }

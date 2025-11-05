@@ -5,10 +5,10 @@
 
 #include <fstream>
 #include <map>
-#include <string>
 #include <memory>
-#include <sstream>
 #include <optional>
+#include <sstream>
+#include <string>
 
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
@@ -96,7 +96,7 @@ bool download_json_from_github(std::string &json_content)
  * {
  *     "friendly_name": "string",          // Required
  *     "local_folder_name": "string",      // Optional
- *     "type": "string",                   // Optional, expected values: "MODEL_TYPE_TRANSCRIPTION" or "MODEL_TYPE_TRANSLATION"
+ *     "type": "string",                   // Optional, expected values: "MODEL_TYPE_TRANSCRIPTION", "MODEL_TYPE_TRANSLATION", or "MODEL_TYPE_TRANSCRIPTION_COREML"
  *     "files": [                          // Optional, array of file objects
  *         {
  *             "url": "string",            // Required in each file object
@@ -137,6 +137,8 @@ std::optional<ModelInfo> parse_model_json(const nlohmann::json &model)
 				model_info.type = ModelType::MODEL_TYPE_TRANSCRIPTION;
 			else if (type_str == "MODEL_TYPE_TRANSLATION")
 				model_info.type = ModelType::MODEL_TYPE_TRANSLATION;
+			else if (type_str == "MODEL_TYPE_TRANSCRIPTION_COREML")
+				model_info.type = ModelType::MODEL_TYPE_TRANSCRIPTION_COREML;
 			else
 				obs_log(LOG_WARNING, "Invalid 'type' for model: %s",
 					model_info.friendly_name.c_str());
@@ -255,7 +257,7 @@ const std::map<std::string, ModelInfo> &models_info()
 	return *cached_models_info;
 }
 
-const std::vector<ModelInfo> get_sorted_models_info()
+const std::vector<ModelInfo> get_sorted_models_info(std::optional<ModelType> type_filter)
 {
 	const auto &models_map = models_info();
 	std::vector<ModelInfo> standard_models;
@@ -263,10 +265,12 @@ const std::vector<ModelInfo> get_sorted_models_info()
 
 	// Separate models into two categories
 	for (const auto &[key, model] : models_map) {
-		if (!model.extra.source.empty()) {
-			huggingface_models.push_back(model);
-		} else {
-			standard_models.push_back(model);
+		if (!type_filter.has_value() || model.type == type_filter.value()) {
+			if (!model.extra.source.empty()) {
+				huggingface_models.push_back(model);
+			} else {
+				standard_models.push_back(model);
+			}
 		}
 	}
 

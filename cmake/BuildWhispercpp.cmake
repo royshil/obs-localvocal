@@ -44,6 +44,7 @@ if(APPLE)
     PROPERTIES
       IMPORTED_LOCATION
       ${whispercpp_fetch_SOURCE_DIR}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}whisper.coreml${CMAKE_STATIC_LIBRARY_SUFFIX})
+  add_compile_definitions(LOCALVOCAL_WITH_COREML)
 
 elseif(WIN32)
   if(NOT DEFINED ACCELERATION)

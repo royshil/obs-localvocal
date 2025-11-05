@@ -33,18 +33,19 @@ std::string find_file_in_folder_by_regex_expression(const std::string &folder_pa
 	return "";
 }
 
-std::string find_bin_file_in_folder(const std::string &model_local_folder_path)
+std::string find_model_file_in_folder(const std::string &model_local_folder_path,
+				      const std::string &extension)
 {
 	// find .bin file in folder
 	for (const auto &entry : std::filesystem::directory_iterator(model_local_folder_path)) {
-		if (entry.path().extension() == ".bin") {
+		if (entry.path().extension() == extension) {
 			const std::string bin_file_path = entry.path().string();
-			obs_log(LOG_INFO, "Model bin file found in folder: %s",
+			obs_log(LOG_INFO, "Model %s file found in folder: %s", extension.c_str(),
 				bin_file_path.c_str());
 			return bin_file_path;
 		}
 	}
-	obs_log(LOG_ERROR, "Model bin file not found in folder: %s",
+	obs_log(LOG_ERROR, "Model %s file not found in folder: %s", extension.c_str(),
 		model_local_folder_path.c_str());
 	return "";
 }

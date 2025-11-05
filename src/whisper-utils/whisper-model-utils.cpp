@@ -84,27 +84,40 @@ void update_whisper_model(struct transcription_filter_data *gf)
 			std::string model_file_found = find_model_bin_file(model_info);
 			if (model_file_found == "") {
 				obs_log(LOG_WARNING, "Whisper model does not exist");
-				download_model_with_ui_dialog(
-					model_info,
-					[gf, new_model_path, silero_vad_model_file_str](
-						int download_status, const std::string &path) {
-						if (download_status == 0) {
-							obs_log(LOG_INFO,
-								"Model download complete");
-							gf->whisper_model_path = new_model_path;
-							start_whisper_thread_with_path(
-								gf, path,
-								silero_vad_model_file_str.c_str());
-						} else {
-							obs_log(LOG_ERROR, "Model download failed");
-						}
-					});
+				download_model_with_ui_dialog(model_info, [gf, new_model_path,
+									   silero_vad_model_file_str,
+									   model_info](
+										  int download_status,
+										  const std::string
+											  &path) {
+					if (download_status == 0) {
+						obs_log(LOG_INFO, "Model download complete");
+						gf->whisper_model_path = new_model_path;
+						download_coreml_encoder_model_if_available(
+							model_info,
+							[gf, path, silero_vad_model_file_str]() {
+								start_whisper_thread_with_path(
+									gf, path,
+									silero_vad_model_file_str
+										.c_str());
+							});
+					} else {
+						obs_log(LOG_ERROR, "Model download failed");
+					}
+				});
 			} else {
 				// Model exists, just load it
 				gf->whisper_model_path = new_model_path;
-				start_whisper_thread_with_path(gf, model_file_found,
-							       silero_vad_model_file_str.c_str());
+
+				download_coreml_encoder_model_if_available(
+					model_info,
+					[gf, model_file_found, silero_vad_model_file_str]() {
+						start_whisper_thread_with_path(
+							gf, model_file_found,
+							silero_vad_model_file_str.c_str());
+					});
 			}
+
 		} else {
 			// new model is external file, get file location from file property
 			if (external_model_file_path.empty()) {

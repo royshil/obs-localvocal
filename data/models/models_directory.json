@@ -179,6 +179,10 @@
         {
           "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
           "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"
+        },
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-encoder.mlmodelc.zip",
+          "sha256": "7e6ab77041942572f239b5b602f8aaa1c3ed29d73e3d8f20abea03a773541089"
         }
       ]
     },
@@ -5024,6 +5028,138 @@
         "description": "This model is from the mukowaty/ggml-whisper project on Hugging Face.",
         "source": "Hugging Face"
       }
+    },
+    {
+      "friendly_name": "Whisper Base CoreML model",
+      "local_folder_name": "coreml/ggml-base",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-encoder.mlmodelc.zip",
+          "sha256": "7e6ab77041942572f239b5b602f8aaa1c3ed29d73e3d8f20abea03a773541089"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Base (en) CoreML model",
+      "local_folder_name": "coreml/ggml-base.en",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en-encoder.mlmodelc.zip",
+          "sha256": "8cf860309e2449e2bdc8be834cf838ab2565747ecc8c0ef914ef5975115e192b"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Large v1 CoreML model",
+      "local_folder_name": "coreml/ggml-large-v1",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v1-encoder.mlmodelc.zip",
+          "sha256": "d10d24a4272572fee07843ffc2e4e4ceebd1d0b0831a142dd2fdb3d56d5bf56e"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Large v2 CoreML model",
+      "local_folder_name": "coreml/ggml-large-v2",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v2-encoder.mlmodelc.zip",
+          "sha256": "c65d28737f51d09dff3b9da9d26c2ab6f5d82857c9b049ce383d64c2502a5541"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Large v3 CoreML model",
+      "local_folder_name": "coreml/ggml-large-v3",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-encoder.mlmodelc.zip",
+          "sha256": "47837be7594a29429ec08620043390c4d6d467f8bd362df09e9390ace76a55a4"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Large v3-turbo CoreML model",
+      "local_folder_name": "coreml/ggml-large-v3-turbo",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-encoder.mlmodelc.zip",
+          "sha256": "84bedfe895bd7b5de6e8e89a0803dfc5addf8c0c5bc4c937451716bf7cf7988a"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Medium CoreML model",
+      "local_folder_name": "coreml/ggml-medium",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium-encoder.mlmodelc.zip",
+          "sha256": "79b0b8d436d47d3f24dd3afc91f19447dd686a4f37521b2f6d9c30a642133fbd"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Medium (en) CoreML model",
+      "local_folder_name": "coreml/ggml-medium.en",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en-encoder.mlmodelc.zip",
+          "sha256": "cdc44fee3c62b5743913e3147ed75f4e8ecfb52dd7a0f0f7387094b406ff0ee6"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Small CoreML model",
+      "local_folder_name": "coreml/ggml-small",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small-encoder.mlmodelc.zip",
+          "sha256": "de43fb9fed471e95c19e60ae67575c2bf09e8fb607016da171b06ddad313988b"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Small (en) CoreML model",
+      "local_folder_name": "coreml/ggml-small.en",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-encoder.mlmodelc.zip",
+          "sha256": "b2ef1c506378b825b4b4341979a93e1656b5d6c129f17114cfb8fb78aabc2f89"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Tiny CoreML model",
+      "local_folder_name": "coreml/ggml-tiny",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-encoder.mlmodelc.zip",
+          "sha256": "c88cbd2648e1f5415092bcf5256add463a0f19943e6938f46e8d4ffdebd47739"
+        }
+      ]
+    },
+    {
+      "friendly_name": "Whisper Tiny (en) CoreML model",
+      "local_folder_name": "coreml/ggml-tiny.en",
+      "type": "MODEL_TYPE_TRANSCRIPTION_COREML",
+      "files": [
+        {
+          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-encoder.mlmodelc.zip",
+          "sha256": "82b32eef73c94bb0c432a776a047b757d9525c26d84038a15d8798d7c8d1ee58"
+        }
+      ]
     }
   ]
 }
