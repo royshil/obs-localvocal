@@ -179,10 +179,6 @@
         {
           "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin",
           "sha256": "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"
-        },
-        {
-          "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-encoder.mlmodelc.zip",
-          "sha256": "7e6ab77041942572f239b5b602f8aaa1c3ed29d73e3d8f20abea03a773541089"
         }
       ]
     },
