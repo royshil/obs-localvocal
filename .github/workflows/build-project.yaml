@@ -202,6 +202,9 @@ jobs:
     name: Build for Ubuntu 🐧
     runs-on: ubuntu-22.04
     needs: check-event
+    strategy:
+      matrix:
+        acceleration: [generic, nvidia, amd]
     defaults:
       run:
         shell: bash
@@ -276,6 +279,7 @@ jobs:
         with:
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
+          acceleration: ${{ matrix.acceleration }}
 
       - name: Package Plugin 📀
         uses: ./.github/actions/package-plugin
@@ -309,7 +313,7 @@ jobs:
     needs: check-event
     strategy:
       matrix:
-        acceleration: [cpu, cuda, vulkan, hipblas]
+        acceleration: [generic, nvidia, amd]
     defaults:
       run:
         shell: pwsh

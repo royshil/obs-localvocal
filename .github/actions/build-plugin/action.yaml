@@ -11,7 +11,7 @@ inputs:
   acceleration:
     description: 'Enable acceleration'
     required: false
-    default: 'cpu'
+    default: 'generic'
   codesign:
     description: 'Enable codesigning (macOS only)'
     required: false
@@ -59,6 +59,8 @@ runs:
       if: runner.os == 'Linux'
       shell: zsh --no-rcs --errexit --pipefail {0}
       working-directory: ${{ inputs.workingDirectory }}
+      env:
+        ACCELERATION: ${{ inputs.acceleration }}
       run: |
         : Run Ubuntu Build
 
