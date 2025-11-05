@@ -38,6 +38,6 @@ void start_translation(struct transcription_filter_data *gf)
 			});
 	} else {
 		// Model exists, just load it
-		build_and_enable_translation(gf, model_file_found.value());
+		build_and_enable_translation(gf, model_file_found.value().string());
 	}
 }
