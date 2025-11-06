@@ -64,25 +64,19 @@ else()
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE libcurl)
 endif()
 
-if(WIN32
-   OR (UNIX
-       AND NOT APPLE
-       AND CI))
-  if(DEFINED ENV{ACCELERATION})
-    set(ACCELERATION
-        $ENV{ACCELERATION}
-        CACHE STRING "Acceleration to use" FORCE)
-  endif()
-  if(NOT DEFINED ACCELERATION)
-    set(ACCELERATION
-        "generic"
-        CACHE STRING "Acceleration to use")
-  endif()
-  set_property(CACHE ACCELERATION PROPERTY STRINGS "generic" "nvidia" "amd")
-elseif(
-  UNIX
-  AND NOT APPLE
-  AND NOT CI)
+if(DEFINED ENV{ACCELERATION})
+  set(ACCELERATION
+      $ENV{ACCELERATION}
+      CACHE STRING "Acceleration to use" FORCE)
+endif()
+if(NOT DEFINED ACCELERATION)
+  set(ACCELERATION
+      "generic"
+      CACHE STRING "Acceleration to use")
+endif()
+set_property(CACHE ACCELERATION PROPERTY STRINGS "generic" "nvidia" "amd")
+
+if(UNIX AND NOT APPLE)
   set(BLA_VENDOR OpenBLAS)
   find_package(BLAS REQUIRED)
 endif()

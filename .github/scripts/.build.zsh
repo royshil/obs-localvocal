@@ -65,7 +65,12 @@ build() {
     linux-aarch64
   )
   local target
-  local config='RelWithDebInfo'
+  if [[ "${+ACCELERATION}" == "amd" ]]
+  then
+    local config='Release'
+  else
+    local config='RelWithDebInfo'
+  fi
   local -r -a _valid_configs=(Debug RelWithDebInfo Release MinSizeRel)
   local -i codesign=0
 
@@ -250,7 +255,7 @@ ${_usage_host:-}"
           -G "${generator}"
           -DQT_VERSION=${QT_VERSION:-6}
           -DCMAKE_BUILD_TYPE=${config}
-          -DCMAKE_INSTALL_PREFIX=${project_root}/release/${config}
+          -DCMAKE_INSTALL_PREFIX=/usr
         )
 
         local cmake_version

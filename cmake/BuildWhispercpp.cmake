@@ -36,12 +36,10 @@ function(WHISPER_LIB_PATHS COMPONENT SOURCE_DIR WHISPER_STATIC_LIB_PATH WHISPER_
          WHISPER_SHARED_MODULE_PATH)
   lib_name(${COMPONENT} WHISPER_COMPONENT_IMPORT_LIB)
 
-  if(UNIX
-     AND NOT APPLE
-     AND NOT CI)
-    set(STATIC_PATH ${SOURCE_DIR})
-    set(SHARED_PATH ${SOURCE_DIR})
-    set(SHARED_BIN_PATH ${SOURCE_DIR})
+  if(UNIX AND NOT APPLE)
+    set(STATIC_PATH ${SOURCE_DIR}/lib)
+    set(SHARED_PATH ${SOURCE_DIR}/lib)
+    set(SHARED_BIN_PATH ${SOURCE_DIR}/bin)
   else()
     set(STATIC_PATH ${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR})
     set(SHARED_PATH ${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR})
@@ -161,7 +159,6 @@ if(APPLE)
       "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
 
   set(WHISPER_LIBRARIES Whisper WhisperCoreML GGML GGMLBase)
-  # list(APPEND WHISPER_RUNTIME_MODULES WhisperCoreML GGMLMetal GGMLBlas)
   list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas)
   set(WHISPER_DEPENDENCY_LIBRARIES "-framework Accelerate" "-framework CoreML" "-framework Metal" ${BLAS_LIBRARIES})
   set(WHISPER_LIBRARY_TYPE SHARED)
@@ -182,7 +179,7 @@ if(APPLE)
   install(FILES ${WHISPER_DYLIBS} DESTINATION "${CMAKE_PROJECT_NAME}.plugin/Contents/Frameworks")
 elseif(WIN32)
   if(NOT DEFINED ACCELERATION)
-    message(FATAL_ERROR "ACCELERATION is not set. Please set it to either `cpu`, `cuda`, `vulkan` or `hipblas`")
+    message(FATAL_ERROR "ACCELERATION is not set. Please set it to either `generic`, `nvidia`, or `amd`")
   endif()
 
   set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
@@ -246,10 +243,17 @@ else()
     set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
   endif()
 
+  set(BLA_VENDOR OpenBLAS)
+  find_package(BLAS REQUIRED)
+
   if(CI)
     set(WHISPER_LIBRARY_TYPE SHARED)
     set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
-    # list(APPEND WHISPER_DEPENDENCY_LIBRARIES Vulkan::Vulkan ${BLAS_LIBRARIES} OpenCL::OpenCL)
+    list(APPEND WHISPER_DEPENDENCY_LIBRARIES Vulkan::Vulkan BLAS::BLAS)
+    if(NOT ${ACCELERATION} STREQUAL "nvidia")
+      # NVidia CUDA has its own OpenCL library
+      list(APPEND WHISPER_DEPENDENCY_LIBRARIES OpenCL::OpenCL)
+    endif()
     list(
       APPEND
       WHISPER_RUNTIME_MODULES
@@ -264,6 +268,14 @@ else()
       GGMLBlas
       GGMLVulkan
       GGMLOpenCL)
+    add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
+
+    find_package(
+      Vulkan
+      COMPONENTS glslc
+      REQUIRED)
+    find_package(OpenCL REQUIRED)
+    find_package(Python3 REQUIRED)
 
     set(ARCH_PREFIX "-x86_64")
     set(ACCELERATION_PREFIX "-${ACCELERATION}")
@@ -274,9 +286,39 @@ else()
     elseif(${ACCELERATION} STREQUAL "nvidia")
       set(WHISPER_CPP_HASH "a43dc8a44577e965caf9b0baaae74f30a9e00d99a296768021e7ccf0b9217878")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
+
+      # Find CUDA libraries and link against them
+      set(CUDAToolkit_ROOT /usr/local/cuda-12.8/)
+      find_package(CUDAToolkit REQUIRED)
+      list(
+        APPEND
+        WHISPER_DEPENDENCY_LIBRARIES
+        CUDA::cudart
+        CUDA::cublas
+        CUDA::cublasLt
+        CUDA::cuda_driver
+        CUDA::OpenCL)
+      set(CUDART_LIB ${CUDAToolkit_LIBRARY_DIR}/libcuda.so.1)
+      if(NOT EXISTS ${CUDART_LIB})
+        message(
+          STATUS
+            "Creating symlink from ${CUDAToolkit_LIBRARY_DIR}/libcuda.so to ${CUDAToolkit_LIBRARY_DIR}/libcuda.so.1")
+        execute_process(COMMAND sudo ${CMAKE_COMMAND} -E create_symlink ${CUDAToolkit_LIBRARY_DIR}/libcuda.so
+                                ${CUDAToolkit_LIBRARY_DIR}/libcuda.so.1)
+      endif()
     elseif(${ACCELERATION} STREQUAL "amd")
       set(WHISPER_CPP_HASH "1a7592da41493e57ead23c97a420f2db11a4fe31049c9b01cdb310bff05fdca1")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
+
+      # Find hip libraries and link against them
+      set(CMAKE_PREFIX_PATH /opt/rocm-6.4.2/lib/cmake)
+      set(HIP_PLATFORM amd)
+      set(CMAKE_HIP_PLATFORM amd)
+      set(CMAKE_HIP_ARCHITECTURES OFF)
+      find_package(hip REQUIRED)
+      find_package(hipblas REQUIRED)
+      find_package(rocblas REQUIRED)
+      list(APPEND WHISPER_DEPENDENCY_LIBRARIES hip::host roc::rocblas roc::hipblas)
     else()
       message(
         FATAL_ERROR
@@ -296,10 +338,15 @@ else()
 
     set(WHISPER_SOURCE_DIR ${whispercpp_fetch_SOURCE_DIR})
     set(WHISPER_LIB_DIR ${whispercpp_fetch_SOURCE_DIR})
+
+    file(GLOB WHISPER_SOS ${whispercpp_fetch_SOURCE_DIR}/lib/*${CMAKE_SHARED_LIBRARY_SUFFIX}*)
+    install(FILES ${WHISPER_SOS} DESTINATION "${CMAKE_INSTALL_LIBDIR}/obs-plugins/obs-localvocal")
+    file(GLOB WHISPER_BIN_SOS ${whispercpp_fetch_SOURCE_DIR}/bin/*${CMAKE_SHARED_LIBRARY_SUFFIX}*)
+    install(FILES ${WHISPER_BIN_SOS} DESTINATION "${CMAKE_INSTALL_LIBDIR}/obs-plugins/obs-localvocal")
   else()
     # Source build
     if(${CMAKE_BUILD_TYPE} STREQUAL Release OR ${CMAKE_BUILD_TYPE} STREQUAL RelWithDebInfo)
-      set(Whispercpp_BUILD_TYPE Release)
+      set(Whispercpp_BUILD_TYPE RelWithDebInfo)
     else()
       set(Whispercpp_BUILD_TYPE Debug)
     endif()
@@ -331,41 +378,6 @@ else()
       list(APPEND WHISPER_LIBRARIES GGMLBlas GGMLCPU)
     endif()
 
-    # TODO: Add SYCL support
-
-    # set(CMAKE_PREFIX_PATH "C:/Program Files/AMD/ROCm/6.1;$ENV{VULKAN_SDK}")
-    set(HIP_PLATFORM amd)
-    set(CMAKE_HIP_PLATFORM amd)
-    set(CMAKE_HIP_ARCHITECTURES OFF)
-    find_package(hip QUIET)
-    find_package(hipblas QUIET)
-    find_package(rocblas QUIET)
-    if(hip_FOUND
-       AND hipblas_FOUND
-       AND rocblas_FOUND)
-      message(STATUS "hipblas found, Libraries: ${hipblas_LIBRARIES}")
-      set(WHISPER_ADDITIONAL_ENV "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH};HIP_PLATFORM=${HIP_PLATFORM}")
-      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_HIP=ON -DGGML_HIP_ROCWMMA_FATTN=ON)
-      if(WHISPER_DYNAMIC_BACKENDS)
-        list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
-      else()
-        list(APPEND WHISPER_LIBRARIES GGMLHip)
-      endif()
-      list(APPEND WHISPER_DEPENDENCY_LIBRARIES hip::host roc::rocblas roc::hipblas)
-    endif()
-
-    find_package(CUDAToolkit QUIET)
-    if(CUDAToolkit_FOUND)
-      message(STATUS "CUDA found, Libraries: ${CUDAToolkit_LIBRARIES}")
-      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native)
-      if(WHISPER_DYNAMIC_BACKENDS)
-        list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
-      else()
-        list(APPEND WHISPER_LIBRARIES GGMLCUDA)
-      endif()
-      list(APPEND WHISPER_DEPENDENCY_LIBRARIES CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cuda_driver)
-    endif()
-
     find_package(
       Vulkan
       COMPONENTS glslc
@@ -393,6 +405,38 @@ else()
         list(APPEND WHISPER_LIBRARIES GGMLOpenCL)
       endif()
       list(APPEND WHISPER_DEPENDENCY_LIBRARIES OpenCL::OpenCL)
+    endif()
+
+    set(HIP_PLATFORM amd)
+    set(CMAKE_HIP_PLATFORM amd)
+    set(CMAKE_HIP_ARCHITECTURES OFF)
+    find_package(hip QUIET)
+    find_package(hipblas QUIET)
+    find_package(rocblas QUIET)
+    if(hip_FOUND
+       AND hipblas_FOUND
+       AND rocblas_FOUND)
+      message(STATUS "hipblas found, Libraries: ${hipblas_LIBRARIES}")
+      list(APPEND WHISPER_ADDITIONAL_ENV "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH};HIP_PLATFORM=${HIP_PLATFORM}")
+      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_HIP=ON -DGGML_HIP_ROCWMMA_FATTN=ON)
+      if(WHISPER_DYNAMIC_BACKENDS)
+        list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
+      else()
+        list(APPEND WHISPER_LIBRARIES GGMLHip)
+      endif()
+      list(APPEND WHISPER_DEPENDENCY_LIBRARIES hip::host roc::rocblas roc::hipblas)
+    endif()
+
+    find_package(CUDAToolkit QUIET)
+    if(CUDAToolkit_FOUND)
+      message(STATUS "CUDA found, Libraries: ${CUDAToolkit_LIBRARIES}")
+      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native)
+      if(WHISPER_DYNAMIC_BACKENDS)
+        list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
+      else()
+        list(APPEND WHISPER_LIBRARIES GGMLCUDA)
+      endif()
+      list(APPEND WHISPER_DEPENDENCY_LIBRARIES CUDA::cudart CUDA::cublas CUDA::cublasLt CUDA::cuda_driver)
     endif()
 
     foreach(component ${WHISPER_LIBRARIES})
