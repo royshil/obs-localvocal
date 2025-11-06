@@ -13,10 +13,10 @@ If you’re looking for a hosted desktop recording API, consider checking out [R
 [![GitHub stars](https://badgen.net/github/stars/locaal-ai/obs-localvocal)](https://GitHub.com/locaal-ai/obs-localvocal/stargazers/)
 <br/>
 Download:</br>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.4.5/obs-localvocal-0.4.5-windows-x64-cuda-Installer.exe"><img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" /></a>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.4.5/obs-localvocal-0.4.5-macos-x86_64.pkg"><img src="https://img.shields.io/badge/mac%20Intel-000000?style=for-the-badge" /></a>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.4.5/obs-localvocal-0.4.5-macos-arm64.pkg"><img src="https://img.shields.io/badge/mac%20M1/2/3-0a0a0a?style=for-the-badge&"/></a>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.4.5/obs-localvocal-0.4.5-x86_64-linux-gnu.deb"><img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black"/></a>
+<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-windows-x64-cuda-Installer.exe"><img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" /></a>
+<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-macos-x86_64.pkg"><img src="https://img.shields.io/badge/mac%20Intel-000000?style=for-the-badge" /></a>
+<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-macos-arm64.pkg"><img src="https://img.shields.io/badge/mac%20M1/2/3-0a0a0a?style=for-the-badge&"/></a>
+<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-x86_64-linux-gnu.deb"><img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black"/></a>
 
 
 </div>
