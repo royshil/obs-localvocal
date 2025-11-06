@@ -256,7 +256,7 @@ ${_usage_host:-}"
       popd
     } else {
       log_group "Archiving ${product_name}..."
-      local output_name="${product_name}-${product_version}-${target##*-}-linux-gnu"
+      local output_name="${product_name}-${product_version}-${target##*-}-${+ACCELERATION}-linux-gnu"
       local _tarflags='cJf'
       if (( _loglevel > 1 || ${+CI} )) _tarflags="v${_tarflags}"
 

@@ -63,9 +63,14 @@ void enumerate_gpu_devices(transcription_filter_data *gf)
 #ifdef WHISPER_DYNAMIC_BACKENDS
 	// Load CPU backends
 	auto path = std::filesystem::path(obs_get_module_binary_path(obs_current_module()))
-			    .parent_path() /= "obs-localvocal";
-	obs_log(LOG_INFO, "Loading dynamic backends from %s", path.c_str());
-	ggml_backend_load_all_from_path(path.c_str());
+			    .parent_path();
+#ifndef _WIN32
+	// Linux and mac have modules in a subdirectory, Windows does not
+	path /= "obs-localvocal";
+#endif // _WIN32
+
+	obs_log(LOG_INFO, "Loading dynamic backends from %s", path.string().c_str());
+	ggml_backend_load_all_from_path(path.string().c_str());
 #endif
 
 	// Enumerate backend devices to populate list
