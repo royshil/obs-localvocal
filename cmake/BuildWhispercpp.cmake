@@ -37,9 +37,15 @@ function(WHISPER_LIB_PATHS COMPONENT SOURCE_DIR WHISPER_STATIC_LIB_PATH WHISPER_
   lib_name(${COMPONENT} WHISPER_COMPONENT_IMPORT_LIB)
 
   if(UNIX AND NOT APPLE)
-    set(STATIC_PATH ${SOURCE_DIR}/lib)
-    set(SHARED_PATH ${SOURCE_DIR}/lib)
-    set(SHARED_BIN_PATH ${SOURCE_DIR}/bin)
+    if(${LINUX_SOURCE_BUILD})
+      set(STATIC_PATH ${SOURCE_DIR})
+      set(SHARED_PATH ${SOURCE_DIR})
+      set(SHARED_BIN_PATH ${SOURCE_DIR})
+    else()
+      set(STATIC_PATH ${SOURCE_DIR}/lib)
+      set(SHARED_PATH ${SOURCE_DIR}/lib)
+      set(SHARED_BIN_PATH ${SOURCE_DIR}/bin)
+    endif()
   else()
     set(STATIC_PATH ${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR})
     set(SHARED_PATH ${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR})
@@ -139,6 +145,8 @@ function(ADD_WHISPER_RUNTIME_MODULE COMPONENT SOURCE_DIR LIB_DIR)
 endfunction()
 
 if(APPLE)
+  add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
+
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
     set(WHISPER_CPP_HASH "02446b1d508711b26cc778db48d5b8ef2dd7b0c98f5c9dfe39a1ad2ef9e3df07")
@@ -168,7 +176,6 @@ if(APPLE)
   list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas)
   set(WHISPER_DEPENDENCY_LIBRARIES "-framework Accelerate" "-framework CoreML" "-framework Metal" ${BLAS_LIBRARIES})
   set(WHISPER_LIBRARY_TYPE SHARED)
-  add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 
   FetchContent_Declare(
     whispercpp_fetch
@@ -184,6 +191,8 @@ if(APPLE)
   file(GLOB WHISPER_DYLIBS ${whispercpp_fetch_SOURCE_DIR}/lib/*.dylib)
   install(FILES ${WHISPER_DYLIBS} DESTINATION "${CMAKE_PROJECT_NAME}.plugin/Contents/Frameworks")
 elseif(WIN32)
+  add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
+
   if(NOT DEFINED ACCELERATION)
     message(FATAL_ERROR "ACCELERATION is not set. Please set it to either `generic`, `nvidia`, or `amd`")
   endif()
@@ -231,7 +240,6 @@ elseif(WIN32)
   set(WHISPER_SOURCE_DIR ${whispercpp_fetch_SOURCE_DIR})
   set(WHISPER_LIB_DIR ${whispercpp_fetch_SOURCE_DIR})
   set(WHISPER_DEPENDENCY_LIBRARIES "${whispercpp_fetch_SOURCE_DIR}/lib/libopenblas.lib")
-  add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 
   # glob all dlls in the bin directory and install them
   file(GLOB WHISPER_DLLS ${whispercpp_fetch_SOURCE_DIR}/bin/*.dll)
@@ -253,6 +261,7 @@ else()
   find_package(BLAS REQUIRED)
 
   if(NOT LINUX_SOURCE_BUILD)
+    add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
     set(WHISPER_LIBRARY_TYPE SHARED)
     set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
     list(APPEND WHISPER_DEPENDENCY_LIBRARIES Vulkan::Vulkan BLAS::BLAS)
@@ -274,7 +283,6 @@ else()
       GGMLBlas
       GGMLVulkan
       GGMLOpenCL)
-    add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 
     find_package(
       Vulkan
@@ -372,7 +380,7 @@ else()
         GGMLCPU-SAPPHIRERAPIDS)
       add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
     else()
-      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_NATIVE=ON)
+      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_NATIVE=ON -DGGML_BACKEND_DL=OFF)
       list(APPEND WHISPER_LIBRARIES GGMLBlas GGMLCPU)
     endif()
 
@@ -428,7 +436,14 @@ else()
     find_package(CUDAToolkit QUIET)
     if(CUDAToolkit_FOUND)
       message(STATUS "CUDA found, Libraries: ${CUDAToolkit_LIBRARIES}")
-      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native)
+      list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DGGML_CUDA=ON)
+
+      if(WHISPER_BUILD_ALL_CUDA_ARCHITECTURES)
+        list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=all)
+      else()
+        list(APPEND WHISPER_ADDITIONAL_CMAKE_ARGS -DCMAKE_CUDA_ARCHITECTURES=native)
+      endif()
+
       if(WHISPER_DYNAMIC_BACKENDS)
         list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
       else()
@@ -438,9 +453,12 @@ else()
     endif()
 
     foreach(component ${WHISPER_LIBRARIES})
-      whisper_lib_paths(${component} ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/obs-plugins/${CMAKE_PROJECT_NAME}
-                        WHISPER_STATIC_LIB_PATH WHISPER_SHARED_LIB_PATH WHISPER_SHARED_MODULE_PATH)
-      list(APPEND WHISPER_BYPRODUCTS ${WHISPER_SHARED_LIB_PATH})
+      lib_name(${component} WHISPER_COMPONENT_IMPORT_LIB)
+      list(
+        APPEND
+        WHISPER_BYPRODUCTS
+        "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/obs-plugins/${CMAKE_PROJECT_NAME}/${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}"
+      )
     endforeach(component ${WHISPER_LIBRARIES})
 
     # On Linux build a shared Whisper library

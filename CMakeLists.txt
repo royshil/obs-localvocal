@@ -14,6 +14,14 @@ option(USE_SYSTEM_ICU "Use system ICU" OFF)
 option(USE_SYSTEM_ONNXRUNTIME "Use system ONNX Runtime" OFF)
 option(LINUX_SOURCE_BUILD
        "Build Whispercpp dependency from source on Linux instead of using one of the precompiled variants" OFF)
+option(
+  WHISPER_DYNAMIC_BACKENDS
+  "Build backends for all CPU variants when building Whispercpp from source, instead of only building one CPU backend optimised for the host system"
+  OFF)
+option(
+  WHISPER_BUILD_ALL_CUDA_ARCHITECTURES
+  "Build CUDA backend for all NVidia architectures when building Whispercpp from source, instead of only building for the host system's GPU"
+  OFF)
 
 # Doesn't seem to do anything set(DISABLE_ONNXRUNTIME_GPU OFF CACHE STRING "Disables GPU support of ONNX Runtime (Only
 # valid on Linux)")

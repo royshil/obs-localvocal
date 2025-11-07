@@ -237,6 +237,11 @@ cmake --build build_x86_64 --target install
 
 When building from source, the Vulkan and OpenCL development libraries are optional and will only be used in the build if they are installed. Similarly if the CUDA or ROCm toolkits are found, they will also be used and the relevant Whisper backends will be enabled.
 
+The default for a full source build is to build both Whisper and the plugin optimized for the host system. To change this behaviour add one or both of the following options to the CMake configure command (the first of the two):
+
+* to build all CPU backends add `-DWHISPER_DYNAMIC_BACKENDS=ON`
+* to build all CUDA kernels add `-DWHISPER_BUILD_ALL_CUDA_ARCHITECTURES=ON`
+
 ### Windows
 
 Use the CI scripts again, for example:
