@@ -64,10 +64,13 @@ void enumerate_gpu_devices(transcription_filter_data *gf)
 	// Load CPU backends
 	auto path = std::filesystem::path(obs_get_module_binary_path(obs_current_module()))
 			    .parent_path();
-#ifndef _WIN32
-	// Linux and mac have modules in a subdirectory, Windows does not
+#if !defined(_WIN32) && defined(__linux__)
+	// Linux has modules in a subdirectory, Windows does not
 	path /= "obs-localvocal";
-#endif // _WIN32
+#elif !defined(_WIN32)
+	// MacOS is just weird
+	path = path.parent_path() / "Frameworks";
+#endif
 
 	obs_log(LOG_INFO, "Loading dynamic backends from %s", path.string().c_str());
 	ggml_backend_load_all_from_path(path.string().c_str());

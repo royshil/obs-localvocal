@@ -73,32 +73,38 @@ function(ADD_WHISPER_COMPONENT COMPONENT LIB_TYPE SOURCE_DIR LIB_DIR)
   whisper_lib_paths(${COMPONENT} ${LIB_DIR} WHISPER_STATIC_LIB_PATH WHISPER_SHARED_LIB_PATH WHISPER_SHARED_MODULE_PATH)
   lib_name(${COMPONENT} WHISPER_COMPONENT_IMPORT_LIB)
 
-  add_library(${COMPONENT} ${LIB_TYPE} IMPORTED)
-
-  if(LIB_TYPE STREQUAL STATIC)
-    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_STATIC_LIB_PATH}")
-  else()
-    if(APPLE)
-      add_custom_command(
-        TARGET "${CMAKE_PROJECT_NAME}"
-        PRE_BUILD VERBATIM
-        COMMAND /usr/bin/codesign --force --verify --verbose --sign "${CODESIGN_IDENTITY}" "${WHISPER_SHARED_LIB_PATH}")
-      add_custom_command(
-        TARGET "${CMAKE_PROJECT_NAME}"
-        PRE_BUILD
-        COMMAND
-          ${CMAKE_INSTALL_NAME_TOOL} -id
-          "@rpath/${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}"
-          $<TARGET_FILE:${COMPONENT}>)
-      set_target_properties(${COMPONENT} PROPERTIES INSTALL_RPATH "@loader_path/../Frameworks")
-      set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES INSTALL_RPATH "@loader_path/../Frameworks")
+  if(APPLE AND (LIB_TYPE STREQUAL SHARED))
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${WHISPER_SHARED_LIB_PATH}")
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${WHISPER_SHARED_LIB_PATH}")
+    set_property(SOURCE "${WHISPER_SHARED_LIB_PATH}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)
+    source_group("Frameworks" FILES "${WHISPER_SHARED_LIB_PATH}")
+    add_custom_command(
+      TARGET "${CMAKE_PROJECT_NAME}"
+      PRE_BUILD VERBATIM
+      COMMAND /usr/bin/codesign --force --verify --verbose --sign "${CODESIGN_IDENTITY}" "${WHISPER_SHARED_LIB_PATH}")
+    message(STATUS "lib name: ${WHISPER_COMPONENT_IMPORT_LIB}")
+    if(${WHISPER_COMPONENT_IMPORT_LIB} STREQUAL whisper)
+      set(DYLIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}.1${CMAKE_SHARED_LIBRARY_SUFFIX})
+    else()
+      set(DYLIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX})
     endif()
-    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_SHARED_LIB_PATH}")
-    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_IMPLIB "${WHISPER_STATIC_LIB_PATH}")
+    add_custom_command(
+      TARGET "${CMAKE_PROJECT_NAME}"
+      POST_BUILD
+      COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change "@rpath/${DYLIB_NAME}" "@loader_path/../Frameworks/${DYLIB_NAME}"
+              $<TARGET_FILE:${CMAKE_PROJECT_NAME}>)
+  else()
+    add_library(${COMPONENT} ${LIB_TYPE} IMPORTED)
+
+    if(LIB_TYPE STREQUAL STATIC)
+      set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_STATIC_LIB_PATH}")
+    else()
+      set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_SHARED_LIB_PATH}")
+      set_target_properties(${COMPONENT} PROPERTIES IMPORTED_IMPLIB "${WHISPER_STATIC_LIB_PATH}")
+    endif()
+    set_target_properties(${COMPONENT} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SOURCE_DIR}/include")
+    target_link_libraries(Whispercpp INTERFACE ${COMPONENT})
   endif()
-  set_target_properties(${COMPONENT} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SOURCE_DIR}/include")
-  target_link_libraries(Whispercpp INTERFACE ${COMPONENT})
-  # endif()
 endfunction()
 
 function(ADD_WHISPER_RUNTIME_MODULE COMPONENT SOURCE_DIR LIB_DIR)
