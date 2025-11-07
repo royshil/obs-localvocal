@@ -13,11 +13,9 @@ If you’re looking for a hosted desktop recording API, consider checking out [R
 [![GitHub stars](https://badgen.net/github/stars/locaal-ai/obs-localvocal)](https://GitHub.com/locaal-ai/obs-localvocal/stargazers/)
 <br/>
 Download:</br>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-windows-x64-cuda-Installer.exe"><img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" /></a>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-macos-x86_64.pkg"><img src="https://img.shields.io/badge/mac%20Intel-000000?style=for-the-badge" /></a>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-macos-arm64.pkg"><img src="https://img.shields.io/badge/mac%20M1/2/3-0a0a0a?style=for-the-badge&"/></a>
-<a href="https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-x86_64-linux-gnu.deb"><img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black"/></a>
-
+[![Static Badge](https://img.shields.io/badge/Windows%20(generic)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-windows-x64-generic-Installer.exe) [![Static Badge](https://img.shields.io/badge/Windows%20(NVidia)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-windows-x64-nvidia-Installer.exe) [![Static Badge](https://img.shields.io/badge/Windows%20(AMD)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-windows-x64-amd-Installer.exe)
+[![Static Badge](https://img.shields.io/badge/mac%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-macos-x86_64.pkg) [![Static Badge](https://img.shields.io/badge/mac%20M1/2/3-0a0a0a?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-macos-arm64.pkg)
+[![Static Badge](https://img.shields.io/badge/Linux%20(generic)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-generic-x86_64-linux-gnu.deb) [![Static Badge](https://img.shields.io/badge/Linux%20(NVidia)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-nvidia-x86_64-linux-gnu.deb) [![Static Badge](https://img.shields.io/badge/Linux%20(AMD)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.0/obs-localvocal-0.5.0-amd-x86_64-linux-gnu.deb)
 
 </div>
 
@@ -76,22 +74,76 @@ Check out the [latest releases](https://github.com/locaal-ai/obs-localvocal/rele
 
 LocalVocal is available in multiple versions to cater to different hardware configurations and operating systems. Below is a brief explanation of the different versions you can download:
 
-- **Windows CUDA**: This version is optimized for systems with NVIDIA GPUs and utilizes CUDA for accelerated performance. Make sure you have the latest NVidia GPU drivers installed.
-- **Windows CPU**: This version is designed for systems without dedicated GPUs, running solely on the CPU.
-- **Windows HIPBLAS**: This version utilizes the HIP framework from AMD that accelerates computation on AMD GPUs. (⚠️ Experimental ⚠️ Please provide feedback)
-- **Windows Vulkan**: This version uses Vulkan for GPU-based acceleration across many vendors like NVidia, AMD, and Intel. (⚠️ Experimental ⚠️ Please provide feedback)
-  - May need the Vulkan runtime which can be downloaded at https://sdk.lunarg.com/sdk/download/1.4.328.1/windows/VulkanRT-X64-1.4.328.1-Installer.exe
-- **macOS Intel (x86_64)**: This version is for Mac computers with Intel processors.
-- **macOS Apple Silicon (arm64)**: This version is optimized for Mac computers with Apple Silicon (M1, M2, etc.) processors.
+- **Windows** (please ensure you have the [latest MSVC runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) installed)
+  - **generic**: This version runs on all systems. See [Generic variants](#generic-variants) for more details
+  - **NVidia**: This version is optimized for systems with NVIDIA GPUs. See [NVidia optimized variants](#nvidia-optimized-variants) for more details
+  - **AMD**: This version is optimized for systems with AMD GPUs. See [AMD optimized variants](#amd-optimized-variants) for more details
+- **MacOS**
+  - **Intel (x86_64)**: This version is for Mac computers with Intel processors. See [MacOS variants](#mac-os-variants)
+  - **Apple Silicon (arm64)**: This version is optimized for Mac computers with Apple Silicon (M1, M2, etc.) processors. See [MacOS variants](#mac-os-variants)
 - **Linux x86_64**: This version is for Linux systems with x86_64 architecture.
+  - **generic**: This version runs on all systems. See [Generic variants](#generic-variants) for more details
+  - **NVidia**: This version is optimized for systems with NVIDIA GPUs. See [NVidia optimized variants](#nvidia-optimized-variants) for more details
+  - **AMD**: This version is optimized for systems with AMD GPUs. See [AMD optimized variants](#amd-optimized-variants) for more details
 
 Make sure to download the version that matches your system's hardware and operating system for the best performance.
 
-If using Windows and the plugin fails to load after installation, please ensure you have the [latest MSVC runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) installed, and that you are using the correct version (e.g. not using a CUDA version without an NVidia GPU and CUDA installed)
+Whisper backends are now loaded dynamically when the plugin starts, which has 2 major benefits:
+
+* **Better CPU performance and compatibility** - Whisper can automatically select the best CPU backend that works on your system out of all the ones available. This means that the plugin can now make full use of newer CPUs with more features, as well as making it usable on even older hardware than before (prior to v0.5.0 it was assumed that users would have at least AVX2 capable CPUs)
+* **More stability** - If a backend is present that cannot be used on your system, either due to unavailable CPU features, missing dependencies, or something else, it will simply not be loaded instead of causing a crash
+
+To ensure the plugin works "out-of-the-box", it is configured by default to use the CPU only (this is also the case for users upgrading from versions older than v0.5.0). This is to avoid immediate crashes on startup if for any reason your GPU cannot be used by one of the Whisper backends (e.g. the Metal backend on Apple just crashes if it is unable to allocate a buffer to load a model into)
+
+If you want to use GPU acceleration, please ensure you go into the plugin settings and select your desired GPU acceleration backend
+
+#### Generic variants
+
+These variants should run well on any system regardless of hardware configuration. They contain the following Whispercpp backends:
+
+* CPU
+  * Generic x86_64
+  * Generic x86_64 with SSE4.2
+  * Sandy Bridge (CPU with SSE4.2, AVX)
+  * Haswell (CPU with SSE4.2, AVX, F16C, AVX2, BMI2, FMA)
+  * Sky Lake (CPU with SSE4.2, AVX, F16C, AVX2, BMI2, FMA, AVX512)
+  * Ice Lake (CPU with SSE4.2, AVX, F16C, AVX2, BMI2, FMA, AVX512, AVX512_VBMI AVX512_VNNI)
+  * Alder Lake (CPU with SSE4.2, AVX, F16C, AVX2, BMI2, FMA, AVX_VNNI)
+  * Sapphire Rapids (CPU with SSE4.2, AVX, F16C, AVX2, BMI2, FMA, AVX512, AVX512_VBMI AVX512_VNNI, AVX512_BF16, AMX_TITLE, AMX_INT8)
+* OpenBLAS - Used in conjunction with a CPU backend to accelerate processing speed
+* Vulkan - Standard cross-platform graphics library allowing for GPU accelerated processing on GPUs that aren't supported by CUDA or ROCm. Can also work with integrated GPUs)
+  * May need the Vulkan runtime on Windows which can be downloaded at https://sdk.lunarg.com/sdk/download/1.4.328.1/windows/VulkanRT-X64-1.4.328.1-Installer.exe
+* OpenCL (currently Linux only) - Industry standard parallel compute library that may be faster than Vulkan on supported GPUs
+
+#### NVidia optimized variants
+
+These variants contain all the backends from the generic variant, plus a CUDA backend that provides accelerated performance on supported NVidia GPUS. If the OpenCL backend is available on your platform, it also uses the CUDA OpenCL library instead of the generic one.
+
+Make sure you have the latest NVidia GPU drivers installed and you will likely also need the [CUDA toolkit v12.8.0](https://developer.nvidia.com/cuda-12-8-0-download-archive) or newer.
+
+If installing on Linux, to avoid installing the entire CUDA toolkit if you don't need it you can just install either the `cuda-runtime-12.8` package to get all the runtime libs and drivers, or the `cuda-libaries-12-8` package to just get the runtime libraries.
+
+#### AMD optimized variants
+
+These variants contain all the backends from the generic variant, plus a hipblas backend using AMD's ROCm framework that accelerates computation on [supported AMD GPUs](https://rocm.docs.amd.com/en/docs-6.4.2/compatibility/compatibility-matrix.html)
+
+Please ensure you have a compatible AMD GPU driver installed
+
+#### Mac OS variants
+
+These variants come with the following backends available:
+* CPU
+  * The same x86_64 variants as listed in [Generic variants](#generic-variants) for Intel CPUs
+  * m1, m2/m3, and m4 variants for ARM CPUs
+* Accelerate - Used in conjunction with a CPU backend to accelerate processing speed
+* Metal - Uses the system's GPU for accelerated processing
+* CoreML - Special backend that uses Apple's CoreML instead of Whisper's normal model processing, running on either the Metal or CPU backends
 
 ### Models
 The plugin ships with the Tiny.en model, and will autonomously download other Whisper models through a dropdown.
 There's also an option to select an external GGML Whisper model file if you have it on disk.
+
+If using CoreML on Apple, it will also automatically download the appropriate CoreML encoder model for your selected model.
 
 Get more models from https://ggml.ggerganov.com/ and [HuggingFace](https://huggingface.co/ggerganov/whisper.cpp/tree/main), follow [the instructions on whisper.cpp](https://github.com/ggerganov/whisper.cpp/tree/master/models) to create your own models or download others such as distilled models.
 
@@ -122,7 +174,7 @@ $ ./.github/scripts/package-macos -c Release
 
 #### Ubuntu
 
-For successfully building on Ubuntu, first clone the repo, then from the repo directory:
+For successfully building on Ubuntu, first clone the repo, set the `ACCELERATION` environment variable to one of `generic`, `nvidia`, or `amd` then from the repo directory:
 ```sh
 $ sudo apt install -y libssl-dev
 $ ./.github/scripts/build-linux
