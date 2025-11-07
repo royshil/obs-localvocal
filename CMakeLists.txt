@@ -7,18 +7,13 @@ project(${_name} VERSION ${_version})
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 option(ENABLE_TESTS "Enable tests" OFF)
+option(ENABLE_WEBVTT "Enable WebVTT embedding" ON)
 
-set(USE_SYSTEM_CURL
-    OFF
-    CACHE STRING "Use system cURL")
-
-set(USE_SYSTEM_ICU
-    OFF
-    CACHE STRING "Use system ICU")
-
-set(USE_SYSTEM_ONNXRUNTIME
-    OFF
-    CACHE STRING "Use system ONNX Runtime")
+option(USE_SYSTEM_CURL "Use system cURL" OFF)
+option(USE_SYSTEM_ICU "Use system ICU" OFF)
+option(USE_SYSTEM_ONNXRUNTIME "Use system ONNX Runtime" OFF)
+option(LINUX_SOURCE_BUILD
+       "Build Whispercpp dependency from source on Linux instead of using one of the precompiled variants" OFF)
 
 # Doesn't seem to do anything set(DISABLE_ONNXRUNTIME_GPU OFF CACHE STRING "Disables GPU support of ONNX Runtime (Only
 # valid on Linux)")
@@ -140,8 +135,6 @@ endif()
 if(DEFINED ENV{LOCALVOCAL_EXTRA_VERBOSE})
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE LOCALVOCAL_EXTRA_VERBOSE)
 endif()
-
-option(ENABLE_WEBVTT "Enable WebVTT embedding" ON)
 
 if(ENABLE_WEBVTT)
   include(cmake/BuildWebVTT.cmake)

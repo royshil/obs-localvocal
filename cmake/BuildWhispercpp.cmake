@@ -252,7 +252,7 @@ else()
   set(BLA_VENDOR OpenBLAS)
   find_package(BLAS REQUIRED)
 
-  if(CI)
+  if(NOT LINUX_SOURCE_BUILD)
     set(WHISPER_LIBRARY_TYPE SHARED)
     set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
     list(APPEND WHISPER_DEPENDENCY_LIBRARIES Vulkan::Vulkan BLAS::BLAS)
@@ -304,14 +304,6 @@ else()
         CUDA::cublasLt
         CUDA::cuda_driver
         CUDA::OpenCL)
-      set(CUDART_LIB ${CUDAToolkit_LIBRARY_DIR}/libcuda.so.1)
-      if(NOT EXISTS ${CUDART_LIB})
-        message(
-          STATUS
-            "Creating symlink from ${CUDAToolkit_LIBRARY_DIR}/libcuda.so to ${CUDAToolkit_LIBRARY_DIR}/libcuda.so.1")
-        execute_process(COMMAND sudo ${CMAKE_COMMAND} -E create_symlink ${CUDAToolkit_LIBRARY_DIR}/libcuda.so
-                                ${CUDAToolkit_LIBRARY_DIR}/libcuda.so.1)
-      endif()
     elseif(${ACCELERATION} STREQUAL "amd")
       set(WHISPER_CPP_HASH "1a7592da41493e57ead23c97a420f2db11a4fe31049c9b01cdb310bff05fdca1")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)

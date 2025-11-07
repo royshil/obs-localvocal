@@ -172,70 +172,70 @@ $ ./.github/scripts/package-macos -c Release
 
 ### Linux
 
-#### Ubuntu
+#### Using pre-compiled variants
 
-For successfully building on Ubuntu, first clone the repo, set the `ACCELERATION` environment variable to one of `generic`, `nvidia`, or `amd` then from the repo directory:
-```sh
-$ sudo apt install -y libssl-dev
-$ ./.github/scripts/build-linux
-```
+1. Clone the repository and if not using Ubuntu install the development versions of these dependencies using your distribution's package manager:
 
-Copy the results to the standard OBS folders on Ubuntu
-```sh
-$ sudo cp -R release/RelWithDebInfo/lib/* /usr/lib/
-$ sudo cp -R release/RelWithDebInfo/share/* /usr/share/
-```
-Note: The official [OBS plugins guide](https://obsproject.com/kb/plugins-guide) recommends adding plugins to the `~/.config/obs-studio/plugins` folder. This has to do with the way you *installed* OBS.
-
-In case the above doesn't work, attempt to copy the files to the `~/.config` folder:
-```sh
-$ mkdir -p ~/.config/obs-studio/plugins/obs-localvocal/bin/64bit
-$ cp -R release/RelWithDebInfo/lib/x86_64-linux-gnu/obs-plugins/* ~/.config/obs-studio/plugins/obs-localvocal/bin/64bit/
-$ mkdir -p ~/.config/obs-studio/plugins/obs-localvocal/data
-$ cp -R release/RelWithDebInfo/share/obs/obs-plugins/obs-localvocal/* ~/.config/obs-studio/plugins/obs-localvocal/data/
-```
-
-#### Other distros
-
-For other distros where you can't use the CI build script, you can build the plugin as follows
-
-1. Clone the repository and install these dependencies using your distribution's package manager:
-
-    * libcurl (with development headers)
-    * libssl (with development headers)
+    * libcurl
+    * libsimde
+    * libssl
     * icu
-    * openblas
-    * vulkan headers
+    * openblas (preferably the OpenMP variant rather than the pthreads variant)
+    * OpenCL
+    * Vulkan
+
+    Installing ccache is also recommended if you are likely to be building the plugin multiple times
 
 1. Install rust via [rustup](https://rust-lang.org/tools/install/) (recommended), or your distribution's package manager
 
-1. Generate the CMake build scripts (adjust folders if necessary)
+1. Set the `ACCELERATION` environment variable to one of `generic`, `nvidia`, or `amd` (defaults to `generic` if unset)
 
     ```sh
-    cmake -B build-dir --preset linux-x86_64 -DUSE_SYSTEM_CURL=ON -DUSE_SYSTEM_ICU=ON -DCMAKE_INSTALL_PREFIX=./output_dir
+    export ACCELERATION="nvidia"
     ```
 
-1. Build the plugin and copy the files to the output directory
+1. Then from the repo directory build the plugin by running:
 
     ```sh
-    cmake --build build-dir --target install
+    ./.github/scripts/build-linux
     ```
 
-1. Copy plugin to OBS plugins folder
+    If you can't use the CI build script for some reason, you can build the plugin as follows
 
     ```sh
-    mkdir -p ~/.config/obs-studio/plugins/bin/64bit
-    cp -R ./output_dir/lib/obs-plugins/* ~/.config/obs-studio/plugins/obs-localvocal/bin/64bit/
+    cmake -B build_x86_64 --preset linux-x86_64 -DCMAKE_INSTALL_PREFIX=./release
+    cmake --build build_x86_64 --target install
     ```
 
-    > N.B. Depending on your system, the plugin might be in `./output_dir/lib64/obs-plugins` instead.
+1. Installing
 
-1. Copy plugin data to OBS plugins folder - Possibly only needed on first install
+    If using Ubuntu and the plugin was previously installed using a .deb package, copy the results to the standard OBS folders on Ubuntu
 
     ```sh
-    mkdir -p ~/.config/obs-studio/plugins/data
-    cp -R ./output_dir/share/obs/obs-plugins/obs-localvocal/* ~/.config/obs-studio/plugins/obs-localvocal/data/
+    sudo cp -R release/RelWithDebInfo/lib/* /usr/lib/
+    sudo cp -R release/RelWithDebInfo/share/* /usr/share/
     ```
+
+    Otherwise, follow the official [OBS plugins guide](https://obsproject.com/kb/plugins-guide) and copy the results to your user plugins folder
+    ```sh
+    mkdir -p ~/.config/obs-studio/plugins/obs-localvocal/bin/64bit
+    cp -R release/RelWithDebInfo/lib/x86_64-linux-gnu/obs-plugins/* ~/.config/obs-studio/plugins/obs-localvocal/bin/64bit/
+    mkdir -p ~/.config/obs-studio/plugins/obs-localvocal/data
+    cp -R release/RelWithDebInfo/share/obs/obs-plugins/obs-localvocal/* ~/.config/obs-studio/plugins/obs-localvocal/data/
+    ```
+
+    Note: The lib path in the release folder varies depending on your Linux distribution (e.g. on Gentoo the plugin libraries are found in `release/RelWithDebInfo/lib64/obs-plugins`) but the destination directory to copy them into will always be the same.
+
+#### Building Whispercpp from source along with the plugin
+
+If you can't use the CI build script for some reason, or simply prefer to build the Whispercpp dependency from source along with the plugin, follow the steps above but build the plugin using the following commands:
+
+```sh
+cmake -B build_x86_64 --preset linux-x86_64 -DLINUX_SOURCE_BUILD=ON -DCMAKE_INSTALL_PREFIX=./release
+cmake --build build_x86_64 --target install
+```
+
+When building from source, the Vulkan and OpenCL development libraries are optional and will only be used in the build if they are installed. Similarly if the CUDA or ROCm toolkits are found, they will also be used and the relevant Whisper backends will be enabled.
 
 ### Windows
 

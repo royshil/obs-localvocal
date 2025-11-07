@@ -19,12 +19,8 @@ if(APPLE)
 
 elseif(WIN32)
   message(STATUS "Using pre-compiled CTranslate2")
-  # check ACCELERATION environment variable
-  if(NOT DEFINED ACCELERATION)
-    message(FATAL_ERROR "Please set ACCELERATION to either `cpu`, `hipblas`, or `cuda`")
-  endif()
 
-  if(${ACCELERATION} STREQUAL "cpu" OR ${ACCELERATION} STREQUAL "hipblas")
+  if(NOT ${ACCELERATION} STREQUAL "nvidia")
     FetchContent_Declare(
       ctranslate2_fetch
       URL https://github.com/occ-ai/obs-ai-ctranslate2-dep/releases/download/1.2.0/libctranslate2-windows-4.1.1-Release-cpu.zip
@@ -32,7 +28,7 @@ elseif(WIN32)
   else()
     # add compile definitions for CUDA
     add_compile_definitions(POLYGLOT_WITH_CUDA)
-    add_compile_definitions(POLYGLOT_CUDA_VERSION="12.2.0")
+    add_compile_definitions(POLYGLOT_CUDA_VERSION="12.8.0")
 
     FetchContent_Declare(
       ctranslate2_fetch
