@@ -75,13 +75,14 @@ jobs:
           commit_hash="${GITHUB_SHA:0:9}"
 
           variants=(
-            'windows-x64-cpu;zip|exe'
-            'windows-x64-hipblas;zip|exe'
-            'windows-x64-vulkan;zip|exe'
-            'windows-x64-cuda;zip|exe'
+            'windows-x64-generic;zip|exe'
+            'windows-x64-nvidia;zip|exe'
+            'windows-x64-amd;zip|exe'
             'macos-arm64;tar.xz|pkg'
             'macos-x86_64;tar.xz|pkg'
-            'ubuntu-22.04-x86_64;tar.xz|deb|ddeb'
+            'ubuntu-22.04-x86_64-generic;tar.xz|deb|ddeb'
+            'ubuntu-22.04-x86_64-nvidia;tar.xz|deb|ddeb'
+            'ubuntu-22.04-x86_64-amd;tar.xz|deb|ddeb'
             'sources;tar.xz'
           )
 
