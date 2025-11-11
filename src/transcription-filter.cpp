@@ -73,7 +73,20 @@ void enumerate_gpu_devices(transcription_filter_data *gf)
 #endif
 
 	obs_log(LOG_INFO, "Loading dynamic backends from %s", path.string().c_str());
-	ggml_backend_load_all_from_path(path.string().c_str());
+	// ggml_backend_load_all_from_path(path.string().c_str());
+	bool silent = false;
+
+	ggml_backend_load_best("blas", silent, path.string().c_str());
+	ggml_backend_load_best("cann", silent, path.string().c_str());
+	ggml_backend_load_best("cuda", silent, path.string().c_str());
+	ggml_backend_load_best("hip", silent, path.string().c_str());
+	ggml_backend_load_best("metal", silent, path.string().c_str());
+	ggml_backend_load_best("rpc", silent, path.string().c_str());
+	ggml_backend_load_best("sycl", silent, path.string().c_str());
+	ggml_backend_load_best("vulkan", silent, path.string().c_str());
+	ggml_backend_load_best("opencl", silent, path.string().c_str());
+	ggml_backend_load_best("musa", silent, path.string().c_str());
+	ggml_backend_load_best("cpu", silent, path.string().c_str());
 #endif
 
 	// Enumerate backend devices to populate list
