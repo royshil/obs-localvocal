@@ -1,155 +1,20 @@
 include(ExternalProject)
 include(FetchContent)
 
-set(PREBUILT_WHISPERCPP_VERSION "0.0.10-2")
+set(PREBUILT_WHISPERCPP_VERSION "0.0.11-1")
 set(PREBUILT_WHISPERCPP_URL_BASE
     "https://github.com/locaal-ai/occ-ai-dep-whispercpp/releases/download/${PREBUILT_WHISPERCPP_VERSION}")
 
 add_library(Whispercpp INTERFACE)
 
-# Get the name for the whisper library file from the CMake component name
-function(LIB_NAME COMPONENT WHISPER_COMPONENT_IMPORT_LIB)
-  if((COMPONENT STREQUAL "Whisper") OR (COMPONENT STREQUAL "Whispercpp::Whisper"))
-    set(WHISPER_COMPONENT_IMPORT_LIB
-        whisper
-        PARENT_SCOPE)
-  elseif((COMPONENT STREQUAL "GGML") OR (COMPONENT STREQUAL "Whispercpp::GGML"))
-    set(WHISPER_COMPONENT_IMPORT_LIB
-        ggml
-        PARENT_SCOPE)
-  elseif((COMPONENT STREQUAL "WhisperCoreML") OR (COMPONENT STREQUAL "Whispercpp::WhisperCoreML"))
-    set(WHISPER_COMPONENT_IMPORT_LIB
-        whisper.coreml
-        PARENT_SCOPE)
-  else()
-    string(REGEX REPLACE "(Whispercpp::)?(GGML)" "\\2" COMPONENT ${COMPONENT})
-    string(REGEX REPLACE "GGML(.*)" "\\1" LIB_SUFFIX ${COMPONENT})
-    string(TOLOWER ${LIB_SUFFIX} IMPORT_LIB_SUFFIX)
-    set(WHISPER_COMPONENT_IMPORT_LIB
-        "ggml-${IMPORT_LIB_SUFFIX}"
-        PARENT_SCOPE)
-  endif()
-endfunction()
-
-# Get library paths for Whisper libs
-function(WHISPER_LIB_PATHS COMPONENT SOURCE_DIR WHISPER_STATIC_LIB_PATH WHISPER_SHARED_LIB_PATH
-         WHISPER_SHARED_MODULE_PATH)
-  lib_name(${COMPONENT} WHISPER_COMPONENT_IMPORT_LIB)
-
-  if(UNIX AND NOT APPLE)
-    if(${LINUX_SOURCE_BUILD})
-      set(STATIC_PATH ${SOURCE_DIR})
-      set(SHARED_PATH ${SOURCE_DIR})
-      set(SHARED_BIN_PATH ${SOURCE_DIR})
-    else()
-      set(STATIC_PATH ${SOURCE_DIR}/lib)
-      set(SHARED_PATH ${SOURCE_DIR}/lib)
-      set(SHARED_BIN_PATH ${SOURCE_DIR}/bin)
-    endif()
-  else()
-    set(STATIC_PATH ${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR})
-    set(SHARED_PATH ${SOURCE_DIR}/${CMAKE_INSTALL_LIBDIR})
-    set(SHARED_BIN_PATH ${SOURCE_DIR}/${CMAKE_INSTALL_BINDIR})
-  endif()
-
-  set(WHISPER_STATIC_LIB_PATH
-      "${STATIC_PATH}/${CMAKE_STATIC_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX}"
-      PARENT_SCOPE)
-  set(WHISPER_SHARED_LIB_PATH
-      "${SHARED_PATH}/${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}"
-      PARENT_SCOPE)
-  set(WHISPER_SHARED_MODULE_PATH
-      "${SHARED_BIN_PATH}/${CMAKE_SHARED_MODULE_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_MODULE_SUFFIX}"
-      PARENT_SCOPE)
-
-  # Debugging
-  set(WHISPER_STATIC_LIB_PATH
-      "${STATIC_PATH}/${CMAKE_STATIC_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  set(WHISPER_SHARED_LIB_PATH
-      "${SHARED_PATH}/${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX}")
-  set(WHISPER_SHARED_MODULE_PATH
-      "${SHARED_BIN_PATH}/${CMAKE_SHARED_MODULE_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_MODULE_SUFFIX}")
-  message(STATUS "Whisper lib import path: " ${WHISPER_STATIC_LIB_PATH})
-  message(STATUS "Whisper shared lib import path: " ${WHISPER_SHARED_LIB_PATH})
-  message(STATUS "Whisper shared MODULE import path: " ${WHISPER_SHARED_MODULE_PATH})
-endfunction()
-
-# Add a Whisper component to the build
-function(ADD_WHISPER_COMPONENT COMPONENT LIB_TYPE SOURCE_DIR LIB_DIR)
-  whisper_lib_paths(${COMPONENT} ${LIB_DIR} WHISPER_STATIC_LIB_PATH WHISPER_SHARED_LIB_PATH WHISPER_SHARED_MODULE_PATH)
-  lib_name(${COMPONENT} WHISPER_COMPONENT_IMPORT_LIB)
-
-  if(APPLE AND (LIB_TYPE STREQUAL SHARED))
-    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${WHISPER_SHARED_LIB_PATH}")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${WHISPER_SHARED_LIB_PATH}")
-    set_property(SOURCE "${WHISPER_SHARED_LIB_PATH}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)
-    source_group("Frameworks" FILES "${WHISPER_SHARED_LIB_PATH}")
-    add_custom_command(
-      TARGET "${CMAKE_PROJECT_NAME}"
-      PRE_BUILD VERBATIM
-      COMMAND /usr/bin/codesign --force --verify --verbose --sign "${CODESIGN_IDENTITY}" "${WHISPER_SHARED_LIB_PATH}")
-    message(STATUS "lib name: ${WHISPER_COMPONENT_IMPORT_LIB}")
-    if(${WHISPER_COMPONENT_IMPORT_LIB} STREQUAL whisper)
-      set(DYLIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}.1${CMAKE_SHARED_LIBRARY_SUFFIX})
-    else()
-      set(DYLIB_NAME ${CMAKE_SHARED_LIBRARY_PREFIX}${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_LIBRARY_SUFFIX})
-    endif()
-    add_custom_command(
-      TARGET "${CMAKE_PROJECT_NAME}"
-      POST_BUILD
-      COMMAND ${CMAKE_INSTALL_NAME_TOOL} -change "@rpath/${DYLIB_NAME}" "@loader_path/../Frameworks/${DYLIB_NAME}"
-              $<TARGET_FILE:${CMAKE_PROJECT_NAME}>)
-  else()
-    add_library(${COMPONENT} ${LIB_TYPE} IMPORTED)
-
-    if(LIB_TYPE STREQUAL STATIC)
-      set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_STATIC_LIB_PATH}")
-    else()
-      set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_SHARED_LIB_PATH}")
-      set_target_properties(${COMPONENT} PROPERTIES IMPORTED_IMPLIB "${WHISPER_STATIC_LIB_PATH}")
-    endif()
-    set_target_properties(${COMPONENT} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SOURCE_DIR}/include")
-    target_link_libraries(Whispercpp INTERFACE ${COMPONENT})
-  endif()
-endfunction()
-
-function(ADD_WHISPER_RUNTIME_MODULE COMPONENT SOURCE_DIR LIB_DIR)
-  whisper_lib_paths(${COMPONENT} ${LIB_DIR} WHISPER_STATIC_LIB_PATH WHISPER_SHARED_LIB_PATH WHISPER_SHARED_MODULE_PATH)
-  lib_name(${COMPONENT} WHISPER_COMPONENT_IMPORT_LIB)
-
-  if(APPLE)
-    target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC "${SOURCE_DIR}/include")
-    target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${WHISPER_SHARED_MODULE_PATH}")
-    set_property(SOURCE "${WHISPER_SHARED_MODULE_PATH}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)
-    source_group("Frameworks" FILES "${WHISPER_SHARED_MODULE_PATH}")
-    # add a codesigning step
-    add_custom_command(
-      TARGET "${CMAKE_PROJECT_NAME}"
-      PRE_BUILD VERBATIM
-      COMMAND /usr/bin/codesign --force --verify --verbose --sign "${CODESIGN_IDENTITY}"
-              "${WHISPER_SHARED_MODULE_PATH}")
-    add_custom_command(
-      TARGET "${CMAKE_PROJECT_NAME}"
-      POST_BUILD
-      COMMAND
-        ${CMAKE_INSTALL_NAME_TOOL} -change "@rpath/${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_MODULE_SUFFIX}"
-        "@loader_path/../Frameworks/${WHISPER_COMPONENT_IMPORT_LIB}${CMAKE_SHARED_MODULE_SUFFIX}"
-        $<TARGET_FILE:${CMAKE_PROJECT_NAME}>)
-  else()
-    add_library(${COMPONENT} SHARED IMPORTED)
-    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_LOCATION "${WHISPER_SHARED_LIB_PATH}")
-    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_IMPLIB "${WHISPER_STATIC_LIB_PATH}")
-    set_target_properties(${COMPONENT} PROPERTIES IMPORTED_NO_SONAME TRUE)
-    set_target_properties(${COMPONENT} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${SOURCE_DIR}/include")
-  endif()
-endfunction()
+include(cmake/BuildWhispercppHelpers.cmake)
 
 if(APPLE)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
-    set(WHISPER_CPP_HASH "02446b1d508711b26cc778db48d5b8ef2dd7b0c98f5c9dfe39a1ad2ef9e3df07")
+    set(WHISPER_CPP_HASH "248a7049679817bc1e41b1aa1a99b5927ab4471e284844b5a4f6a4742a1375dc")
     list(
       APPEND
       WHISPER_RUNTIME_MODULES
@@ -162,7 +27,7 @@ if(APPLE)
       GGMLCPU-ALDERLAKE
       GGMLCPU-SAPPHIRERAPIDS)
   elseif($ENV{MACOS_ARCH} STREQUAL "arm64")
-    set(WHISPER_CPP_HASH "ff2764b113e0f1fbafe0d8f86a339cd541d86a06d40a10eeac352050cc3be920")
+    set(WHISPER_CPP_HASH "a25d8393c517ca128408ca54cdbb57848c0c282506cb104bf0b276b2252d06d7")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCPU-APPLE_M1 GGMLCPU-APPLE_M2_M3 GGMLCPU-APPLE_M4)
   else()
     message(
@@ -170,9 +35,9 @@ if(APPLE)
         "The MACOS_ARCH environment variable is not set to a valid value. Please set it to either `x86_64` or `arm64`")
   endif()
   set(WHISPER_CPP_URL
-      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
+      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
 
-  set(WHISPER_LIBRARIES Whisper WhisperCoreML GGML GGMLBase)
+  set(WHISPER_LIBRARIES Whisper Whisper_1 WhisperCoreML GGML GGMLBase)
   list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas)
   set(WHISPER_DEPENDENCY_LIBRARIES "-framework Accelerate" "-framework CoreML" "-framework Metal" ${BLAS_LIBRARIES})
   set(WHISPER_LIBRARY_TYPE SHARED)
@@ -187,15 +52,6 @@ if(APPLE)
 
   set(WHISPER_SOURCE_DIR ${whispercpp_fetch_SOURCE_DIR})
   set(WHISPER_LIB_DIR ${whispercpp_fetch_SOURCE_DIR})
-
-  add_custom_command(
-    TARGET "${CMAKE_PROJECT_NAME}"
-    PRE_BUILD VERBATIM
-    COMMAND /usr/bin/codesign --force --verify --verbose --sign "${CODESIGN_IDENTITY}"
-            "${whispercpp_fetch_SOURCE_DIR}/lib/libomp.dylib")
-
-  file(GLOB WHISPER_DYLIBS ${whispercpp_fetch_SOURCE_DIR}/lib/*.dylib)
-  install(FILES ${WHISPER_DYLIBS} DESTINATION "${CMAKE_PROJECT_NAME}.plugin/Contents/Frameworks")
 elseif(WIN32)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 
@@ -222,12 +78,12 @@ elseif(WIN32)
       "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-windows${ARCH_PREFIX}${ACCELERATION_PREFIX}-${PREBUILT_WHISPERCPP_VERSION}.zip"
   )
   if(${ACCELERATION} STREQUAL "generic")
-    set(WHISPER_CPP_HASH "affff7241d36aa09863d65fe5a2d581251a9955a4465186ffdec00c893abcaee")
+    set(WHISPER_CPP_HASH "68a9a92bc01d135bb5ca7a4b7c7f9dcb314c51bb78d47296e8d65c188ff0094e")
   elseif(${ACCELERATION} STREQUAL "nvidia")
-    set(WHISPER_CPP_HASH "2b07afba9ad3489e6f173be6be7ffde2625ba5c0d84af7e306308676cabf67a6")
+    set(WHISPER_CPP_HASH "5b4b28b5e0e0530282c99054156ace7e8e8dba6ea2d866269ae490bfac20f762")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
   elseif(${ACCELERATION} STREQUAL "amd")
-    set(WHISPER_CPP_HASH "9713220e1427b94f733255a25c2cf9f26577d2ce7eb55c48a6a0cc651313e9e5")
+    set(WHISPER_CPP_HASH "86be85f5aa9f87d4c02401e14878b2a162791379959cbeab935c58fdda0ea608")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
   else()
     message(
@@ -302,9 +158,9 @@ else()
     set(WHISPER_CPP_URL
         "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-linux${ARCH_PREFIX}${ACCELERATION_PREFIX}-Release.tar.gz")
     if(${ACCELERATION} STREQUAL "generic")
-      set(WHISPER_CPP_HASH "5a4f3baf7d7e030f3e5a29d78fdd06f069fe472ad0f9ca93d40ed222052a3fe5")
+      set(WHISPER_CPP_HASH "c62cde521a5e18a478b5b525a6b76e2811ebd8f7e45c75cf791a05d6c3043315")
     elseif(${ACCELERATION} STREQUAL "nvidia")
-      set(WHISPER_CPP_HASH "a43dc8a44577e965caf9b0baaae74f30a9e00d99a296768021e7ccf0b9217878")
+      set(WHISPER_CPP_HASH "4025bc9e0ea5c98960cdd2e24fd365e371cadb1828e59a263e903dc575c94521")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
 
       # Find CUDA libraries and link against them
@@ -319,7 +175,7 @@ else()
         CUDA::cuda_driver
         CUDA::OpenCL)
     elseif(${ACCELERATION} STREQUAL "amd")
-      set(WHISPER_CPP_HASH "1a7592da41493e57ead23c97a420f2db11a4fe31049c9b01cdb310bff05fdca1")
+      set(WHISPER_CPP_HASH "380fd4a19993753ae1eb4ecb269b61668e8eb7d65c8007365ba2075e77808a09")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
 
       # Find hip libraries and link against them
