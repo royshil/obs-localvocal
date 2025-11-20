@@ -15,7 +15,7 @@ if(APPLE)
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
     # set(WHISPER_CPP_HASH "248a7049679817bc1e41b1aa1a99b5927ab4471e284844b5a4f6a4742a1375dc")
-    set(WHISPER_CPP_HASH "933b7bc77bb2eb21976f5d450cdb96ca7a203f8cbc6d65f19d003a4885a762b5")
+    set(WHISPER_CPP_HASH "9e38a77cc1214989a1c23e13f3455a32f4020b958d2955e23bf28862bc32c1be")
     
     list(
       APPEND
@@ -57,7 +57,6 @@ if(APPLE)
   set(WHISPER_LIB_DIR ${whispercpp_fetch_SOURCE_DIR})
 
   install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libomp.dylib)
-  install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} Accelerate.framework FRAMEWORK)
 elseif(WIN32)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 

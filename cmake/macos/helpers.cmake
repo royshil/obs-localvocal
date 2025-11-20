@@ -111,7 +111,6 @@ function(INSTALL_LIBRARY_TO_BUNDLE SOURCE_DIR LIB_NAME)
       target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC "${SOURCE_DIR}/include")
     endif()
 
-    message(STATUS "Adding ${LIB} to bundle")
     add_custom_command(
       TARGET "${CMAKE_PROJECT_NAME}"
       PRE_BUILD VERBATIM
