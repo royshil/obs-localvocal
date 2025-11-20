@@ -15,7 +15,7 @@ if(APPLE)
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
     set(WHISPER_CPP_HASH "e6fa37ea4f76d31a105dc557e90c41b9bb78a629bb3efa71b2c6f9ce029b77dd")
-    
+
     list(
       APPEND
       WHISPER_RUNTIME_MODULES
@@ -36,7 +36,8 @@ if(APPLE)
         "The MACOS_ARCH environment variable is not set to a valid value. Please set it to either `x86_64` or `arm64`")
   endif()
   set(WHISPER_CPP_URL
-      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
+      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz"
+  )
 
   set(WHISPER_LIBRARIES Whisper Whisper_1 WhisperCoreML GGML GGMLBase)
   list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas)

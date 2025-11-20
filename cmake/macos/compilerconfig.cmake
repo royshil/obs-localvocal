@@ -10,8 +10,7 @@ add_compile_options(-fopenmp-simd)
 if(XCODE)
   # Use Xcode's standard architecture selection
   set(CMAKE_OSX_ARCHITECTURES "$(ARCHS_STANDARD)")
-  #set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym")
-  # Enable dSYM generation for Release builds
+  # set(CMAKE_XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym") Enable dSYM generation for Release builds
   string(APPEND CMAKE_C_FLAGS_RELEASE " -g")
   string(APPEND CMAKE_CXX_FLAGS_RELEASE " -g")
   string(APPEND CMAKE_C_FLAGS_DEBUG " -g")

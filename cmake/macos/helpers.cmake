@@ -114,8 +114,7 @@ function(INSTALL_LIBRARY_TO_BUNDLE SOURCE_DIR LIB_NAME)
     add_custom_command(
       TARGET "${CMAKE_PROJECT_NAME}"
       PRE_BUILD VERBATIM
-      COMMAND /usr/bin/codesign --force ${DEEP_SIGN} --verify --verbose --sign "${CODESIGN_IDENTITY}"
-              "${LIB}")
+      COMMAND /usr/bin/codesign --force ${DEEP_SIGN} --verify --verbose --sign "${CODESIGN_IDENTITY}" "${LIB}")
 
     target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${LIB}")
     set_property(SOURCE "${LIB}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)

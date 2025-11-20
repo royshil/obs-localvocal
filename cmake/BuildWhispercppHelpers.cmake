@@ -2,13 +2,13 @@
 function(LIB_NAME COMPONENT WHISPER_COMPONENT_IMPORT_LIB)
   if((COMPONENT STREQUAL "Whisper") OR (COMPONENT STREQUAL "Whispercpp::Whisper"))
     if(APPLE)
-        set(WHISPER_COMPONENT_IMPORT_LIB
-            whisper.1.8.2
-            PARENT_SCOPE)
+      set(WHISPER_COMPONENT_IMPORT_LIB
+          whisper.1.8.2
+          PARENT_SCOPE)
     else()
-        set(WHISPER_COMPONENT_IMPORT_LIB
-            whisper
-            PARENT_SCOPE)
+      set(WHISPER_COMPONENT_IMPORT_LIB
+          whisper
+          PARENT_SCOPE)
     endif()
   elseif((COMPONENT STREQUAL "Whisper_1") OR (COMPONENT STREQUAL "Whispercpp::Whisper_1"))
     set(WHISPER_COMPONENT_IMPORT_LIB

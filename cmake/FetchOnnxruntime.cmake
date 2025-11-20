@@ -52,9 +52,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(onnxruntime)
 
 if(APPLE)
-  install_library_to_bundle(${onnxruntime_SOURCE_DIR}
-                            libonnxruntime.${Onnxruntime_VERSION}.dylib
-                            BUILD_DEPENDENCY)
+  install_library_to_bundle(${onnxruntime_SOURCE_DIR} libonnxruntime.${Onnxruntime_VERSION}.dylib BUILD_DEPENDENCY)
   add_custom_command(
     TARGET "${CMAKE_PROJECT_NAME}"
     POST_BUILD
