@@ -14,7 +14,9 @@ if(APPLE)
 
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
-    set(WHISPER_CPP_HASH "248a7049679817bc1e41b1aa1a99b5927ab4471e284844b5a4f6a4742a1375dc")
+    # set(WHISPER_CPP_HASH "248a7049679817bc1e41b1aa1a99b5927ab4471e284844b5a4f6a4742a1375dc")
+    set(WHISPER_CPP_HASH "933b7bc77bb2eb21976f5d450cdb96ca7a203f8cbc6d65f19d003a4885a762b5")
+    
     list(
       APPEND
       WHISPER_RUNTIME_MODULES
@@ -34,8 +36,9 @@ if(APPLE)
       FATAL_ERROR
         "The MACOS_ARCH environment variable is not set to a valid value. Please set it to either `x86_64` or `arm64`")
   endif()
-  set(WHISPER_CPP_URL
-      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
+  # set(WHISPER_CPP_URL
+  #     "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
+  set(WHISPER_CPP_URL "file:///Users/tabby/git/occ-ai-dep-whispercpp/whispercpp-macos-x86_64-metal-0.0.11-2.tar.gz")
 
   set(WHISPER_LIBRARIES Whisper Whisper_1 WhisperCoreML GGML GGMLBase)
   list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas)
@@ -52,6 +55,9 @@ if(APPLE)
 
   set(WHISPER_SOURCE_DIR ${whispercpp_fetch_SOURCE_DIR})
   set(WHISPER_LIB_DIR ${whispercpp_fetch_SOURCE_DIR})
+
+  install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libomp.dylib)
+  install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} Accelerate.framework FRAMEWORK)
 elseif(WIN32)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 

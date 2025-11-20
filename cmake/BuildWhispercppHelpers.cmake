@@ -119,21 +119,6 @@ function(ADD_WHISPER_RUNTIME_MODULE COMPONENT SOURCE_DIR LIB_DIR)
     set_property(SOURCE "${WHISPER_SHARED_MODULE_PATH}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)
     source_group("Frameworks" FILES "${WHISPER_SHARED_MODULE_PATH}")
 
-    # cmake-format off
-    # Fix libomp.dylib load path
-    # string(FIND ${WHISPER_COMPONENT_IMPORT_LIB} ggml-cpu IS_CPU_MODULE)
-    # if(${IS_CPU_MODULE} EQUAL 0)
-    #   message(STATUS "Fixing libomp name in ${WHISPER_COMPONENT_IMPORT_LIB}")
-    #   add_custom_command(
-    #   TARGET "${CMAKE_PROJECT_NAME}"
-    #   PRE_BUILD
-    #   COMMAND
-    #     ${CMAKE_INSTALL_NAME_TOOL} -change "/usr/local/opt/libomp/lib/libomp.dylib"
-    #     "@loader_path/../Frameworks/libomp.dylib"
-    #     ${WHISPER_SHARED_MODULE_PATH})
-    # endif()
-    # cmake-format on
-
     # add a codesigning step
     add_custom_command(
       TARGET "${CMAKE_PROJECT_NAME}"

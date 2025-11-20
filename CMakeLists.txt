@@ -187,7 +187,7 @@ if(APPLE)
   add_custom_command(
     TARGET "${CMAKE_PROJECT_NAME}"
     POST_BUILD VERBATIM
-    COMMAND /usr/bin/codesign --force --verify --verbose --sign "${CODESIGN_IDENTITY}"
+    COMMAND /usr/bin/codesign --force --deep --verify --verbose --sign "${CODESIGN_IDENTITY}"
             "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${PROJECT_NAME}.plugin/Contents/MacOS/${PROJECT_NAME}")
 endif()
 

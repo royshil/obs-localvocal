@@ -91,3 +91,35 @@ function(target_add_resource target resource)
   set_property(SOURCE "${resource}" PROPERTY MACOSX_PACKAGE_LOCATION Resources)
   source_group("Resources" FILES "${resource}")
 endfunction()
+
+function(INSTALL_LIBRARY_TO_BUNDLE SOURCE_DIR LIB_NAME)
+  set(options FRAMEWORK BUILD_DEPENDENCY)
+  cmake_parse_arguments(INSTALL_LIBRARY_TO_BUNDLE "${options}" "" "" ${ARGN})
+  if(APPLE)
+    if(${INSTALL_LIBRARY_TO_BUNDLE_FRAMEWORK})
+      set(LIB_DIR Frameworks)
+      set(DEEP_SIGN "--deep")
+    else()
+      set(LIB_DIR lib)
+      set(DEEP_SIGN "")
+    endif()
+
+    set(LIB ${SOURCE_DIR}/${LIB_DIR}/${LIB_NAME})
+
+    if(${INSTALL_LIBRARY_TO_BUNDLE_BUILD_DEPENDENCY})
+      target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${LIB}")
+      target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC "${SOURCE_DIR}/include")
+    endif()
+
+    message(STATUS "Adding ${LIB} to bundle")
+    add_custom_command(
+      TARGET "${CMAKE_PROJECT_NAME}"
+      PRE_BUILD VERBATIM
+      COMMAND /usr/bin/codesign --force ${DEEP_SIGN} --verify --verbose --sign "${CODESIGN_IDENTITY}"
+              "${LIB}")
+
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${LIB}")
+    set_property(SOURCE "${LIB}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)
+    source_group("Frameworks" FILES "${LIB}")
+  endif()
+endfunction()

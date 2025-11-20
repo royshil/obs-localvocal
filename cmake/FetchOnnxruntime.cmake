@@ -52,17 +52,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(onnxruntime)
 
 if(APPLE)
-  set(Onnxruntime_LIB "${onnxruntime_SOURCE_DIR}/lib/libonnxruntime.${Onnxruntime_VERSION}.dylib")
-  target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "${Onnxruntime_LIB}")
-  target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC "${onnxruntime_SOURCE_DIR}/include")
-  target_sources(${CMAKE_PROJECT_NAME} PRIVATE "${Onnxruntime_LIB}")
-  set_property(SOURCE "${Onnxruntime_LIB}" PROPERTY MACOSX_PACKAGE_LOCATION Frameworks)
-  source_group("Frameworks" FILES "${Onnxruntime_LIB}")
-  # add a codesigning step
-  add_custom_command(
-    TARGET "${CMAKE_PROJECT_NAME}"
-    PRE_BUILD VERBATIM
-    COMMAND /usr/bin/codesign --force --verify --verbose --sign "${CODESIGN_IDENTITY}" "${Onnxruntime_LIB}")
+  install_library_to_bundle(${onnxruntime_SOURCE_DIR}
+                            libonnxruntime.${Onnxruntime_VERSION}.dylib
+                            BUILD_DEPENDENCY)
   add_custom_command(
     TARGET "${CMAKE_PROJECT_NAME}"
     POST_BUILD
