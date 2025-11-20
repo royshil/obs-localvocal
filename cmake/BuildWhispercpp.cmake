@@ -1,7 +1,7 @@
 include(ExternalProject)
 include(FetchContent)
 
-set(PREBUILT_WHISPERCPP_VERSION "0.0.11-1")
+set(PREBUILT_WHISPERCPP_VERSION "0.0.11-2")
 set(PREBUILT_WHISPERCPP_URL_BASE
     "https://github.com/locaal-ai/occ-ai-dep-whispercpp/releases/download/${PREBUILT_WHISPERCPP_VERSION}")
 
@@ -14,8 +14,7 @@ if(APPLE)
 
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
-    # set(WHISPER_CPP_HASH "248a7049679817bc1e41b1aa1a99b5927ab4471e284844b5a4f6a4742a1375dc")
-    set(WHISPER_CPP_HASH "9e38a77cc1214989a1c23e13f3455a32f4020b958d2955e23bf28862bc32c1be")
+    set(WHISPER_CPP_HASH "e6fa37ea4f76d31a105dc557e90c41b9bb78a629bb3efa71b2c6f9ce029b77dd")
     
     list(
       APPEND
@@ -29,16 +28,15 @@ if(APPLE)
       GGMLCPU-ALDERLAKE
       GGMLCPU-SAPPHIRERAPIDS)
   elseif($ENV{MACOS_ARCH} STREQUAL "arm64")
-    set(WHISPER_CPP_HASH "a25d8393c517ca128408ca54cdbb57848c0c282506cb104bf0b276b2252d06d7")
+    set(WHISPER_CPP_HASH "4d18abb80aba27edc534a1720b2e4c552474d3380df0174465295f6d23d13589")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCPU-APPLE_M1 GGMLCPU-APPLE_M2_M3 GGMLCPU-APPLE_M4)
   else()
     message(
       FATAL_ERROR
         "The MACOS_ARCH environment variable is not set to a valid value. Please set it to either `x86_64` or `arm64`")
   endif()
-  # set(WHISPER_CPP_URL
-  #     "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
-  set(WHISPER_CPP_URL "file:///Users/tabby/git/occ-ai-dep-whispercpp/whispercpp-macos-x86_64-metal-0.0.11-2.tar.gz")
+  set(WHISPER_CPP_URL
+      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz")
 
   set(WHISPER_LIBRARIES Whisper Whisper_1 WhisperCoreML GGML GGMLBase)
   list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas)
@@ -57,6 +55,7 @@ if(APPLE)
   set(WHISPER_LIB_DIR ${whispercpp_fetch_SOURCE_DIR})
 
   install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libomp.dylib)
+  # target_add_resource(${CMAKE_PROJECT_NAME} ${whispercpp_fetch_SOURCE_DIR}/bin/default.metallib)
 elseif(WIN32)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 
@@ -83,12 +82,12 @@ elseif(WIN32)
       "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-windows${ARCH_PREFIX}${ACCELERATION_PREFIX}-${PREBUILT_WHISPERCPP_VERSION}.zip"
   )
   if(${ACCELERATION} STREQUAL "generic")
-    set(WHISPER_CPP_HASH "68a9a92bc01d135bb5ca7a4b7c7f9dcb314c51bb78d47296e8d65c188ff0094e")
+    set(WHISPER_CPP_HASH "43a69a80d6668fa4714cd145b7826deaa592b454c6f7da8ac71e7062114f1a7d")
   elseif(${ACCELERATION} STREQUAL "nvidia")
-    set(WHISPER_CPP_HASH "5b4b28b5e0e0530282c99054156ace7e8e8dba6ea2d866269ae490bfac20f762")
+    set(WHISPER_CPP_HASH "0893975412bf720c76d4b92a910abdb8ebf7ac927c872e2bbb04db0b647f71fe")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
   elseif(${ACCELERATION} STREQUAL "amd")
-    set(WHISPER_CPP_HASH "86be85f5aa9f87d4c02401e14878b2a162791379959cbeab935c58fdda0ea608")
+    set(WHISPER_CPP_HASH "656c242b658b20f8a60f8823b85385c6f03da17cfe401d6ef177ccd5749f2b0d")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
   else()
     message(
@@ -163,9 +162,9 @@ else()
     set(WHISPER_CPP_URL
         "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-linux${ARCH_PREFIX}${ACCELERATION_PREFIX}-Release.tar.gz")
     if(${ACCELERATION} STREQUAL "generic")
-      set(WHISPER_CPP_HASH "c62cde521a5e18a478b5b525a6b76e2811ebd8f7e45c75cf791a05d6c3043315")
+      set(WHISPER_CPP_HASH "77555023b0fa15ce486ef56c6768d31f3b728feee64172e74dd8f8c811b62e10")
     elseif(${ACCELERATION} STREQUAL "nvidia")
-      set(WHISPER_CPP_HASH "4025bc9e0ea5c98960cdd2e24fd365e371cadb1828e59a263e903dc575c94521")
+      set(WHISPER_CPP_HASH "397ea1409a3cc92d049130b5f874bbd9c06325e5a56cd2d08b3d8706ce619b7b")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
 
       # Find CUDA libraries and link against them
@@ -180,7 +179,7 @@ else()
         CUDA::cuda_driver
         CUDA::OpenCL)
     elseif(${ACCELERATION} STREQUAL "amd")
-      set(WHISPER_CPP_HASH "380fd4a19993753ae1eb4ecb269b61668e8eb7d65c8007365ba2075e77808a09")
+      set(WHISPER_CPP_HASH "7e3c45e92abe3fe4c08009c4842a13937d4a30285fa49116a7a75802f0e6e64a")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
 
       # Find hip libraries and link against them
