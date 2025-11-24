@@ -1,7 +1,7 @@
 include(ExternalProject)
 include(FetchContent)
 
-set(PREBUILT_WHISPERCPP_VERSION "0.0.12")
+set(PREBUILT_WHISPERCPP_VERSION "0.0.13")
 set(PREBUILT_WHISPERCPP_URL_BASE
     "https://github.com/locaal-ai/occ-ai-dep-whispercpp/releases/download/${PREBUILT_WHISPERCPP_VERSION}")
 
@@ -14,7 +14,7 @@ if(APPLE)
 
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
-    set(WHISPER_CPP_HASH "e278354fb72975b160ac3d20d0c9d4c07b48b82ea6bb3ef48a54f6be3582e141")
+    set(WHISPER_CPP_HASH "27e506e0c473de33ccfd55b99364d1f829f4958f1443cbdd6fab33b0e10cf555")
 
     list(
       APPEND
@@ -28,7 +28,7 @@ if(APPLE)
       GGMLCPU-ALDERLAKE
       GGMLCPU-SAPPHIRERAPIDS)
   elseif($ENV{MACOS_ARCH} STREQUAL "arm64")
-    set(WHISPER_CPP_HASH "73da71c805c6da5d7c638e4cded2e28b3133d9b8757d0dc0e08ff1892e867527")
+    set(WHISPER_CPP_HASH "5ef495c799ef7c2aa0aa7b096b2bc8aa812717f036b6cf2e76db445a2a74899f")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCPU-APPLE_M1 GGMLCPU-APPLE_M2_M3 GGMLCPU-APPLE_M4)
   else()
     message(
@@ -40,7 +40,7 @@ if(APPLE)
   )
 
   set(WHISPER_LIBRARIES Whisper Whisper_1 WhisperCoreML GGML GGMLBase)
-  list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas)
+  list(APPEND WHISPER_RUNTIME_MODULES GGMLMetal GGMLBlas GGMLVulkan)
   set(WHISPER_DEPENDENCY_LIBRARIES "-framework Accelerate" "-framework CoreML" "-framework Metal" ${BLAS_LIBRARIES})
   set(WHISPER_LIBRARY_TYPE SHARED)
 
@@ -56,6 +56,7 @@ if(APPLE)
   set(WHISPER_LIB_DIR ${whispercpp_fetch_SOURCE_DIR})
 
   install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libomp.dylib)
+  install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libvulkan.1.dylib)
   # target_add_resource(${CMAKE_PROJECT_NAME} ${whispercpp_fetch_SOURCE_DIR}/bin/default.metallib)
 elseif(WIN32)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
@@ -83,12 +84,12 @@ elseif(WIN32)
       "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-windows${ARCH_PREFIX}${ACCELERATION_PREFIX}-${PREBUILT_WHISPERCPP_VERSION}.zip"
   )
   if(${ACCELERATION} STREQUAL "amd")
-    set(WHISPER_CPP_HASH "64572438fe478fa659ea66e239c5fbd098f276d92837a21bf8b5d833784d1c17")
+    set(WHISPER_CPP_HASH "4919c0258c8b2753763062b554eaf4d99f3f8256331e398114128270786023db")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
   elseif(${ACCELERATION} STREQUAL "generic")
-    set(WHISPER_CPP_HASH "3b34977c7a441f36e4652e93721748f1759a8850097fa008d12ca5d4614ae570")
+    set(WHISPER_CPP_HASH "8653395b0ec3c9d931cf0647391850d249a67196b4f78ccf4d8dbf98ae30ed82")
   elseif(${ACCELERATION} STREQUAL "nvidia")
-    set(WHISPER_CPP_HASH "35ad8a19151784a47d46a0e07f6a9e05df9539b9e8b0bbe003d4cd5176e94137")
+    set(WHISPER_CPP_HASH "534cb37a3bbfb36379dde1b6acb933990840f2e334abe2c953b07b6817983818")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
   else()
     message(
@@ -166,7 +167,7 @@ else()
     set(WHISPER_CPP_URL
         "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-linux${ARCH_PREFIX}${ACCELERATION_PREFIX}-Release.tar.gz")
     if(${ACCELERATION} STREQUAL "amd")
-      set(WHISPER_CPP_HASH "52b2614bcb1b2bb01e355c68345ba81b3d9aeb2ad2ccdbaac2e65e34fc7a32fb")
+      set(WHISPER_CPP_HASH "2334e6bfc40d0fd631ee67711598ead0a7375fac3dea18529d15147770128c27")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
 
       # Find hip libraries and link against them
@@ -179,9 +180,9 @@ else()
       find_package(rocblas REQUIRED)
       list(APPEND WHISPER_DEPENDENCY_LIBRARIES hip::host roc::rocblas roc::hipblas)
     elseif(${ACCELERATION} STREQUAL "generic")
-      set(WHISPER_CPP_HASH "e65ddfe32b4e0b79187ec0664d46b737a7c71a9ce87409d344e7f6533e0b0271")
+      set(WHISPER_CPP_HASH "5811798e245482597ad393fac7bab82f0df8664e6b82be6231d089af13de0656")
     elseif(${ACCELERATION} STREQUAL "nvidia")
-      set(WHISPER_CPP_HASH "9c7afdead75c59f4ebaeaa196ed17ab784934120576860eb928657b2dbb67f05")
+      set(WHISPER_CPP_HASH "dc00f91f5ddfb8271fa177b005022dc6ccc979ab669ee8e92008a7dc694295ad")
       list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
 
       # Find CUDA libraries and link against them
