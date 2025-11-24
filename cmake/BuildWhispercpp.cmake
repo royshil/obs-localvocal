@@ -82,14 +82,14 @@ elseif(WIN32)
   set(WHISPER_CPP_URL
       "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-windows${ARCH_PREFIX}${ACCELERATION_PREFIX}-${PREBUILT_WHISPERCPP_VERSION}.zip"
   )
-  if(${ACCELERATION} STREQUAL "generic")
+  if(${ACCELERATION} STREQUAL "amd")
+    set(WHISPER_CPP_HASH "64572438fe478fa659ea66e239c5fbd098f276d92837a21bf8b5d833784d1c17")
+    list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
+  elseif(${ACCELERATION} STREQUAL "generic")
     set(WHISPER_CPP_HASH "3b34977c7a441f36e4652e93721748f1759a8850097fa008d12ca5d4614ae570")
   elseif(${ACCELERATION} STREQUAL "nvidia")
     set(WHISPER_CPP_HASH "35ad8a19151784a47d46a0e07f6a9e05df9539b9e8b0bbe003d4cd5176e94137")
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCUDA)
-  elseif(${ACCELERATION} STREQUAL "amd")
-    set(WHISPER_CPP_HASH "64572438fe478fa659ea66e239c5fbd098f276d92837a21bf8b5d833784d1c17")
-    list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
   else()
     message(
       FATAL_ERROR
@@ -165,7 +165,20 @@ else()
     set(ACCELERATION_PREFIX "-${ACCELERATION}")
     set(WHISPER_CPP_URL
         "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-linux${ARCH_PREFIX}${ACCELERATION_PREFIX}-Release.tar.gz")
-    if(${ACCELERATION} STREQUAL "generic")
+    if(${ACCELERATION} STREQUAL "amd")
+      set(WHISPER_CPP_HASH "52b2614bcb1b2bb01e355c68345ba81b3d9aeb2ad2ccdbaac2e65e34fc7a32fb")
+      list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
+
+      # Find hip libraries and link against them
+      set(CMAKE_PREFIX_PATH /opt/rocm-6.4.2/lib/cmake)
+      set(HIP_PLATFORM amd)
+      set(CMAKE_HIP_PLATFORM amd)
+      set(CMAKE_HIP_ARCHITECTURES OFF)
+      find_package(hip REQUIRED)
+      find_package(hipblas REQUIRED)
+      find_package(rocblas REQUIRED)
+      list(APPEND WHISPER_DEPENDENCY_LIBRARIES hip::host roc::rocblas roc::hipblas)
+    elseif(${ACCELERATION} STREQUAL "generic")
       set(WHISPER_CPP_HASH "e65ddfe32b4e0b79187ec0664d46b737a7c71a9ce87409d344e7f6533e0b0271")
     elseif(${ACCELERATION} STREQUAL "nvidia")
       set(WHISPER_CPP_HASH "9c7afdead75c59f4ebaeaa196ed17ab784934120576860eb928657b2dbb67f05")
@@ -182,19 +195,6 @@ else()
         CUDA::cublasLt
         CUDA::cuda_driver
         CUDA::OpenCL)
-    elseif(${ACCELERATION} STREQUAL "amd")
-      set(WHISPER_CPP_HASH "52b2614bcb1b2bb01e355c68345ba81b3d9aeb2ad2ccdbaac2e65e34fc7a32fb")
-      list(APPEND WHISPER_RUNTIME_MODULES GGMLHip)
-
-      # Find hip libraries and link against them
-      set(CMAKE_PREFIX_PATH /opt/rocm-6.4.2/lib/cmake)
-      set(HIP_PLATFORM amd)
-      set(CMAKE_HIP_PLATFORM amd)
-      set(CMAKE_HIP_ARCHITECTURES OFF)
-      find_package(hip REQUIRED)
-      find_package(hipblas REQUIRED)
-      find_package(rocblas REQUIRED)
-      list(APPEND WHISPER_DEPENDENCY_LIBRARIES hip::host roc::rocblas roc::hipblas)
     else()
       message(
         FATAL_ERROR
