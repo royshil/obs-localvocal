@@ -176,7 +176,7 @@ ${_usage_host:-}"
     # get the arch from MACOS_ARCH env var
     local -r macos_arch=${MACOS_ARCH:-$(uname -m)}
 
-    local output_name="${product_name}-${product_version}-${host_os}-${macos_arch}"
+    local output_name="${product_name}-${product_version}-${host_os}-${MACOS_VERSION}-${macos_arch}"
 
     if [[ ! -d ${project_root}/release/${config}/${product_name}.plugin ]] {
       log_error 'No release artifact found. Run the build script or the CMake install procedure first.'
