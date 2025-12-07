@@ -35,7 +35,7 @@
     },
     "name": "obs-localvocal",
     "displayName": "OBS Localvocal",
-    "version": "0.5.3",
+    "version": "0.5.4-alpha_1",
     "author": "Roy Shilkrot",
     "website": "https://github.com/locaal-ai/obs-localvocal",
     "email": "roy.shil@gmail.com",
