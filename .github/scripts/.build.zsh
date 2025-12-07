@@ -245,6 +245,21 @@ ${_usage_host:-}"
           log_error "No MACOS_ARCH environment variable set. Please set it to the desired architecture."
           exit 2
         }
+
+        # check the MACOS_VERSION env var to determine which version of MacOS to target
+        if [[ -n ${MACOS_VERSION} ]] {
+          if [[ ${MACOS_VERSION} == "13" ]] {
+            # Setting target version to 13.3 to match Whisper.cpp deps target, as that's when the new Accelerate interface was added
+            cmake_args+=(-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_VERSION}.3)
+          } else {
+            cmake_args+=(-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_VERSION}.0)
+          }
+        } else {
+          # error out
+          log_error "No MACOS_VERSION environment variable set. Please set it to the desired architecture."
+          exit 2
+        }
+
         cmake_install_args+=(build_macos --config ${config} --prefix "${project_root}/release/${config}")
 
         local -a xcbeautify_opts=()

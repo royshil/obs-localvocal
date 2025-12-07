@@ -14,7 +14,19 @@ if(APPLE)
 
   # check the "MACOS_ARCH" env var to figure out if this is x86 or arm64
   if($ENV{MACOS_ARCH} STREQUAL "x86_64")
-    set(WHISPER_CPP_HASH "27e506e0c473de33ccfd55b99364d1f829f4958f1443cbdd6fab33b0e10cf555")
+    if($ENV{MACOS_VERSION} STREQUAL "12")
+      set(METAL_STD 2.4)
+      set(WHISPER_CPP_HASH "58a938440e2c1d955e829daee9858ef683b7cf9afd6edd22a3f8b812d8c31492")
+    elseif($ENV{MACOS_VERSION} STREQUAL "13")
+      set(METAL_STD 3.0)
+      set(WHISPER_CPP_HASH "c6cdb11289415babba4b3379a84086f98f93e5f7fd60f0528e060a9af4009c8c")
+    elseif($ENV{MACOS_VERSION} STREQUAL "14")
+      set(METAL_STD 3.1)
+      set(WHISPER_CPP_HASH "1786c38df8d12cde1f364f0049f9c88e3b5dcb1a867e7d884fed4be250a10fb3")
+    elseif($ENV{MACOS_VERSION} STREQUAL "15")
+      set(METAL_STD 3.2)
+      set(WHISPER_CPP_HASH "91e406e3dfd36a33bd3b5ae0b68edd0019475ccda41428415908bb0ff0effdb1")
+    endif()
 
     list(
       APPEND
@@ -28,7 +40,19 @@ if(APPLE)
       GGMLCPU-ALDERLAKE
       GGMLCPU-SAPPHIRERAPIDS)
   elseif($ENV{MACOS_ARCH} STREQUAL "arm64")
-    set(WHISPER_CPP_HASH "5ef495c799ef7c2aa0aa7b096b2bc8aa812717f036b6cf2e76db445a2a74899f")
+    if($ENV{MACOS_VERSION} STREQUAL "12")
+      set(METAL_STD 2.4)
+      set(WHISPER_CPP_HASH "89d19b1d270b6084f8455f26c52e59e8ef2ca0e6b1353bfc2aaadb0d5fdcb9a1")
+    elseif($ENV{MACOS_VERSION} STREQUAL "13")
+      set(METAL_STD 3.0)
+      set(WHISPER_CPP_HASH "29a79af5e918d5f531c99f66b66d9043814bc1250a836029706217ccf736f492")
+    elseif($ENV{MACOS_VERSION} STREQUAL "14")
+      set(METAL_STD 3.1)
+      set(WHISPER_CPP_HASH "c0759798ba927f2803161d70ba9769b817cd87aaf1cbaaf8247496a8cc939699")
+    elseif($ENV{MACOS_VERSION} STREQUAL "15")
+      set(METAL_STD 3.2)
+      set(WHISPER_CPP_HASH "5957c41f41621db03e33c6d12c5eeda735fb361f6b4128aa077da2b74548f8bb")
+    endif()
     list(APPEND WHISPER_RUNTIME_MODULES GGMLCPU-APPLE_M1 GGMLCPU-APPLE_M2_M3 GGMLCPU-APPLE_M4)
   else()
     message(
@@ -36,7 +60,7 @@ if(APPLE)
         "The MACOS_ARCH environment variable is not set to a valid value. Please set it to either `x86_64` or `arm64`")
   endif()
   set(WHISPER_CPP_URL
-      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metalembedded-${PREBUILT_WHISPERCPP_VERSION}.tar.gz"
+      "${PREBUILT_WHISPERCPP_URL_BASE}/whispercpp-macos-$ENV{MACOS_ARCH}-metal${METAL_STD}-${PREBUILT_WHISPERCPP_VERSION}.tar.gz"
   )
 
   set(WHISPER_LIBRARIES Whisper Whisper_1 WhisperCoreML GGML GGMLBase)
@@ -57,7 +81,7 @@ if(APPLE)
 
   install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libomp.dylib)
   install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libvulkan.1.dylib)
-  # target_add_resource(${CMAKE_PROJECT_NAME} ${whispercpp_fetch_SOURCE_DIR}/bin/default.metallib)
+  target_add_resource(${CMAKE_PROJECT_NAME} ${whispercpp_fetch_SOURCE_DIR}/bin/default.metallib)
 elseif(WIN32)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 

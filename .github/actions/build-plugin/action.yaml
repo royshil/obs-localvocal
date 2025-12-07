@@ -12,6 +12,10 @@ inputs:
     description: 'Enable acceleration'
     required: false
     default: 'generic'
+  macos_version:
+    description: 'Version of MacOS to target'
+    required: false
+    default: '12'
   codesign:
     description: 'Enable codesigning (macOS only)'
     required: false
@@ -32,6 +36,7 @@ runs:
       shell: zsh --no-rcs --errexit --pipefail {0}
       working-directory: ${{ inputs.workingDirectory }}
       env:
+        MACOS_VERSION: ${{ inputs.macos_version }}
         CODESIGN_IDENT: ${{ inputs.codesignIdent }}
         CODESIGN_TEAM: ${{ inputs.codesignTeam }}
       run: |

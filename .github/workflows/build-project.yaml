@@ -78,6 +78,7 @@ jobs:
     strategy:
       matrix:
         architecture: [x86_64, arm64]
+        macos_version: [12, 13, 14, 15]
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
@@ -163,6 +164,7 @@ jobs:
         with:
           target: macos-${{ matrix.architecture }}
           config: ${{ needs.check-event.outputs.config }}
+          macos_version: ${{ matrix.macos_version }}
           codesign: ${{ fromJSON(needs.check-event.outputs.codesign) }}
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
         env:
@@ -175,6 +177,7 @@ jobs:
         with:
           target: macos-${{ matrix.architecture }}
           config: ${{ needs.check-event.outputs.config }}
+          macos_version: ${{ matrix.macos_version }}
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
           codesign: ${{ fromJSON(needs.check-event.outputs.codesign) && fromJSON(steps.codesign.outputs.haveCodesignIdent) }}
           codesignIdent: ${{ steps.codesign.outputs.codesignIdent }}
