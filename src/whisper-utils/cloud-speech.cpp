@@ -331,10 +331,8 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 		std::string ca_path = PEMrootCertsPath();
 		if (!ca_path.empty()) {
 			client_config.caFile = ca_path.c_str();
-		} else {
-			blog(LOG_WARNING, "Could not find roots.pem, SSL verification might fail.");
 		}
-		// Use Windows' native HTTP client for better stability
+		// Use cURL HTTP client (required for streaming on Windows)
 		client_config.httpLibOverride = Aws::Http::TransferLibType::CURL_CLIENT;
 #endif
 		client_config.region = config_.region;

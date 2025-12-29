@@ -263,7 +263,7 @@ AWS Transcribe streaming support is optional and requires an AWS SDK for C++ ins
 * `-DAWS_SDK_ROOT=C:\path\to\aws-sdk-install-prefix` (contains `include/` and `lib/cmake/`), or
 * `-DAWSSDK_DIR=C:\path\to\aws-sdk-install-prefix\lib\cmake\AWSSDK`
 
-`data/roots.pem` is a CA bundle (not user-specific) used when the underlying TLS backend needs an explicit trust store.
+If you bundle a CA file as `roots.pem` alongside the plugin, it will be used; otherwise the system trust store is used.
 
 #### Building with CUDA support on Windows
 

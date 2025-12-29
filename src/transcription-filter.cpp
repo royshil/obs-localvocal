@@ -829,34 +829,6 @@ void transcription_filter_hide(void *data)
 obs_output_add_packet_callback_t *obs_output_add_packet_callback_ = nullptr;
 obs_output_remove_packet_callback_t *obs_output_remove_packet_callback_ = nullptr;
 
-extern "C" {
-struct obs_source_info transcription_filter_info = {};
-}
-
-static void initialize_obs_source_info() {
-    transcription_filter_info.id = "transcription_filter_audio_filter";
-    transcription_filter_info.type = OBS_SOURCE_TYPE_FILTER;
-    transcription_filter_info.output_flags = OBS_SOURCE_AUDIO;
-    transcription_filter_info.get_name = transcription_filter_name;
-    transcription_filter_info.create = transcription_filter_create;
-    transcription_filter_info.destroy = transcription_filter_destroy;
-    transcription_filter_info.get_defaults = transcription_filter_defaults;
-    transcription_filter_info.get_properties = transcription_filter_properties;
-    transcription_filter_info.update = transcription_filter_update;
-    transcription_filter_info.activate = transcription_filter_activate;
-    transcription_filter_info.deactivate = transcription_filter_deactivate;
-    transcription_filter_info.filter_audio = transcription_filter_filter_audio;
-    transcription_filter_info.filter_remove = transcription_filter_remove;
-    transcription_filter_info.show = transcription_filter_show;
-    transcription_filter_info.hide = transcription_filter_hide;
-}
-
-// Call the initialization function once.
-static bool initialized = []() {
-    initialize_obs_source_info();
-    return true;
-}();
-
 void load_packet_callback_functions()
 {
 	auto libobs = os_dlopen("obs");

@@ -8,7 +8,6 @@ std::string PEMrootCertsPath()
 {
 	char *root_cert_file_path = obs_module_file("roots.pem");
 	if (root_cert_file_path == nullptr) {
-		obs_log(LOG_ERROR, "Failed to get root certificate file path");
 		return "";
 	}
 

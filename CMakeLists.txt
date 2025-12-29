@@ -194,6 +194,7 @@ endif()
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE src/plugin-main.c
+          src/transcription-filter.c
           src/transcription-filter.cpp
           src/transcription-filter-callbacks.cpp
           src/transcription-filter-properties.cpp
