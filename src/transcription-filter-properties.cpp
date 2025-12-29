@@ -1,10 +1,9 @@
-
 #include <obs.h>
 #include <obs-module.h>
 #include <obs-frontend-api.h>
 #include <util/dstr.hpp>
 
-#include "transcription-filter-data.h"
+#include "transcription-filter-properties.h"
 #include "transcription-filter.h"
 #include "transcription-filter-utils.h"
 #include "whisper-utils/whisper-language.h"
@@ -74,6 +73,38 @@ bool translation_cloud_provider_selection_callback(obs_properties_t *props, obs_
 	return true;
 }
 
+bool cloud_speech_provider_selection_callback(obs_properties_t *props, obs_property_t *p, obs_data_t *s)
+{
+	UNUSED_PARAMETER(p);
+	const char *provider = obs_data_get_string(s, "cloud_speech_provider");
+	
+	// Show API key for all providers except custom
+	obs_property_set_visible(obs_properties_get(props, "cloud_speech_api_key"),
+				 strcmp(provider, "custom") != 0);
+	
+	// Show secret key for Amazon Transcribe and Azure
+	obs_property_set_visible(obs_properties_get(props, "cloud_speech_secret_key"),
+				 strcmp(provider, "amazon-transcribe") == 0 || strcmp(provider, "azure") == 0);
+	
+	// Show session token for Amazon Transcribe only
+	obs_property_set_visible(obs_properties_get(props, "cloud_speech_session_token"),
+			     strcmp(provider, "amazon-transcribe") == 0);
+
+	// Show region for Amazon Transcribe and Azure
+	obs_property_set_visible(obs_properties_get(props, "cloud_speech_region"),
+				 strcmp(provider, "amazon-transcribe") == 0 || strcmp(provider, "azure") == 0);
+	
+	// Show endpoint for custom provider only
+	obs_property_set_visible(obs_properties_get(props, "cloud_speech_endpoint"),
+				 strcmp(provider, "custom") == 0);
+	
+	// Show model selection for OpenAI and custom
+	obs_property_set_visible(obs_properties_get(props, "cloud_speech_model"),
+				 strcmp(provider, "openai") == 0 || strcmp(provider, "custom") == 0);
+	
+	return true;
+}
+
 bool translation_cloud_options_callback(obs_properties_t *props, obs_property_t *property,
 					obs_data_t *settings)
 {
@@ -90,6 +121,24 @@ bool translation_cloud_options_callback(obs_properties_t *props, obs_property_t 
 	}
 	if (translate_enabled) {
 		translation_cloud_provider_selection_callback(props, NULL, settings);
+	}
+	return true;
+}
+
+bool cloud_speech_options_callback(obs_properties_t *props, obs_property_t *property, obs_data_t *settings)
+{
+	UNUSED_PARAMETER(property);
+	// Show/Hide the cloud speech group options
+	const bool cloud_speech_enabled = obs_data_get_bool(settings, "use_cloud_speech");
+	for (const auto &prop :
+	     {"cloud_speech_provider", "cloud_speech_api_key", "cloud_speech_secret_key",
+	      "cloud_speech_region", "cloud_speech_endpoint", "cloud_speech_model",
+	      "cloud_speech_language", "cloud_speech_enable_fallback", "cloud_speech_max_retries",
+	      "cloud_speech_timeout_seconds", "cloud_speech_session_token"}) {
+		obs_property_set_visible(obs_properties_get(props, prop), cloud_speech_enabled);
+	}
+	if (cloud_speech_enabled) {
+		cloud_speech_provider_selection_callback(props, NULL, settings);
 	}
 	return true;
 }
@@ -606,8 +655,24 @@ void add_general_group_properties(obs_properties_t *ppts)
 					OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 	// Add "none" option
 	obs_property_list_add_string(subs_output, MT_("none_no_output"), "none");
+	// Add "file" option for file output
+	obs_property_list_add_string(subs_output, MT_("file_output"), "file");
 	// Add text sources
 	obs_enum_sources(add_sources_to_list, subs_output);
+
+	// Add file output path input (shown when file is selected)
+	obs_property_t *output_filename = obs_properties_add_path(
+		general_group, "output_filename", MT_("output_filename"), 
+		OBS_PATH_FILE_SAVE, nullptr, nullptr);
+	obs_property_set_visible(output_filename, false);
+
+	// Add callback to subtitle sources to show/hide file path field
+	obs_property_set_modified_callback2(subs_output, [](void *priv, obs_properties_t *props, obs_property_t *p, obs_data_t *settings) {
+		const char *subtitle_sources = obs_data_get_string(settings, "subtitle_sources");
+		const bool show_file_path = (subtitle_sources && strcmp(subtitle_sources, "file") == 0);
+		obs_property_set_visible(obs_properties_get(props, "output_filename"), show_file_path);
+		return true;
+	}, nullptr);
 
 	// Add language selector
 	obs_property_t *whisper_language_select_list =
@@ -663,6 +728,90 @@ void add_whisper_backend_group_properties(obs_properties_t *ppts,
 	obs_property_set_long_description(enable_flash_attn, MT_("enable_flash_attn_tooltip"));
 }
 
+void add_cloud_speech_group_properties(obs_properties_t *ppts)
+{
+	obs_properties_t *cloud_speech_group = obs_properties_create();
+	obs_properties_add_group(ppts, "cloud_speech_group", MT_("cloud_speech_group"),
+				 OBS_GROUP_CHECKABLE, cloud_speech_group);
+
+	// Add callback to show/hide cloud speech options
+	obs_property_t *cloud_speech_group_prop = obs_properties_get(ppts, "cloud_speech_group");
+	obs_property_set_modified_callback(cloud_speech_group_prop, cloud_speech_options_callback);
+
+	// Add main cloud speech enable checkbox
+	obs_properties_add_bool(cloud_speech_group, "use_cloud_speech", MT_("use_cloud_speech"));
+
+	// Add provider selection
+	obs_property_t *prop_cloud_speech_provider = obs_properties_add_list(
+		cloud_speech_group, "cloud_speech_provider", MT_("cloud_speech_provider"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	
+	// Add provider options
+	obs_property_list_add_string(prop_cloud_speech_provider, "Amazon Transcribe", "amazon-transcribe");
+	obs_property_list_add_string(prop_cloud_speech_provider, "OpenAI Whisper", "openai");
+	obs_property_list_add_string(prop_cloud_speech_provider, "Google Speech-to-Text", "google");
+	obs_property_list_add_string(prop_cloud_speech_provider, "Azure Speech Services", "azure");
+	obs_property_list_add_string(prop_cloud_speech_provider, "Custom API", "custom");
+
+	// Add callback to show/hide provider-specific fields
+	obs_property_set_modified_callback(prop_cloud_speech_provider,
+					   cloud_speech_provider_selection_callback);
+
+	// Add API key input
+	obs_properties_add_text(cloud_speech_group, "cloud_speech_api_key",
+				MT_("cloud_speech_api_key"), OBS_TEXT_PASSWORD);
+
+	// Add secret key input (for Azure)
+	obs_properties_add_text(cloud_speech_group, "cloud_speech_secret_key",
+				MT_("cloud_speech_secret_key"), OBS_TEXT_PASSWORD);
+
+	// Add region input (for Azure)
+	obs_properties_add_text(cloud_speech_group, "cloud_speech_region",
+				MT_("cloud_speech_region"), OBS_TEXT_DEFAULT);
+
+	// Add endpoint input (for custom)
+	obs_properties_add_text(cloud_speech_group, "cloud_speech_endpoint",
+				MT_("cloud_speech_endpoint"), OBS_TEXT_DEFAULT);
+
+	// Add model selection
+	obs_property_t *prop_model = obs_properties_add_list(
+		cloud_speech_group, "cloud_speech_model", MT_("cloud_speech_model"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	obs_property_list_add_string(prop_model, "whisper-1", "whisper-1");
+	obs_property_list_add_string(prop_model, "latest", "latest");
+	obs_property_list_add_string(prop_model, "custom", "custom");
+
+	// Add language selection
+	obs_property_t *prop_lang = obs_properties_add_list(
+		cloud_speech_group, "cloud_speech_language", MT_("cloud_speech_language"),
+		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
+	// Populate with common languages
+	obs_property_list_add_string(prop_lang, "English", "en");
+	obs_property_list_add_string(prop_lang, "Spanish", "es");
+	obs_property_list_add_string(prop_lang, "French", "fr");
+	obs_property_list_add_string(prop_lang, "German", "de");
+	obs_property_list_add_string(prop_lang, "Italian", "it");
+	obs_property_list_add_string(prop_lang, "Portuguese", "pt");
+	obs_property_list_add_string(prop_lang, "Chinese", "zh");
+	obs_property_list_add_string(prop_lang, "Japanese", "ja");
+	obs_property_list_add_string(prop_lang, "Korean", "ko");
+	obs_property_list_add_string(prop_lang, "Russian", "ru");
+	obs_property_list_add_string(prop_lang, "Arabic", "ar");
+	obs_property_list_add_string(prop_lang, "Hindi", "hi");
+
+	// Add fallback option
+	obs_properties_add_bool(cloud_speech_group, "cloud_speech_enable_fallback",
+				MT_("cloud_speech_enable_fallback"));
+
+	// Add retry settings
+	obs_properties_add_int_slider(cloud_speech_group, "cloud_speech_max_retries",
+				     MT_("cloud_speech_max_retries"), 1, 10, 1);
+
+	// Add timeout setting
+	obs_properties_add_int_slider(cloud_speech_group, "cloud_speech_timeout_seconds",
+				     MT_("cloud_speech_timeout_seconds"), 5, 120, 5);
+}
+
 obs_properties_t *transcription_filter_properties(void *data)
 {
 	struct transcription_filter_data *gf =
@@ -682,6 +831,7 @@ obs_properties_t *transcription_filter_properties(void *data)
 	add_general_group_properties(ppts);
 	add_whisper_backend_group_properties(ppts, gf);
 	add_transcription_group_properties(ppts, gf);
+	add_cloud_speech_group_properties(ppts);
 	add_translation_group_properties(ppts);
 	add_translation_cloud_group_properties(ppts);
 #ifdef ENABLE_WEBVTT
@@ -767,6 +917,19 @@ void transcription_filter_defaults(obs_data_t *s)
 		s, "translate_cloud_body",
 		"{\n\t\"text\":\"{{sentence}}\",\n\t\"source\":\"{{source_language}}\",\n\t\"target\":\"{{target_language}}\"\n}");
 	obs_data_set_default_string(s, "translate_cloud_response_json_path", "translations.0.text");
+
+	// cloud speech options
+	obs_data_set_default_bool(s, "use_cloud_speech", false);
+	obs_data_set_default_string(s, "cloud_speech_provider", "amazon-transcribe");
+	obs_data_set_default_string(s, "cloud_speech_api_key", "");
+	obs_data_set_default_string(s, "cloud_speech_secret_key", "");
+	obs_data_set_default_string(s, "cloud_speech_region", "us-east-1");
+	obs_data_set_default_string(s, "cloud_speech_endpoint", "");
+	obs_data_set_default_string(s, "cloud_speech_model", "whisper-1");
+	obs_data_set_default_string(s, "cloud_speech_language", "en");
+	obs_data_set_default_bool(s, "cloud_speech_enable_fallback", true);
+	obs_data_set_default_int(s, "cloud_speech_max_retries", 3);
+	obs_data_set_default_int(s, "cloud_speech_timeout_seconds", 30);
 
 	// webvtt options
 	obs_data_set_default_int(s, "webvtt_latency_to_video_in_msecs", 10'000);

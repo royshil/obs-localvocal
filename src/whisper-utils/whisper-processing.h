@@ -34,5 +34,8 @@ struct whisper_context *init_whisper_context(const std::string &model_path,
 					     struct transcription_filter_data *gf);
 void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_offset_ms,
 				 uint64_t end_offset_ms, int vad_state);
+struct DetectionResultWithText run_cloud_speech_inference(transcription_filter_data *gf, const float *pcm32f_data,
+							   size_t pcm32f_size, uint64_t start_offset_ms,
+							   uint64_t end_offset_ms, int vad_state);
 
 #endif // WHISPER_PROCESSING_H

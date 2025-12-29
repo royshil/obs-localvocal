@@ -19,6 +19,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-module.h>
 #include <plugin-support.h>
 
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+extern void initialize_aws_sdk_once(void);
+extern void shutdown_aws_sdk(void);
+#endif
+
 OBS_DECLARE_MODULE()
 OBS_MODULE_USE_DEFAULT_LOCALE(PLUGIN_NAME, "en-US")
 
@@ -32,6 +37,11 @@ extern void load_packet_callback_functions();
 
 bool obs_module_load(void)
 {
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	blog(LOG_INFO, "plugin-main: Calling initialize_aws_sdk_once()...");
+	initialize_aws_sdk_once();
+	blog(LOG_INFO, "plugin-main: Returned from initialize_aws_sdk_once().");
+#endif
 	obs_register_source(&transcription_filter_info);
 	load_packet_callback_functions();
 	obs_log(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
@@ -40,5 +50,8 @@ bool obs_module_load(void)
 
 void obs_module_unload(void)
 {
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	shutdown_aws_sdk();
+#endif
 	obs_log(LOG_INFO, "plugin unloaded");
 }
