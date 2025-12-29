@@ -107,7 +107,7 @@ function Build {
             Invoke-External cmake @CmakeArgs
 
             Log-Group "Building AWS SDK for Transcribe (tag ${AwsSdkTag})..."
-            Invoke-External pwsh @(
+            $PwshArgs = @(
                 '-NoProfile'
                 '-ExecutionPolicy', 'Bypass'
                 '-File', "${ScriptHome}/Build-AwsSdk-Windows.ps1"
@@ -115,6 +115,7 @@ function Build {
                 '-Configuration', $Configuration
                 '-AwsSdkTag', $AwsSdkTag
             )
+            Invoke-External pwsh @PwshArgs
 
             $AwsSdkRoot = $RepoLocalAwsSdkRoot
         }
