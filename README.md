@@ -256,6 +256,15 @@ The build should exist in the `./release` folder off the root. You can manually 
 > Copy-Item -Recurse -Force "release\Release\*" -Destination "C:\Program Files\obs-studio\"
 ```
 
+#### AWS Transcribe (optional)
+
+AWS Transcribe streaming support is optional and requires an AWS SDK for C++ install that includes `transcribestreaming` and uses a cURL-based HTTP client (needed for streaming on Windows). Configure CMake with either:
+
+* `-DAWS_SDK_ROOT=C:\path\to\aws-sdk-install-prefix` (contains `include/` and `lib/cmake/`), or
+* `-DAWSSDK_DIR=C:\path\to\aws-sdk-install-prefix\lib\cmake\AWSSDK`
+
+`data/roots.pem` is a CA bundle (not user-specific) used when the underlying TLS backend needs an explicit trust store.
+
 #### Building with CUDA support on Windows
 
 LocalVocal will now build with CUDA support automatically through a prebuilt binary of Whisper.cpp from https://github.com/locaal-ai/locaal-ai-dep-whispercpp. The CMake scripts will download all necessary files.
