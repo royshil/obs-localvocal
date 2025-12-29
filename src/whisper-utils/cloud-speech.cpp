@@ -20,11 +20,13 @@
 #include <nlohmann/json.hpp>
 #include "aws-memory-manager.h"
 #include "ssl-utils.h"
+#include <aws/transcribestreaming/model/PartialResultsStability.h>
 #include <mutex>
 #include <atomic>
 #include <thread>
 #include <chrono>
 #include <unordered_set>
+#include <algorithm>
 
 // Global AWS SDK initialization state with thread-safe initialization
 std::atomic<int> g_aws_init_state{0}; // 0=not initialized, 1=initializing, 2=initialized, -1=failed
@@ -384,12 +386,26 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 		};
 
 		auto build_alternative_text =
-			[](const Aws::TranscribeStreamingService::Model::Alternative& alt) -> std::string {
-			if (alt.ItemsHasBeenSet() && !alt.GetItems().empty()) {
+			[](const Aws::TranscribeStreamingService::Model::Alternative& alt, bool stable_only) -> std::string {
+			auto build_from_items = [&](bool include_stable_only) -> std::string {
+				if (!alt.ItemsHasBeenSet() || alt.GetItems().empty()) {
+					return "";
+				}
+
+				const auto& items = alt.GetItems();
+				const bool has_stability_data = std::any_of(items.begin(), items.end(), [](const auto& item) {
+					return item.StableHasBeenSet();
+				});
+
 				std::string out;
-				for (const auto& item : alt.GetItems()) {
+				for (const auto& item : items) {
 					if (!item.ContentHasBeenSet())
 						continue;
+					if (include_stable_only && has_stability_data) {
+						if (!item.StableHasBeenSet() || !item.GetStable())
+							continue;
+					}
+
 					const std::string content = item.GetContent().c_str();
 					if (content.empty())
 						continue;
@@ -404,6 +420,19 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 					}
 				}
 				return out;
+			};
+
+			if (stable_only) {
+				std::string stable = build_from_items(true);
+				if (!stable.empty()) {
+					return stable;
+				}
+			}
+
+			if (alt.ItemsHasBeenSet() && !alt.GetItems().empty()) {
+				std::string full = build_from_items(false);
+				if (!full.empty())
+					return full;
 			}
 
 			if (alt.TranscriptHasBeenSet()) {
@@ -423,11 +452,12 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 					continue;
 
 				const auto& alternative = alternatives.front();
-				std::string transcriptText = build_alternative_text(alternative);
+				const bool is_partial = result.GetIsPartial();
+				std::string transcriptText = build_alternative_text(alternative, is_partial);
 				if (transcriptText.empty())
 					continue;
 
-				if (result.GetIsPartial()) {
+				if (is_partial) {
 					latest_partial_transcription =
 						join_transcript(committed_transcription, transcriptText);
 					blog(LOG_INFO, "[partial] %s", latest_partial_transcription.c_str());
@@ -510,6 +540,10 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 		
 		request.SetMediaEncoding(Aws::TranscribeStreamingService::Model::MediaEncoding::pcm);
 				request.SetEventStreamHandler(handler);
+
+		// Reduce "flicker" in partial captions by having Transcribe stabilize partial results.
+		request.SetEnablePartialResultsStabilization(true);
+		request.SetPartialResultsStability(Aws::TranscribeStreamingService::Model::PartialResultsStability::high);
 		
 		// Set up audio streaming
 		auto OnStreamReady = [&](Aws::TranscribeStreamingService::Model::AudioStream& stream) {
