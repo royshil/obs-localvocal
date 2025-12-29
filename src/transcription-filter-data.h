@@ -188,6 +188,7 @@ struct transcription_filter_data {
 	std::unique_ptr<CloudSpeechProcessor> cloud_speech_processor;
 	bool cloud_speech_enabled = false;
 	std::string last_cloud_transcription_result;
+	std::string last_saved_caption_to_file;
 
 	// Transcription context sentences
 	int n_context_sentences;

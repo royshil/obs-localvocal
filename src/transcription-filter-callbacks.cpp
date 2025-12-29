@@ -171,6 +171,11 @@ void send_sentence_to_file(struct transcription_filter_data *gf,
 		openmode |= std::ios::app;
 	}
 	if (!gf->save_srt) {
+		if (sentence == gf->last_saved_caption_to_file) {
+			return;
+		}
+		gf->last_saved_caption_to_file = sentence;
+
 		obs_log(gf->log_level, "Saving sentence '%s' to file %s", sentence.c_str(),
 			gf->output_file_path.c_str());
 		// Write raw sentence to text file (non-srt format)
@@ -355,10 +360,8 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 			}
 		}
 
-		if (gf->save_to_file && gf->output_file_path != "" &&
-		    (result.result == DETECTION_RESULT_SPEECH ||
-		     (!gf->save_srt && gf->partial_transcription &&
-		      result.result == DETECTION_RESULT_PARTIAL))) {
+	if (gf->save_to_file && gf->output_file_path != "" &&
+		    (result.result == DETECTION_RESULT_SPEECH)) {
 			obs_log(LOG_DEBUG, "-- file output -- %s", text.c_str());
 			send_sentence_to_file(gf, result, text, gf->output_file_path,
 					      result.result == DETECTION_RESULT_SPEECH);
