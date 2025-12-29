@@ -53,12 +53,16 @@ if ( -not $CurlLib ) {
 
 if ( -not ( Test-Path $SourceDir ) ) {
     Write-Host "Cloning aws-sdk-cpp ${AwsSdkTag}..."
-    git clone --depth 1 --branch $AwsSdkTag https://github.com/aws/aws-sdk-cpp.git $SourceDir
+    git clone --depth 1 --branch $AwsSdkTag --recurse-submodules --shallow-submodules https://github.com/aws/aws-sdk-cpp.git $SourceDir
 } else {
     Write-Host "Updating aws-sdk-cpp source in ${SourceDir}..."
     git -C $SourceDir fetch --tags --force
     git -C $SourceDir checkout $AwsSdkTag
 }
+
+Write-Host "Initializing aws-sdk-cpp submodules..."
+git -C $SourceDir submodule sync --recursive
+git -C $SourceDir submodule update --init --recursive
 
 Write-Host "Configuring AWS SDK (TranscribeStreaming only)..."
 cmake -S $SourceDir -B $BuildDir -G 'Visual Studio 17 2022' -A $Target `
@@ -66,6 +70,7 @@ cmake -S $SourceDir -B $BuildDir -G 'Visual Studio 17 2022' -A $Target `
     -DBUILD_ONLY=transcribestreaming `
     -DBUILD_SHARED_LIBS=OFF `
     -DENABLE_TESTING=OFF `
+    -DLEGACY_BUILD=ON `
     -DAWS_SDK_WARNINGS_ARE_ERRORS=OFF `
     -DHTTP_CLIENT=CURL `
     -DUSE_CRT_HTTP_CLIENT=ON `
