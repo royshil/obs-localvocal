@@ -7,7 +7,8 @@ project(${_name} VERSION ${_version})
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 option(ENABLE_TESTS "Enable tests" OFF)
-option(ENABLE_WEBVTT "Enable WebVTT embedding" ON)
+option(ENABLE_WEBVTT "Enable WebVTT embedding" OFF)
+option(ENABLE_AWS_TRANSCRIBE "Enable AWS Transcribe streaming support" ON)
 
 option(USE_SYSTEM_CURL "Use system cURL" OFF)
 option(USE_SYSTEM_ICU "Use system ICU" OFF)
@@ -39,6 +40,7 @@ add_library(${CMAKE_PROJECT_NAME} MODULE)
 
 find_package(libobs REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_CURL_CLIENT)
 
 if(ENABLE_FRONTEND_API)
   find_package(obs-frontend-api REQUIRED)
@@ -65,6 +67,35 @@ if(USE_SYSTEM_CURL)
 else()
   include(cmake/BuildMyCurl.cmake)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE libcurl)
+endif()
+
+# AWS Transcribe SDK support
+if(ENABLE_AWS_TRANSCRIBE)
+  message(STATUS "AWS Transcribe support enabled")
+  # Set the path to our properly built AWS SDK installation
+  set(CMAKE_PREFIX_PATH "C:/Users/Frank/Downloads/obs-localvocal - Copy/aws-sdk-built-curl")
+  include_directories(SYSTEM "C:/Users/Frank/Downloads/obs-localvocal - Copy/aws-sdk-built-curl/include")
+  include_directories(SYSTEM "C:/Users/Frank/Downloads/obs-localvocal - Copy/aws-sdk-built-curl/include/smithy")
+  # Try to find AWS SDK - make it optional for now
+  find_package(AWSSDK REQUIRED COMPONENTS transcribestreaming HINTS "C:/Users/Frank/Downloads/obs-localvocal - Copy/aws-sdk-built-curl")
+  if(AWSSDK_FOUND)
+    message(STATUS "AWS SDK found - enabling full AWS Transcribe support")
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${AWSSDK_LIBRARIES})
+    target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PRIVATE "C:/Users/Frank/Downloads/obs-localvocal - Copy/aws-sdk-built-curl/include")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_AWS_TRANSCRIBE_SDK USE_CURL_CLIENT USE_CURL_CLIENT)
+
+    if(WIN32)
+      target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::CURL_CLIENT")
+    else()
+      target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::DEFAULT_CLIENT")
+    endif()
+  else()
+    message(STATUS "AWS SDK not found - using fallback implementation")
+    message(STATUS "Searched in: C:/Users/Frank/Downloads/obs-localvocal - Copy/aws-sdk-built-safe")
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_AWS_TRANSCRIBE_FALLBACK)
+  endif()
+else()
+  message(STATUS "AWS Transcribe support disabled")
 endif()
 
 if(DEFINED ENV{ACCELERATION})
@@ -154,7 +185,6 @@ target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE src/plugin-main.c
           src/transcription-filter.cpp
-          src/transcription-filter.c
           src/transcription-filter-callbacks.cpp
           src/transcription-filter-properties.cpp
           src/transcription-filter-utils.cpp
@@ -171,6 +201,8 @@ target_sources(
           src/whisper-utils/silero-vad-onnx.cpp
           src/whisper-utils/token-buffer-thread.cpp
           src/whisper-utils/vad-processing.cpp
+          src/whisper-utils/cloud-speech.cpp
+          src/whisper-utils/ssl-utils.cpp
           src/translation/language_codes.cpp
           src/translation/translation.cpp
           src/translation/translation-utils.cpp

@@ -38,6 +38,23 @@ void send_caption_to_source(const std::string &target_source_name, const std::st
 	if (target_source_name.empty()) {
 		return;
 	}
+	
+	// Handle file output
+	if (target_source_name == "file") {
+		if (!caption.empty()) {
+			obs_log(gf->log_level, "Writing to file: %s", caption.c_str());
+			// Write to file output
+			if (gf->output_file.is_open()) {
+				gf->output_file << caption << std::endl;
+				gf->output_file.flush();
+			} else {
+				obs_log(LOG_ERROR, "Output file is not open!");
+			}
+		}
+		return;
+	}
+	
+	// Handle OBS text source
 	auto target = obs_get_source_by_name(target_source_name.c_str());
 	if (!target) {
 		obs_log(gf->log_level, "text_source target is null");
@@ -290,6 +307,16 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 	try {
 		obs_log(LOG_DEBUG, "-- outputting text (translation: %d) -- %s", translation_type,
 			text.c_str());
+		if (output_source == "file") {
+			if (text.empty()) {
+				return;
+			}
+			if (result.result == DETECTION_RESULT_PARTIAL && !gf->partial_transcription) {
+				return;
+			}
+			send_caption_to_source(output_source, text, gf);
+			return;
+		}
 		if (gf->buffered_output) {
 			obs_log(LOG_DEBUG, "-- buffered text output -- %s", text.c_str());
 			TokenBufferThread *monitor;
@@ -329,9 +356,12 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 		}
 
 		if (gf->save_to_file && gf->output_file_path != "" &&
-		    result.result == DETECTION_RESULT_SPEECH) {
+		    (result.result == DETECTION_RESULT_SPEECH ||
+		     (!gf->save_srt && gf->partial_transcription &&
+		      result.result == DETECTION_RESULT_PARTIAL))) {
 			obs_log(LOG_DEBUG, "-- file output -- %s", text.c_str());
-			send_sentence_to_file(gf, result, text, gf->output_file_path, true);
+			send_sentence_to_file(gf, result, text, gf->output_file_path,
+					      result.result == DETECTION_RESULT_SPEECH);
 		}
 #ifdef ENABLE_WEBVTT
 		if (result.result == DETECTION_RESULT_SPEECH) {

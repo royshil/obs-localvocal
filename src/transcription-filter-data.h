@@ -1,6 +1,8 @@
 #ifndef TRANSCRIPTION_FILTER_DATA_H
 #define TRANSCRIPTION_FILTER_DATA_H
 
+#include <fstream>
+
 #ifdef ENABLE_WEBVTT
 #include <obs.hpp>
 #include <webvtt-in-sei.h>
@@ -25,6 +27,7 @@
 #include "whisper-utils/whisper-processing.h"
 #include "whisper-utils/token-buffer-thread.h"
 #include "translation/cloud-translation/translation-cloud.h"
+#include "whisper-utils/cloud-speech.h"
 
 #define MAX_PREPROC_CHANNELS 10
 #define MAX_WEBVTT_TRACKS 5
@@ -179,6 +182,13 @@ struct transcription_filter_data {
 	std::string last_text_for_cloud_translation;
 	std::string last_text_cloud_translation;
 
+	// Cloud speech-to-text options
+	bool use_cloud_speech = false;
+	CloudSpeechConfig cloud_speech_config;
+	std::unique_ptr<CloudSpeechProcessor> cloud_speech_processor;
+	bool cloud_speech_enabled = false;
+	std::string last_cloud_transcription_result;
+
 	// Transcription context sentences
 	int n_context_sentences;
 	std::deque<std::string> last_transcription_sentence;
@@ -189,6 +199,8 @@ struct transcription_filter_data {
 	std::function<void(const DetectionResultWithText &result)> setTextCallback;
 	// Output file path to write the subtitles
 	std::string output_file_path;
+	// Output file stream for real-time writing
+	std::ofstream output_file;
 	std::string whisper_model_file_currently_loaded;
 	bool whisper_model_loaded_new;
 

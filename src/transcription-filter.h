@@ -13,8 +13,12 @@ void transcription_filter_destroy(void *data);
 const char *transcription_filter_name(void *unused);
 struct obs_audio_data *transcription_filter_filter_audio(void *data, struct obs_audio_data *audio);
 void transcription_filter_deactivate(void *data);
-void transcription_filter_defaults(obs_data_t *s);
+
+void transcription_filter_defaults(obs_data_t *settings);
 obs_properties_t *transcription_filter_properties(void *data);
+
+extern struct obs_source_info transcription_filter_info;
+
 void transcription_filter_remove(void *data, obs_source_t *source);
 void transcription_filter_show(void *data);
 void transcription_filter_hide(void *data);

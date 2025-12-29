@@ -9,6 +9,7 @@
 #include "whisper-processing.h"
 #include "whisper-utils.h"
 #include "transcription-utils.h"
+#include "cloud-speech.h"
 
 #ifdef _WIN32
 #include <fstream>
@@ -356,9 +357,27 @@ void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_o
 
 	auto inference_start_ts = now_ms();
 
-	struct DetectionResultWithText inference_result =
-		run_whisper_inference(gf, pcm32f_data, pcm32f_size_with_silence, start_offset_ms,
-				      end_offset_ms, vad_state);
+	struct DetectionResultWithText inference_result;
+
+	// Try cloud speech first if enabled
+	if (gf->use_cloud_speech && gf->cloud_speech_processor && gf->cloud_speech_processor->isReady()) {
+		inference_result = run_cloud_speech_inference(gf, pcm32f_data, pcm32f_size_with_silence,
+							    start_offset_ms, end_offset_ms, vad_state);
+		
+		// If cloud speech failed and fallback is enabled, try local Whisper
+		if (inference_result.result == DETECTION_RESULT_NO_INFERENCE && 
+		    gf->cloud_speech_config.enable_fallback && 
+		    gf->whisper_context) {
+			obs_log(gf->log_level, "Cloud speech failed, falling back to local Whisper");
+			inference_result = run_whisper_inference(gf, pcm32f_data, pcm32f_size_with_silence,
+								start_offset_ms, end_offset_ms, vad_state);
+		}
+	} else {
+		// Use local Whisper
+		inference_result = run_whisper_inference(gf, pcm32f_data, pcm32f_size_with_silence,
+							start_offset_ms, end_offset_ms, vad_state);
+	}
+
 	// output inference result to a text source
 	set_text_callback(inference_start_ts, gf, inference_result);
 
@@ -369,6 +388,77 @@ void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_o
 
 	// free the buffer
 	bfree(pcm32f_data);
+}
+
+struct DetectionResultWithText run_cloud_speech_inference(transcription_filter_data *gf, const float *pcm32f_data,
+							   size_t pcm32f_size, uint64_t start_offset_ms,
+							   uint64_t end_offset_ms, int vad_state)
+{
+	struct DetectionResultWithText result;
+	result.result = DETECTION_RESULT_UNKNOWN;
+	result.text = "";
+	result.start_timestamp_ms = start_offset_ms;
+	result.end_timestamp_ms = end_offset_ms;
+	result.language = gf->cloud_speech_config.language;
+
+	// Check if cloud speech is enabled and processor is ready
+	if (!gf->use_cloud_speech || !gf->cloud_speech_processor || !gf->cloud_speech_processor->isReady()) {
+		obs_log(LOG_WARNING, "Cloud speech not available, falling back to local processing");
+		result.result = DETECTION_RESULT_NO_INFERENCE;
+		return result;
+	}
+
+	try {
+		obs_log(gf->log_level, "=== CLOUD SPEECH INFERENCE START ===");
+		obs_log(gf->log_level, "Cloud speech enabled: %s", gf->use_cloud_speech ? "YES" : "NO");
+		obs_log(gf->log_level, "Cloud speech processor exists: %s", gf->cloud_speech_processor ? "YES" : "NO");
+		obs_log(gf->log_level, "Running cloud speech inference for audio segment %lu-%lu ms",
+			start_offset_ms, end_offset_ms);
+
+		if (!gf->cloud_speech_processor) {
+			obs_log(gf->log_level, "ERROR: Cloud speech processor is null!");
+			result.text = "";
+			result.result = DETECTION_RESULT_NO_INFERENCE;
+			return result;
+		}
+
+		// Process audio through cloud service
+		bool is_final = true;
+		std::string transcription = gf->cloud_speech_processor->processAudio(
+			pcm32f_data, pcm32f_size, WHISPER_SAMPLE_RATE, &is_final);
+		
+		obs_log(gf->log_level, "Cloud service returned: '%s'", transcription.empty() ? "[EMPTY]" : transcription.c_str());
+
+		if (!transcription.empty()) {
+			// Apply filtering if enabled
+			if (gf->filter_words_replace.size() > 0) {
+				// TODO: Implement text filtering
+			}
+
+			result.text = transcription;
+		result.result = (vad_state == VAD_STATE_PARTIAL || !is_final) ? DETECTION_RESULT_PARTIAL
+									      : DETECTION_RESULT_SPEECH;
+			
+			// Store result for potential fallback scenarios
+			gf->last_cloud_transcription_result = transcription;
+
+			obs_log(gf->log_level, "Cloud speech inference successful: '%s'", transcription.c_str());
+		} else {
+			obs_log(LOG_WARNING, "Cloud speech returned empty transcription");
+			result.result = DETECTION_RESULT_SILENCE;
+		}
+
+	} catch (const std::exception &e) {
+		obs_log(LOG_ERROR, "Cloud speech inference failed: %s", e.what());
+		result.result = DETECTION_RESULT_NO_INFERENCE;
+		
+		// If fallback is enabled, we'll let the caller handle local processing
+		if (gf->cloud_speech_config.enable_fallback) {
+			obs_log(LOG_INFO, "Cloud speech failed, fallback to local processing enabled");
+		}
+	}
+
+	return result;
 }
 
 void whisper_loop(void *data)

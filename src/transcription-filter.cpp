@@ -29,6 +29,7 @@
 #include "whisper-utils/whisper-model-utils.h"
 #include "whisper-utils/whisper-utils.h"
 #include "whisper-utils/whisper-params.h"
+#include "whisper-utils/cloud-speech.h"
 #include "translation/language_codes.h"
 #include "translation/translation-utils.h"
 #include "translation/translation.h"
@@ -539,6 +540,53 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	gf->translate_cloud_config.response_json_path =
 		obs_data_get_string(s, "translate_cloud_response_json_path");
 
+	// cloud speech options
+	gf->use_cloud_speech = obs_data_get_bool(s, "use_cloud_speech");
+	const char *cloud_speech_provider = obs_data_get_string(s, "cloud_speech_provider");
+	
+	// Update cloud speech configuration
+	if (strcmp(cloud_speech_provider, "amazon-transcribe") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::AMAZON_TRANSCRIBE;
+	} else if (strcmp(cloud_speech_provider, "openai") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::OPENAI;
+	} else if (strcmp(cloud_speech_provider, "google") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::GOOGLE;
+	} else if (strcmp(cloud_speech_provider, "azure") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::AZURE;
+	} else if (strcmp(cloud_speech_provider, "custom") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::CUSTOM;
+	}
+	
+	gf->cloud_speech_config.api_key = trim(std::string(obs_data_get_string(s, "cloud_speech_api_key")));
+	gf->cloud_speech_config.secret_key = trim(std::string(obs_data_get_string(s, "cloud_speech_secret_key")));
+	gf->cloud_speech_config.session_token = trim(std::string(obs_data_get_string(s, "cloud_speech_session_token")));
+	gf->cloud_speech_config.region = obs_data_get_string(s, "cloud_speech_region");
+	gf->cloud_speech_config.endpoint = obs_data_get_string(s, "cloud_speech_endpoint");
+	gf->cloud_speech_config.model = obs_data_get_string(s, "cloud_speech_model");
+	gf->cloud_speech_config.language = obs_data_get_string(s, "cloud_speech_language");
+	gf->cloud_speech_config.enable_fallback = obs_data_get_bool(s, "cloud_speech_enable_fallback");
+	gf->cloud_speech_config.max_retries = obs_data_get_int(s, "cloud_speech_max_retries");
+	gf->cloud_speech_config.timeout_seconds = obs_data_get_int(s, "cloud_speech_timeout_seconds");
+
+	// Initialize or update cloud speech processor
+	if (gf->use_cloud_speech && !gf->cloud_speech_processor) {
+		obs_log(gf->log_level, "Initializing cloud speech processor");
+		gf->cloud_speech_processor = std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
+		gf->cloud_speech_enabled = gf->cloud_speech_processor->isReady();
+		if (!gf->cloud_speech_enabled) {
+			obs_log(LOG_WARNING, "Cloud speech processor initialization failed");
+		}
+	} else if (!gf->use_cloud_speech && gf->cloud_speech_processor) {
+		obs_log(gf->log_level, "Disabling cloud speech processor");
+		gf->cloud_speech_processor.reset();
+		gf->cloud_speech_enabled = false;
+	} else if (gf->use_cloud_speech && gf->cloud_speech_processor) {
+		// Configuration may have changed, recreate processor
+		obs_log(gf->log_level, "Recreating cloud speech processor with new configuration");
+		gf->cloud_speech_processor = std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
+		gf->cloud_speech_enabled = gf->cloud_speech_processor->isReady();
+	}
+
 	int new_backend_device = (int)obs_data_get_int(s, "backend_device");
 	bool enable_flash_attn = obs_data_get_bool(s, "enable_flash_attn");
 	bool whisper_backend_changed = (gf->gpu_device == new_backend_device) ||
@@ -693,6 +741,27 @@ void *transcription_filter_create(obs_data_t *settings, obs_source_t *filter)
 		obs_log(gf->log_level, "Create text source");
 		gf->text_source_name = "LocalVocal Subtitles";
 		obs_data_set_string(settings, "subtitle_sources", "LocalVocal Subtitles");
+	} else if (strcmp(subtitle_sources, "file") == 0) {
+		obs_log(gf->log_level, "File output selected");
+		gf->text_source_name = "file";
+		// Initialize file output if needed
+		const char *output_filename = obs_data_get_string(settings, "output_filename");
+		obs_log(gf->log_level, "Output filename from settings: %s", output_filename ? output_filename : "NULL");
+		if (output_filename && strlen(output_filename) > 0) {
+			// Close existing file if open
+			if (gf->output_file.is_open()) {
+				gf->output_file.close();
+			}
+			// Open new file for writing
+			gf->output_file.open(output_filename, std::ios::app);
+			if (gf->output_file.is_open()) {
+				obs_log(gf->log_level, "File output opened successfully: %s", output_filename);
+			} else {
+				obs_log(gf->log_level, "Failed to open file: %s", output_filename);
+			}
+		} else {
+			obs_log(gf->log_level, "No output filename provided");
+		}
 	} else {
 		// set the text source name
 		gf->text_source_name = subtitle_sources;
@@ -759,6 +828,34 @@ void transcription_filter_hide(void *data)
 
 obs_output_add_packet_callback_t *obs_output_add_packet_callback_ = nullptr;
 obs_output_remove_packet_callback_t *obs_output_remove_packet_callback_ = nullptr;
+
+extern "C" {
+struct obs_source_info transcription_filter_info = {};
+}
+
+static void initialize_obs_source_info() {
+    transcription_filter_info.id = "transcription_filter_audio_filter";
+    transcription_filter_info.type = OBS_SOURCE_TYPE_FILTER;
+    transcription_filter_info.output_flags = OBS_SOURCE_AUDIO;
+    transcription_filter_info.get_name = transcription_filter_name;
+    transcription_filter_info.create = transcription_filter_create;
+    transcription_filter_info.destroy = transcription_filter_destroy;
+    transcription_filter_info.get_defaults = transcription_filter_defaults;
+    transcription_filter_info.get_properties = transcription_filter_properties;
+    transcription_filter_info.update = transcription_filter_update;
+    transcription_filter_info.activate = transcription_filter_activate;
+    transcription_filter_info.deactivate = transcription_filter_deactivate;
+    transcription_filter_info.filter_audio = transcription_filter_filter_audio;
+    transcription_filter_info.filter_remove = transcription_filter_remove;
+    transcription_filter_info.show = transcription_filter_show;
+    transcription_filter_info.hide = transcription_filter_hide;
+}
+
+// Call the initialization function once.
+static bool initialized = []() {
+    initialize_obs_source_info();
+    return true;
+}();
 
 void load_packet_callback_functions()
 {
