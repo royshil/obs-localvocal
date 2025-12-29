@@ -7,6 +7,9 @@ param(
     [switch] $SkipAll,
     [switch] $SkipBuild,
     [switch] $SkipDeps,
+    [switch] $BuildAwsSdk,
+    [string] $AwsSdkTag = '1.11.710',
+    [string] $AwsSdkRoot,
     [string[]] $ExtraCmakeArgs
 )
 
@@ -91,8 +94,46 @@ function Build {
             '--config', $Configuration
         )
 
+        $RepoLocalAwsSdkRoot = "${ProjectRoot}/aws-sdk-built-curl"
+        $RepoLocalAwsSdkConfig = "${RepoLocalAwsSdkRoot}/lib/cmake/AWSSDK/AWSSDKConfig.cmake"
+
+        if ( $BuildAwsSdk -and ( -not $AwsSdkRoot ) -and ( Test-Path $RepoLocalAwsSdkConfig ) ) {
+            $AwsSdkRoot = $RepoLocalAwsSdkRoot
+        }
+
+        $NeedAwsSdkBuild = $BuildAwsSdk -and ( -not $AwsSdkRoot ) -and ( -not ( Test-Path $RepoLocalAwsSdkConfig ) )
+        if ( $NeedAwsSdkBuild ) {
+            Log-Group "Configuring ${ProductName} (bootstrap deps for AWS SDK)..."
+            Invoke-External cmake @CmakeArgs
+
+            Log-Group "Building AWS SDK for Transcribe (tag ${AwsSdkTag})..."
+            Invoke-External pwsh @(
+                '-NoProfile'
+                '-ExecutionPolicy', 'Bypass'
+                '-File', "${ScriptHome}/Build-AwsSdk-Windows.ps1"
+                '-Target', $Target
+                '-Configuration', $Configuration
+                '-AwsSdkTag', $AwsSdkTag
+            )
+
+            $AwsSdkRoot = $RepoLocalAwsSdkRoot
+        }
+
+        if ( $AwsSdkRoot ) {
+            $CmakeArgs += @(
+                "-DAWS_SDK_ROOT=${AwsSdkRoot}"
+            )
+        }
+
         Log-Group "Configuring ${ProductName}..."
         Invoke-External cmake @CmakeArgs
+
+        if ( Test-Path "build_${Target}/CMakeCache.txt" ) {
+            $TranscribeSdkNotFound = Select-String -Path "build_${Target}/CMakeCache.txt" -Pattern '^aws-cpp-sdk-transcribestreaming_DIR:PATH=.*NOTFOUND$' -Quiet
+            if ( $TranscribeSdkNotFound ) {
+                Write-Warning "AWS SDK TranscribeStreaming not found; AWS Transcribe streaming support will be disabled. Provide -AwsSdkRoot=... or re-run with -BuildAwsSdk."
+            }
+        }
 
         Log-Group "Building ${ProductName}..."
         Invoke-External cmake @CmakeBuildArgs

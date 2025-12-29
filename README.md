@@ -263,6 +263,12 @@ AWS Transcribe streaming support is optional and requires an AWS SDK for C++ ins
 * `-DAWS_SDK_ROOT=C:\path\to\aws-sdk-install-prefix` (contains `include/` and `lib/cmake/`), or
 * `-DAWSSDK_DIR=C:\path\to\aws-sdk-install-prefix\lib\cmake\AWSSDK`
 
+If you already have the pre-built OBS dependency bundle downloaded (the build scripts fetch it into `.deps/`), you can also have the Windows build script build the AWS SDK for you:
+
+```powershell
+> .github/scripts/Build-Windows.ps1 -Configuration Release -BuildAwsSdk
+```
+
 If you bundle a CA file as `roots.pem` alongside the plugin, it will be used; otherwise the system trust store is used.
 
 #### Building with CUDA support on Windows
