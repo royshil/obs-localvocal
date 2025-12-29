@@ -19,22 +19,36 @@ if ( -not ( Test-Path $ObsDepsRoot ) ) {
     throw "Missing ${ObsDepsRoot}. Run .github/scripts/Build-Windows.ps1 once first so the pre-built obs-deps are downloaded, then re-run with -BuildAwsSdk."
 }
 
-$ObsDepsDir = Get-ChildItem -Path $ObsDepsRoot -Directory -Filter 'obs-deps-*-x64' |
-    Sort-Object -Property Name -Descending |
+$CurlHeader = Get-ChildItem -Path $ObsDepsRoot -Recurse -File -Filter 'curl.h' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -match '\\include\\curl\\curl\.h$' } |
+    Sort-Object -Property FullName -Descending |
     Select-Object -First 1
 
-if ( -not $ObsDepsDir ) {
-    throw "Could not find an obs-deps folder under ${ObsDepsRoot} (expected something like obs-deps-YYYY-MM-DD-x64)."
+if ( -not $CurlHeader ) {
+    throw "Could not find curl headers under ${ObsDepsRoot} (expected include\\curl\\curl.h). Run .github/scripts/Build-Windows.ps1 once first so dependencies are downloaded."
 }
 
-$CurlIncludeDir = Join-Path $ObsDepsDir.FullName 'include'
-$CurlLib = Join-Path $ObsDepsDir.FullName 'lib/libcurl_imp.lib'
+$CurlIncludeDir = Split-Path -Parent (Split-Path -Parent $CurlHeader.FullName) # ...\include
 
-if ( -not ( Test-Path $CurlIncludeDir ) ) {
-    throw "Missing curl include directory: ${CurlIncludeDir}"
+$CurlLibCandidateNames = @(
+    'libcurl_imp.lib',
+    'libcurl.lib',
+    'curl.lib'
+)
+
+$CurlLib = $null
+foreach ( $CandidateName in $CurlLibCandidateNames ) {
+    $Found = Get-ChildItem -Path $ObsDepsRoot -Recurse -File -Filter $CandidateName -ErrorAction SilentlyContinue |
+        Sort-Object -Property FullName -Descending |
+        Select-Object -First 1
+    if ( $Found ) {
+        $CurlLib = $Found.FullName
+        break
+    }
 }
-if ( -not ( Test-Path $CurlLib ) ) {
-    throw "Missing curl import library: ${CurlLib}"
+
+if ( -not $CurlLib ) {
+    throw "Could not find a cURL import library under ${ObsDepsRoot} (tried: $($CurlLibCandidateNames -join ', ')). Ensure obs-deps are downloaded and include cURL."
 }
 
 if ( -not ( Test-Path $SourceDir ) ) {
