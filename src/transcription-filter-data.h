@@ -202,6 +202,10 @@ struct transcription_filter_data {
 	std::string output_file_path;
 	// Output file stream for real-time writing
 	std::ofstream output_file;
+	// When subtitle output is set to "file", this is the chosen file path (settings: output_filename).
+	std::string text_source_output_filename;
+	// Dedup for subtitle output "file" mode (write finals only).
+	std::string last_written_text_source_file_caption;
 	std::string whisper_model_file_currently_loaded;
 	bool whisper_model_loaded_new;
 

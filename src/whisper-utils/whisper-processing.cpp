@@ -340,6 +340,15 @@ struct DetectionResultWithText run_whisper_inference(struct transcription_filter
 void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_offset_ms,
 				 uint64_t end_offset_ms, int vad_state)
 {
+	// For Amazon Transcribe we keep a long-lived streaming session open and publish updates from
+	// the stream as they arrive (see whisper_loop). Segment-based inference would add latency.
+	if (gf->use_cloud_speech && gf->cloud_speech_processor &&
+	    gf->cloud_speech_processor->isReady() &&
+	    gf->cloud_speech_processor->isAmazonStreamingEnabled()) {
+		deque_pop_front(&gf->whisper_buffer, nullptr, gf->whisper_buffer.size);
+		return;
+	}
+
 	// get the data from the entire whisper buffer
 	// add 50ms of silence to the beginning and end of the buffer
 	const size_t pcm32f_size = gf->whisper_buffer.size / sizeof(float);
@@ -504,6 +513,49 @@ void whisper_loop(void *data)
 			current_vad_state = vad_based_segmentation(gf, current_vad_state);
 		} else if (gf->vad_mode == VAD_MODE_DISABLED) {
 			current_vad_state = vad_disabled_segmentation(gf, current_vad_state);
+		}
+
+		// Low-latency Amazon Transcribe streaming: publish partial/final updates as soon as they arrive.
+		if (gf->use_cloud_speech && gf->cloud_speech_processor &&
+		    gf->cloud_speech_processor->isReady() &&
+		    gf->cloud_speech_processor->isAmazonStreamingEnabled()) {
+			std::string last_partial;
+			bool have_partial = false;
+
+			while (true) {
+				std::string text;
+				bool is_final = false;
+				if (!gf->cloud_speech_processor->consumeLatestTranscriptUpdate(text,
+											      is_final) ||
+				    text.empty()) {
+					break;
+				}
+
+				if (is_final) {
+					const uint64_t ts = now_ms();
+					DetectionResultWithText r;
+					r.result = DETECTION_RESULT_SPEECH;
+					r.text = text;
+					r.start_timestamp_ms = ts;
+					r.end_timestamp_ms = ts;
+					r.language = gf->cloud_speech_config.language;
+					set_text_callback(ts, gf, r);
+				} else {
+					last_partial = std::move(text);
+					have_partial = true;
+				}
+			}
+
+			if (have_partial && !last_partial.empty()) {
+				const uint64_t ts = now_ms();
+				DetectionResultWithText r;
+				r.result = DETECTION_RESULT_PARTIAL;
+				r.text = std::move(last_partial);
+				r.start_timestamp_ms = ts;
+				r.end_timestamp_ms = ts;
+				r.language = gf->cloud_speech_config.language;
+				set_text_callback(ts, gf, r);
+			}
 		}
 
 		if (!gf->cleared_last_sub) {

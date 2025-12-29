@@ -242,6 +242,7 @@ void TokenBufferThread::monitor()
 					std::lock_guard<std::mutex> lock(inputQueueMutex);
 
 					if (!inputQueue.empty()) {
+						const bool input_is_partial = inputQueue.back().is_partial;
 						// if the input on the inputQueue is partial - first remove all partials
 						// from the end of the presentation queue
 						while (!presentationQueue.empty() &&
@@ -249,35 +250,45 @@ void TokenBufferThread::monitor()
 							presentationQueue.pop_back();
 						}
 
-						// if there are token on the input queue
-						// then add to the presentation queue based on the segmentation
-						if (this->segmentation == SEGMENTATION_SENTENCE) {
-							// add all the tokens from the input queue to the presentation queue
+						// For partial updates, flush immediately so the on-screen captions don't lag
+						// behind the newest hypothesis (cloud streaming sends whole partial strings).
+						if (input_is_partial) {
 							for (const auto &token : inputQueue) {
 								presentationQueue.push_back(token);
 							}
 							inputQueue.clear();
-						} else if (this->segmentation ==
-							   SEGMENTATION_TOKEN) {
-							// add one token to the presentation queue
-							presentationQueue.push_back(
-								inputQueue.front());
-							inputQueue.pop_front();
 						} else {
-							// SEGMENTATION_WORD
-							// skip spaces in the beginning of the input queue
-							while (!inputQueue.empty() &&
-							       inputQueue.front().token == SPACE) {
+							// if there are token on the input queue
+							// then add to the presentation queue based on the segmentation
+							if (this->segmentation ==
+							    SEGMENTATION_SENTENCE) {
+								// add all the tokens from the input queue to the presentation queue
+								for (const auto &token : inputQueue) {
+									presentationQueue.push_back(token);
+								}
+								inputQueue.clear();
+							} else if (this->segmentation ==
+								   SEGMENTATION_TOKEN) {
+								// add one token to the presentation queue
+								presentationQueue.push_back(
+									inputQueue.front());
 								inputQueue.pop_front();
+							} else {
+								// SEGMENTATION_WORD
+								// skip spaces in the beginning of the input queue
+								while (!inputQueue.empty() &&
+								       inputQueue.front().token == SPACE) {
+									inputQueue.pop_front();
+								}
+								// add one word to the presentation queue
+								TokenBufferToken word;
+								while (!inputQueue.empty() &&
+								       inputQueue.front().token != SPACE) {
+									word = inputQueue.front();
+									inputQueue.pop_front();
+								}
+								presentationQueue.push_back(word);
 							}
-							// add one word to the presentation queue
-							TokenBufferToken word;
-							while (!inputQueue.empty() &&
-							       inputQueue.front().token != SPACE) {
-								word = inputQueue.front();
-								inputQueue.pop_front();
-							}
-							presentationQueue.push_back(word);
 						}
 					}
 				}

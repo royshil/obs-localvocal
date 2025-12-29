@@ -197,11 +197,27 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::stri
 
 CloudSpeechProcessor::CloudSpeechProcessor(const CloudSpeechConfig &config)
 	: config_(config), initialized_(false) {
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	if (config_.provider == CloudSpeechProvider::AMAZON_TRANSCRIBE) {
+		amazon_ = std::make_unique<AmazonStreamState>();
+	}
+#endif
 	initialized_ = initializeApiClient();
 }
 
 CloudSpeechProcessor::~CloudSpeechProcessor() {
-	// Cleanup if needed
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	if (amazon_ && amazon_->started) {
+		{
+			std::lock_guard<std::mutex> lock(amazon_->mutex);
+			amazon_->stop_requested = true;
+		}
+		amazon_->cv.notify_all();
+		if (amazon_->thread.joinable()) {
+			amazon_->thread.join();
+		}
+	}
+#endif
 }
 
 bool CloudSpeechProcessor::initializeApiClient() {
@@ -216,6 +232,68 @@ bool CloudSpeechProcessor::initializeApiClient() {
 	
 	blog(LOG_INFO, "Cloud speech processor initialized for provider: %d", static_cast<int>(config_.provider));
 	return true;
+}
+
+void CloudSpeechProcessor::submitAudio16kMono(const float *audio_data, size_t frames)
+{
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	if (!initialized_ || !amazon_ || config_.provider != CloudSpeechProvider::AMAZON_TRANSCRIBE) {
+		return;
+	}
+	if (!audio_data || frames == 0) {
+		return;
+	}
+
+	ensureAmazonStreamStarted();
+
+	std::vector<int16_t> converted;
+	converted.reserve(frames);
+	for (size_t i = 0; i < frames; ++i) {
+		float sample = (std::max)(-1.0f, (std::min)(1.0f, audio_data[i]));
+		converted.push_back(static_cast<int16_t>(sample * 32767.0f));
+	}
+
+	{
+		std::lock_guard<std::mutex> lock(amazon_->mutex);
+		if (amazon_->stop_requested) {
+			return;
+		}
+		amazon_->audio_samples.insert(amazon_->audio_samples.end(), converted.begin(),
+					      converted.end());
+	}
+	amazon_->cv.notify_one();
+#else
+	UNUSED_PARAMETER(audio_data);
+	UNUSED_PARAMETER(frames);
+#endif
+}
+
+bool CloudSpeechProcessor::consumeLatestTranscriptUpdate(std::string &out_text, bool &out_is_final)
+{
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	out_text.clear();
+	out_is_final = false;
+
+	if (!initialized_ || !amazon_ || config_.provider != CloudSpeechProvider::AMAZON_TRANSCRIBE) {
+		return false;
+	}
+
+	ensureAmazonStreamStarted();
+
+	std::lock_guard<std::mutex> lock(amazon_->transcript_mutex);
+	if (amazon_->transcript_updates.empty()) {
+		return false;
+	}
+	auto update = std::move(amazon_->transcript_updates.front());
+	amazon_->transcript_updates.pop_front();
+	out_text = std::move(update.text);
+	out_is_final = update.is_final;
+	return !out_text.empty();
+#else
+	UNUSED_PARAMETER(out_text);
+	UNUSED_PARAMETER(out_is_final);
+	return false;
+#endif
 }
 
 bool CloudSpeechProcessor::validateConfig() const {
@@ -234,6 +312,289 @@ bool CloudSpeechProcessor::validateConfig() const {
 		return false;
 	}
 }
+
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+void CloudSpeechProcessor::ensureAmazonStreamStarted()
+{
+	if (!amazon_) {
+		return;
+	}
+
+	bool should_start = false;
+	{
+		std::lock_guard<std::mutex> lock(amazon_->mutex);
+		if (!amazon_->started && !amazon_->stop_requested) {
+			amazon_->started = true;
+			should_start = true;
+		}
+	}
+	if (should_start) {
+		amazon_->thread = std::thread([this]() { amazonStreamThreadMain(); });
+	}
+}
+
+void CloudSpeechProcessor::amazonStreamThreadMain()
+{
+	if (!amazon_) {
+		return;
+	}
+
+	if (!is_aws_sdk_initialized()) {
+		blog(LOG_ERROR, "[Transcribe] AWS SDK not initialized; cannot start streaming session.");
+		return;
+	}
+	if (config_.region.empty()) {
+		blog(LOG_ERROR, "[Transcribe] AWS region is empty; cannot start streaming session.");
+		return;
+	}
+
+	try {
+		Aws::Client::ClientConfiguration client_config;
+		client_config.disableIMDS = true;
+#ifdef _WIN32
+		std::string ca_path = PEMrootCertsPath();
+		if (!ca_path.empty()) {
+			client_config.caFile = ca_path.c_str();
+		}
+		client_config.httpLibOverride = Aws::Http::TransferLibType::CURL_CLIENT;
+#endif
+		client_config.region = config_.region;
+		client_config.connectTimeoutMs = 5000;
+		client_config.requestTimeoutMs = 0;
+
+		Aws::Auth::AWSCredentials credentials;
+		if (!config_.session_token.empty()) {
+			credentials = Aws::Auth::AWSCredentials(config_.api_key, config_.secret_key,
+								config_.session_token);
+		} else {
+			credentials = Aws::Auth::AWSCredentials(config_.api_key, config_.secret_key);
+		}
+
+		auto credProvider =
+			Aws::MakeShared<Aws::Auth::SimpleAWSCredentialsProvider>("obs-localvocal",
+										 credentials);
+
+		Aws::TranscribeStreamingService::TranscribeStreamingServiceClientConfiguration serviceConfig(
+			client_config);
+		auto endpointProvider =
+			Aws::MakeShared<ForceEventStreamSigV4EndpointProvider>("obs-localvocal");
+		Aws::TranscribeStreamingService::TranscribeStreamingServiceClient client(
+			credProvider, endpointProvider, serviceConfig);
+
+		Aws::TranscribeStreamingService::Model::StartStreamTranscriptionHandler handler;
+
+		auto build_alternative_text =
+			[](const Aws::TranscribeStreamingService::Model::Alternative &alt,
+			   bool stable_only) -> std::string {
+			auto build_from_items = [&](bool include_stable_only) -> std::string {
+				if (!alt.ItemsHasBeenSet() || alt.GetItems().empty()) {
+					return "";
+				}
+
+				const auto &items = alt.GetItems();
+				const bool has_stability_data =
+					std::any_of(items.begin(), items.end(), [](const auto &item) {
+						return item.StableHasBeenSet();
+					});
+
+				std::string out;
+				for (const auto &item : items) {
+					if (!item.ContentHasBeenSet())
+						continue;
+					if (include_stable_only && has_stability_data) {
+						if (!item.StableHasBeenSet() || !item.GetStable())
+							continue;
+					}
+
+					const std::string content = item.GetContent().c_str();
+					if (content.empty())
+						continue;
+
+					if (item.TypeHasBeenSet() &&
+					    item.GetType() ==
+						    Aws::TranscribeStreamingService::Model::ItemType::punctuation) {
+						out += content;
+					} else {
+						if (!out.empty())
+							out += " ";
+						out += content;
+					}
+				}
+				return out;
+			};
+
+			if (stable_only) {
+				std::string stable = build_from_items(true);
+				if (!stable.empty())
+					return stable;
+			}
+
+			std::string full = build_from_items(false);
+			if (!full.empty())
+				return full;
+
+			if (alt.TranscriptHasBeenSet())
+				return alt.GetTranscript().c_str();
+			return "";
+		};
+
+		handler.SetTranscriptEventCallback([this, build_alternative_text](
+							   const Aws::TranscribeStreamingService::Model::TranscriptEvent
+								   &ev) {
+			if (!amazon_) {
+				return;
+			}
+			const auto &transcript = ev.GetTranscript();
+			const auto &results = transcript.GetResults();
+			for (const auto &result : results) {
+				const auto &alternatives = result.GetAlternatives();
+				if (alternatives.empty())
+					continue;
+
+				const bool is_partial = result.GetIsPartial();
+				const std::string text =
+					build_alternative_text(alternatives.front(), false);
+				if (text.empty())
+					continue;
+
+				std::lock_guard<std::mutex> lock(amazon_->transcript_mutex);
+				const bool is_final = !is_partial;
+
+				if (!amazon_->transcript_updates.empty()) {
+					const auto &last = amazon_->transcript_updates.back();
+					if (last.text == text && last.is_final == is_final) {
+						continue;
+					}
+				}
+
+				if (!is_final) {
+					if (!amazon_->transcript_updates.empty() &&
+					    !amazon_->transcript_updates.back().is_final) {
+						amazon_->transcript_updates.back().text = text;
+					} else {
+						amazon_->transcript_updates.push_back({text, false});
+					}
+				} else {
+					if (!amazon_->transcript_updates.empty() &&
+					    !amazon_->transcript_updates.back().is_final) {
+						amazon_->transcript_updates.pop_back();
+					}
+					amazon_->transcript_updates.push_back({text, true});
+				}
+
+				const size_t kMaxQueuedUpdates = 200;
+				while (amazon_->transcript_updates.size() > kMaxQueuedUpdates) {
+					amazon_->transcript_updates.pop_front();
+				}
+			}
+		});
+
+		handler.SetOnErrorCallback([](
+						   const Aws::Client::AWSError<
+							   Aws::TranscribeStreamingService::TranscribeStreamingServiceErrors>
+							   &error) {
+			blog(LOG_ERROR, "[Transcribe] Streaming error: %s", error.GetMessage().c_str());
+		});
+
+		Aws::TranscribeStreamingService::Model::StartStreamTranscriptionRequest request;
+		constexpr int kTranscribeSampleRateHz = 16000;
+		request.SetMediaSampleRateHertz(kTranscribeSampleRateHz);
+		request.SetMediaEncoding(Aws::TranscribeStreamingService::Model::MediaEncoding::pcm);
+		request.SetEnablePartialResultsStabilization(true);
+		request.SetPartialResultsStability(
+			Aws::TranscribeStreamingService::Model::PartialResultsStability::high);
+
+		if (config_.language == "en") {
+			request.SetLanguageCode(Aws::TranscribeStreamingService::Model::LanguageCode::en_US);
+		} else if (config_.language == "es") {
+			request.SetLanguageCode(Aws::TranscribeStreamingService::Model::LanguageCode::es_ES);
+		} else {
+			request.SetLanguageCode(Aws::TranscribeStreamingService::Model::LanguageCode::en_US);
+		}
+
+		request.SetEventStreamHandler(handler);
+
+		Aws::Utils::Threading::Semaphore signaling(0, 1);
+		auto onResponse = [&](
+					  const Aws::TranscribeStreamingService::TranscribeStreamingServiceClient *,
+					  const Aws::TranscribeStreamingService::Model::StartStreamTranscriptionRequest &,
+					  const Aws::TranscribeStreamingService::Model::StartStreamTranscriptionOutcome &outcome,
+					  const std::shared_ptr<const Aws::Client::AsyncCallerContext> &) {
+			if (!outcome.IsSuccess()) {
+				blog(LOG_ERROR, "[Transcribe] Outcome error: %s",
+				     outcome.GetError().GetMessage().c_str());
+			}
+			signaling.Release();
+		};
+
+		auto onStreamReady = [this](Aws::TranscribeStreamingService::Model::AudioStream &stream) {
+			if (!amazon_) {
+				return;
+			}
+			{
+				std::lock_guard<std::mutex> lock(amazon_->mutex);
+				amazon_->running = true;
+			}
+
+			const size_t chunk_samples = (kTranscribeSampleRateHz * 20) / 1000; // 20ms chunks
+
+			while (true) {
+				std::vector<int16_t> chunk;
+				{
+					std::unique_lock<std::mutex> lock(amazon_->mutex);
+					amazon_->cv.wait(lock, [&]() {
+						return amazon_->stop_requested || !amazon_->audio_samples.empty();
+					});
+
+					if (amazon_->stop_requested && amazon_->audio_samples.empty()) {
+						break;
+					}
+
+					const size_t n = (std::min)(chunk_samples, amazon_->audio_samples.size());
+					chunk.reserve(n);
+					for (size_t i = 0; i < n; ++i) {
+						chunk.push_back(amazon_->audio_samples.front());
+						amazon_->audio_samples.pop_front();
+					}
+				}
+
+				if (!chunk.empty()) {
+					const unsigned char *p =
+						reinterpret_cast<const unsigned char *>(chunk.data());
+					Aws::Vector<unsigned char> bytes(p, p + chunk.size() * sizeof(int16_t));
+					Aws::TranscribeStreamingService::Model::AudioEvent ev(std::move(bytes));
+					if (!stream.WriteAudioEvent(ev)) {
+						blog(LOG_ERROR,
+						     "[Transcribe] Failed to write audio chunk to stream.");
+						break;
+					}
+
+					// Try to keep up with real-time, but catch up if we have backlog (to reduce lag).
+					const int ms = static_cast<int>((chunk.size() * 1000) / kTranscribeSampleRateHz);
+					size_t backlog_samples = 0;
+					{
+						std::lock_guard<std::mutex> lock(amazon_->mutex);
+						backlog_samples = amazon_->audio_samples.size();
+					}
+					if (backlog_samples < (size_t)kTranscribeSampleRateHz) {
+						std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+					}
+				}
+			}
+
+			Aws::TranscribeStreamingService::Model::AudioEvent empty_event;
+			stream.WriteAudioEvent(empty_event);
+			stream.WaitForDrain(10000);
+			stream.Close();
+		};
+
+		client.StartStreamTranscriptionAsync(request, onStreamReady, onResponse, nullptr);
+		signaling.WaitOne();
+	} catch (const std::exception &e) {
+		blog(LOG_ERROR, "[Transcribe] Streaming thread exception: %s", e.what());
+	}
+}
+#endif
 
 std::string CloudSpeechProcessor::processAudio(const float *audio_data, size_t frames, uint32_t sample_rate,
 					       bool *out_is_final)
@@ -260,8 +621,17 @@ std::string CloudSpeechProcessor::processAudio(const float *audio_data, size_t f
 		attempt_is_final = false;
 		switch (config_.provider) {
 		case CloudSpeechProvider::AMAZON_TRANSCRIBE:
-			return transcribeWithAmazonTranscribe(audio_data, frames, sample_rate,
-							      &attempt_is_final);
+			// In low-latency streaming mode we continuously feed audio via submitAudio16kMono();
+			// here we just return the latest transcript update if available.
+			{
+				std::string text;
+				bool is_final = false;
+				if (consumeLatestTranscriptUpdate(text, is_final)) {
+					attempt_is_final = is_final;
+					return text;
+				}
+				return "";
+			}
 		case CloudSpeechProvider::OPENAI:
 			return transcribeWithOpenAI(audio_data, frames, sample_rate);
 		case CloudSpeechProvider::GOOGLE:

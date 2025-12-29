@@ -9,6 +9,7 @@
 #include <atomic>
 #include <mutex>
 #include <condition_variable>
+#include <deque>
 
 // Shared global state for AWS SDK initialization
 extern std::atomic<int> g_aws_init_state;
@@ -75,19 +76,50 @@ public:
 	// Process audio data and return transcription
 	std::string processAudio(const float *audio_data, size_t frames, uint32_t sample_rate,
 				 bool *out_is_final = nullptr);
+
+	// Low-latency Amazon Transcribe streaming: feed audio continuously and consume transcript updates.
+	// Audio is expected to be mono float PCM at 16kHz (WHISPER_SAMPLE_RATE).
+	void submitAudio16kMono(const float *audio_data, size_t frames);
+	bool consumeLatestTranscriptUpdate(std::string &out_text, bool &out_is_final);
 	
 	// Validate configuration
 	bool validateConfig() const;
 	
 	// Check if processor is ready
 	bool isReady() const { return initialized_; }
+	bool isAmazonStreamingEnabled() const { return config_.provider == CloudSpeechProvider::AMAZON_TRANSCRIBE; }
 	
 private:
 	CloudSpeechConfig config_;
 	bool initialized_;
+
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	struct AmazonStreamState {
+		std::mutex mutex;
+		std::condition_variable cv;
+		std::deque<int16_t> audio_samples;
+		std::thread thread;
+		bool stop_requested = false;
+		bool started = false;
+		bool running = false;
+
+		std::mutex transcript_mutex;
+		struct TranscriptUpdate {
+			std::string text;
+			bool is_final = false;
+		};
+		std::deque<TranscriptUpdate> transcript_updates;
+	};
+	std::unique_ptr<AmazonStreamState> amazon_;
+#endif
 	
 	// Initialize API client based on provider
 	bool initializeApiClient();
+
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	void ensureAmazonStreamStarted();
+	void amazonStreamThreadMain();
+#endif
 	
 	// Provider-specific implementations
 	std::string transcribeWithAmazonTranscribe(const float *audio_data, size_t frames,

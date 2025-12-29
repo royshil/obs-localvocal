@@ -316,9 +316,14 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 			if (text.empty()) {
 				return;
 			}
-			if (result.result == DETECTION_RESULT_PARTIAL && !gf->partial_transcription) {
+			// Subtitle output "file" mode: write finals only (avoid partial spam + duplication).
+			if (result.result != DETECTION_RESULT_SPEECH) {
 				return;
 			}
+			if (text == gf->last_written_text_source_file_caption) {
+				return;
+			}
+			gf->last_written_text_source_file_caption = text;
 			send_caption_to_source(output_source, text, gf);
 			return;
 		}
