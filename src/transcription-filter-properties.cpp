@@ -668,6 +668,8 @@ void add_general_group_properties(obs_properties_t *ppts)
 
 	// Add callback to subtitle sources to show/hide file path field
 	obs_property_set_modified_callback2(subs_output, [](void *priv, obs_properties_t *props, obs_property_t *p, obs_data_t *settings) {
+		UNUSED_PARAMETER(priv);
+		UNUSED_PARAMETER(p);
 		const char *subtitle_sources = obs_data_get_string(settings, "subtitle_sources");
 		const bool show_file_path = (subtitle_sources && strcmp(subtitle_sources, "file") == 0);
 		obs_property_set_visible(obs_properties_get(props, "output_filename"), show_file_path);

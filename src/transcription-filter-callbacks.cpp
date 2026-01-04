@@ -321,6 +321,9 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 		 uint64_t possible_end_ts, std::string text, std::string output_source,
 		 TranslationType translation_type)
 {
+#ifndef ENABLE_WEBVTT
+	UNUSED_PARAMETER(possible_end_ts);
+#endif
 	try {
 		obs_log(LOG_DEBUG, "-- outputting text (translation: %d) -- %s", translation_type,
 			text.c_str());

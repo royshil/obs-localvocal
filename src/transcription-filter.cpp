@@ -565,8 +565,10 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	gf->cloud_speech_config.model = obs_data_get_string(s, "cloud_speech_model");
 	gf->cloud_speech_config.language = obs_data_get_string(s, "cloud_speech_language");
 	gf->cloud_speech_config.enable_fallback = obs_data_get_bool(s, "cloud_speech_enable_fallback");
-	gf->cloud_speech_config.max_retries = obs_data_get_int(s, "cloud_speech_max_retries");
-	gf->cloud_speech_config.timeout_seconds = obs_data_get_int(s, "cloud_speech_timeout_seconds");
+	gf->cloud_speech_config.max_retries =
+		static_cast<int>(obs_data_get_int(s, "cloud_speech_max_retries"));
+	gf->cloud_speech_config.timeout_seconds =
+		static_cast<int>(obs_data_get_int(s, "cloud_speech_timeout_seconds"));
 
 	// Initialize or update cloud speech processor
 	if (gf->use_cloud_speech && !gf->cloud_speech_processor) {
