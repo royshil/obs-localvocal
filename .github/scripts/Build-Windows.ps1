@@ -7,7 +7,7 @@ param(
     [switch] $SkipAll,
     [switch] $SkipBuild,
     [switch] $SkipDeps,
-    [switch] $BuildAwsSdk,
+    [switch] $BuildAwsSdk = $true,
     [string] $AwsSdkTag = '1.11.710',
     [string] $AwsSdkRoot,
     [string[]] $ExtraCmakeArgs
@@ -65,6 +65,19 @@ function Build {
         $CmakeBuildArgs = @()
         $CmakeInstallArgs = @()
 
+        # If AWS Transcribe is explicitly disabled via CMake, don't attempt to build the AWS SDK.
+        # Users can still force an SDK build with -BuildAwsSdk:$true.
+        $AwsTranscribeDisabled = $false
+        foreach ( $Arg in $CmakeArgs ) {
+            if ( $Arg -match '^-DENABLE_AWS_TRANSCRIBE(:BOOL)?=(0|OFF|FALSE)$' ) {
+                $AwsTranscribeDisabled = $true
+                break
+            }
+        }
+        if ( $AwsTranscribeDisabled -and ( -not $PSBoundParameters.ContainsKey('BuildAwsSdk') ) ) {
+            $BuildAwsSdk = $false
+        }
+
         if ( $VerbosePreference -eq 'Continue' ) {
             $CmakeBuildArgs += ('--verbose')
             $CmakeInstallArgs += ('--verbose')
@@ -107,17 +120,24 @@ function Build {
             Invoke-External cmake @CmakeArgs
 
             Log-Group "Building AWS SDK for Transcribe (tag ${AwsSdkTag})..."
-            $PwshArgs = @(
-                '-NoProfile'
-                '-ExecutionPolicy', 'Bypass'
-                '-File', "${ScriptHome}/Build-AwsSdk-Windows.ps1"
-                '-Target', $Target
-                '-Configuration', $Configuration
-                '-AwsSdkTag', $AwsSdkTag
-            )
-            Invoke-External pwsh @PwshArgs
+            try {
+                $PwshArgs = @(
+                    '-NoProfile'
+                    '-ExecutionPolicy', 'Bypass'
+                    '-File', "${ScriptHome}/Build-AwsSdk-Windows.ps1"
+                    '-Target', $Target
+                    '-Configuration', $Configuration
+                    '-AwsSdkTag', $AwsSdkTag
+                )
+                Invoke-External pwsh @PwshArgs
+            } catch {
+                Write-Warning "AWS SDK build failed; continuing without AWS Transcribe streaming support. To skip the SDK build attempt, pass -BuildAwsSdk:`$false or -ExtraCmakeArgs '-DENABLE_AWS_TRANSCRIBE=OFF'."
+                $BuildAwsSdk = $false
+            }
 
-            $AwsSdkRoot = $RepoLocalAwsSdkRoot
+            if ( Test-Path $RepoLocalAwsSdkConfig ) {
+                $AwsSdkRoot = $RepoLocalAwsSdkRoot
+            }
         }
 
         if ( $AwsSdkRoot ) {

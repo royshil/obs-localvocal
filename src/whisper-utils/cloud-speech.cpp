@@ -2,34 +2,48 @@
 #include <obs-module.h>
 #include <plugin-support.h>
 #include <curl/curl.h>
-#include <aws/core/Aws.h>
-#include <aws/core/auth/AWSCredentialsProvider.h>
-#include <aws/core/client/ClientConfiguration.h>
-#include <aws/core/utils/memory/stl/AWSString.h>
-#include <aws/core/utils/memory/MemorySystemInterface.h>
-#include <aws/core/platform/Environment.h>
-#include <aws/transcribestreaming/TranscribeStreamingServiceClient.h>
-#include <aws/transcribestreaming/TranscribeStreamingServiceEndpointProvider.h>
-#include <aws/core/auth/signer/AWSAuthEventStreamV4Signer.h>
-#include <aws/core/utils/Threading/Semaphore.h>
-#include <aws/core/Region.h>
-#include <aws/core/utils/json/JsonSerializer.h>
-#include <aws/core/utils/StringUtils.h>
-#include <aws/core/http/HttpClientFactory.h>
-#include <aws/core/http/HttpResponse.h>
 #include <nlohmann/json.hpp>
-#include "aws-memory-manager.h"
-#include "ssl-utils.h"
-#include <aws/transcribestreaming/model/PartialResultsStability.h>
 #include <mutex>
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
+#include <ctime>
 #include <unordered_set>
 #include <algorithm>
 
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
+#ifdef _WIN32
+#define NOMINMAX
+#include <Windows.h>
+#endif
+
+#include <aws/core/Aws.h>
+#include <aws/core/auth/AWSCredentialsProvider.h>
+#include <aws/core/auth/signer/AWSAuthEventStreamV4Signer.h>
+#include <aws/core/client/ClientConfiguration.h>
+#include <aws/core/http/HttpClientFactory.h>
+#include <aws/core/http/HttpResponse.h>
+#include <aws/core/platform/Environment.h>
+#include <aws/core/Region.h>
+#include <aws/core/utils/json/JsonSerializer.h>
+#include <aws/core/utils/memory/MemorySystemInterface.h>
+#include <aws/core/utils/memory/stl/AWSString.h>
+#include <aws/core/utils/StringUtils.h>
+#include <aws/core/utils/Threading/Semaphore.h>
+#include <aws/transcribestreaming/TranscribeStreamingServiceClient.h>
+#include <aws/transcribestreaming/TranscribeStreamingServiceEndpointProvider.h>
+#include <aws/transcribestreaming/model/PartialResultsStability.h>
+
+#include "aws-memory-manager.h"
+#include "ssl-utils.h"
+#endif
+
 // Global AWS SDK initialization state with thread-safe initialization
 std::atomic<int> g_aws_init_state{0}; // 0=not initialized, 1=initializing, 2=initialized, -1=failed
+
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
 static Aws::SDKOptions g_aws_options;
 static std::mutex g_aws_init_mutex;
 static SafeMemoryManager* g_memory_manager = nullptr;
@@ -167,6 +181,7 @@ extern "C" void shutdown_aws_sdk() {
 extern "C" bool is_aws_sdk_initialized() {
 	return g_aws_init_state.load(std::memory_order_acquire) == 2;
 }
+#endif
 // Simplified time functions
 std::string get_current_time_string() {
 	auto now = std::chrono::system_clock::now();
