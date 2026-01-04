@@ -222,8 +222,8 @@ extern "C" bool is_aws_sdk_initialized() {
 // Simplified time functions
 std::string get_current_time_string() {
 	auto now = std::chrono::system_clock::now();
-	auto time_t = std::chrono::system_clock::to_time_t(now);
-	auto tm = *std::gmtime(&time_t);
+	const std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+	auto tm = *std::gmtime(&now_time);
 	
 	std::stringstream ss;
 	ss << std::put_time(&tm, "%Y%m%dT%H%M%SZ");
@@ -232,8 +232,8 @@ std::string get_current_time_string() {
 
 std::string get_current_date_string() {
 	auto now = std::chrono::system_clock::now();
-	auto time_t = std::chrono::system_clock::to_time_t(now);
-	auto tm = *std::gmtime(&time_t);
+	const std::time_t now_time = std::chrono::system_clock::to_time_t(now);
+	auto tm = *std::gmtime(&now_time);
 	
 	std::stringstream ss;
 	ss << std::put_time(&tm, "%Y%m%d");
@@ -1087,6 +1087,8 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 #elif defined(ENABLE_AWS_TRANSCRIBE_FALLBACK)
 	blog(LOG_INFO, "=== AMAZON TRANSCRIBE FALLBACK IMPLEMENTATION ===");
 	blog(LOG_INFO, "AWS SDK not available - please install AWS SDK for full functionality");
+	UNUSED_PARAMETER(audio_data);
+	UNUSED_PARAMETER(out_is_final);
 	
 	// Fallback implementation that shows the structure
 	blog(LOG_INFO, "Region: %s", config_.region.c_str());
@@ -1227,36 +1229,57 @@ std::string CloudSpeechProcessor::convertAudioToBase64(const float *audio_data, 
 		}
 		
 		// Create WAV header
-		const int channels = 1;
-		const int bits_per_sample = 16;
-		const int byte_rate = sample_rate * channels * bits_per_sample / 8;
-		const int block_align = channels * bits_per_sample / 8;
-		const int data_size = frames * block_align;
-		const int file_size = 36 + data_size;
+		const uint16_t channels = 1;
+		const uint16_t bits_per_sample = 16;
+		const uint16_t block_align = static_cast<uint16_t>((channels * bits_per_sample) / 8);
+		const uint32_t byte_rate =
+			static_cast<uint32_t>(sample_rate * static_cast<uint32_t>(block_align));
+		const size_t data_size = frames * static_cast<size_t>(block_align);
+		const size_t file_size = 36 + data_size;
+		const uint32_t data_size_le = static_cast<uint32_t>(data_size);
+		const uint32_t file_size_le = static_cast<uint32_t>(file_size);
 		
 		std::vector<uint8_t> wav_buffer;
 		wav_buffer.reserve(44 + data_size);
 		
 		// RIFF header
 		wav_buffer.insert(wav_buffer.end(), {'R', 'I', 'F', 'F'});
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&file_size), reinterpret_cast<const uint8_t*>(&file_size) + 4);
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&file_size_le),
+				  reinterpret_cast<const uint8_t *>(&file_size_le) + 4);
 		wav_buffer.insert(wav_buffer.end(), {'W', 'A', 'V', 'E'});
 		
 		// fmt chunk
 		wav_buffer.insert(wav_buffer.end(), {'f', 'm', 't', ' '});
-		int fmt_chunk_size = 16;
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&fmt_chunk_size), reinterpret_cast<const uint8_t*>(&fmt_chunk_size) + 4);
-		short audio_format = 1; // PCM
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&audio_format), reinterpret_cast<const uint8_t*>(&audio_format) + 2);
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&channels), reinterpret_cast<const uint8_t*>(&channels) + 2);
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&sample_rate), reinterpret_cast<const uint8_t*>(&sample_rate) + 4);
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&byte_rate), reinterpret_cast<const uint8_t*>(&byte_rate) + 4);
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&block_align), reinterpret_cast<const uint8_t*>(&block_align) + 2);
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&bits_per_sample), reinterpret_cast<const uint8_t*>(&bits_per_sample) + 2);
+		const uint32_t fmt_chunk_size = 16;
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&fmt_chunk_size),
+				  reinterpret_cast<const uint8_t *>(&fmt_chunk_size) + 4);
+		const uint16_t audio_format = 1; // PCM
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&audio_format),
+				  reinterpret_cast<const uint8_t *>(&audio_format) + 2);
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&channels),
+				  reinterpret_cast<const uint8_t *>(&channels) + 2);
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&sample_rate),
+				  reinterpret_cast<const uint8_t *>(&sample_rate) + 4);
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&byte_rate),
+				  reinterpret_cast<const uint8_t *>(&byte_rate) + 4);
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&block_align),
+				  reinterpret_cast<const uint8_t *>(&block_align) + 2);
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&bits_per_sample),
+				  reinterpret_cast<const uint8_t *>(&bits_per_sample) + 2);
 		
 		// data chunk
 		wav_buffer.insert(wav_buffer.end(), {'d', 'a', 't', 'a'});
-		wav_buffer.insert(wav_buffer.end(), reinterpret_cast<const uint8_t*>(&data_size), reinterpret_cast<const uint8_t*>(&data_size) + 4);
+		wav_buffer.insert(wav_buffer.end(),
+				  reinterpret_cast<const uint8_t *>(&data_size_le),
+				  reinterpret_cast<const uint8_t *>(&data_size_le) + 4);
 		
 		// Convert float samples to 16-bit PCM
 		for (size_t i = 0; i < frames; i++) {
