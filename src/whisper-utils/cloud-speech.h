@@ -92,6 +92,7 @@ public:
 private:
 	CloudSpeechConfig config_;
 	bool initialized_;
+	bool curl_global_acquired_ = false;
 
 #if defined(ENABLE_AWS_TRANSCRIBE_SDK)
 	struct AmazonStreamState {

@@ -44,6 +44,18 @@ void send_caption_to_source(const std::string &target_source_name, const std::st
 		if (!caption.empty()) {
 			obs_log(gf->log_level, "Writing to file: %s", caption.c_str());
 			// Write to file output
+			if (!gf->output_file.is_open() && !gf->text_source_output_filename.empty()) {
+				gf->output_file.close();
+				gf->output_file.clear();
+				gf->output_file.open(gf->text_source_output_filename, std::ios::app);
+				if (gf->output_file.is_open()) {
+					obs_log(gf->log_level, "File output opened successfully: %s",
+						gf->text_source_output_filename.c_str());
+				} else {
+					obs_log(LOG_ERROR, "Failed to open file output: %s",
+						gf->text_source_output_filename.c_str());
+				}
+			}
 			if (gf->output_file.is_open()) {
 				gf->output_file << caption << std::endl;
 				gf->output_file.flush();
@@ -365,7 +377,7 @@ void output_text(struct transcription_filter_data *gf, const DetectionResultWith
 			}
 		}
 
-	if (gf->save_to_file && gf->output_file_path != "" &&
+		if (gf->save_to_file && gf->output_file_path != "" &&
 		    (result.result == DETECTION_RESULT_SPEECH)) {
 			obs_log(LOG_DEBUG, "-- file output -- %s", text.c_str());
 			send_sentence_to_file(gf, result, text, gf->output_file_path,

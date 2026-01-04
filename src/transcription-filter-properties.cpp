@@ -765,6 +765,10 @@ void add_cloud_speech_group_properties(obs_properties_t *ppts)
 	obs_properties_add_text(cloud_speech_group, "cloud_speech_secret_key",
 				MT_("cloud_speech_secret_key"), OBS_TEXT_PASSWORD);
 
+	// Add session token input (for Amazon Transcribe)
+	obs_properties_add_text(cloud_speech_group, "cloud_speech_session_token",
+				MT_("cloud_speech_session_token"), OBS_TEXT_PASSWORD);
+
 	// Add region input (for Azure)
 	obs_properties_add_text(cloud_speech_group, "cloud_speech_region",
 				MT_("cloud_speech_region"), OBS_TEXT_DEFAULT);

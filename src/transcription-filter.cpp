@@ -625,6 +625,7 @@ void transcription_filter_update(void *data, obs_data_t *s)
 				if (gf->output_file.is_open()) {
 					gf->output_file.close();
 				}
+				gf->output_file.clear();
 				gf->output_file.open(gf->text_source_output_filename, std::ios::app);
 				if (gf->output_file.is_open()) {
 					obs_log(gf->log_level, "File output opened successfully: %s",
@@ -633,6 +634,7 @@ void transcription_filter_update(void *data, obs_data_t *s)
 				} else {
 					obs_log(gf->log_level, "Failed to open file: %s",
 						gf->text_source_output_filename.c_str());
+					gf->output_file.clear();
 				}
 			}
 		} else {

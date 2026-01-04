@@ -7,6 +7,7 @@ project(${_name} VERSION ${_version})
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 option(ENABLE_TESTS "Enable tests" OFF)
+# WebVTT embedding pulls in a Rust toolchain via Corrosion; keep it opt-in.
 option(ENABLE_WEBVTT "Enable WebVTT embedding" OFF)
 option(ENABLE_AWS_TRANSCRIBE "Enable AWS Transcribe streaming support" ON)
 set(AWS_SDK_ROOT "" CACHE PATH "Path to an AWS SDK for C++ install prefix (contains include/ and lib/cmake/)")

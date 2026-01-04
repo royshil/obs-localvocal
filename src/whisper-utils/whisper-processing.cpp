@@ -418,14 +418,19 @@ struct DetectionResultWithText run_cloud_speech_inference(transcription_filter_d
 	}
 
 	try {
-		obs_log(gf->log_level, "=== CLOUD SPEECH INFERENCE START ===");
-		obs_log(gf->log_level, "Cloud speech enabled: %s", gf->use_cloud_speech ? "YES" : "NO");
-		obs_log(gf->log_level, "Cloud speech processor exists: %s", gf->cloud_speech_processor ? "YES" : "NO");
-		obs_log(gf->log_level, "Running cloud speech inference for audio segment %lu-%lu ms",
-			start_offset_ms, end_offset_ms);
+		if (gf->log_level >= LOG_DEBUG) {
+			obs_log(LOG_DEBUG, "=== CLOUD SPEECH INFERENCE START ===");
+			obs_log(LOG_DEBUG, "Cloud speech enabled: %s",
+				gf->use_cloud_speech ? "YES" : "NO");
+			obs_log(LOG_DEBUG, "Cloud speech processor exists: %s",
+				gf->cloud_speech_processor ? "YES" : "NO");
+			obs_log(LOG_DEBUG,
+				"Running cloud speech inference for audio segment %lu-%lu ms",
+				start_offset_ms, end_offset_ms);
+		}
 
 		if (!gf->cloud_speech_processor) {
-			obs_log(gf->log_level, "ERROR: Cloud speech processor is null!");
+			obs_log(LOG_ERROR, "Cloud speech processor is null!");
 			result.text = "";
 			result.result = DETECTION_RESULT_NO_INFERENCE;
 			return result;
@@ -435,23 +440,26 @@ struct DetectionResultWithText run_cloud_speech_inference(transcription_filter_d
 		bool is_final = true;
 		std::string transcription = gf->cloud_speech_processor->processAudio(
 			pcm32f_data, pcm32f_size, WHISPER_SAMPLE_RATE, &is_final);
-		
-		obs_log(gf->log_level, "Cloud service returned: '%s'", transcription.empty() ? "[EMPTY]" : transcription.c_str());
+
+		if (gf->log_level >= LOG_DEBUG) {
+			obs_log(LOG_DEBUG, "Cloud service returned: '%s'",
+				transcription.empty() ? "[EMPTY]" : transcription.c_str());
+		}
 
 		if (!transcription.empty()) {
-			// Apply filtering if enabled
-			if (gf->filter_words_replace.size() > 0) {
-				// TODO: Implement text filtering
-			}
-
 			result.text = transcription;
-		result.result = (vad_state == VAD_STATE_PARTIAL || !is_final) ? DETECTION_RESULT_PARTIAL
-									      : DETECTION_RESULT_SPEECH;
+			result.result =
+				(vad_state == VAD_STATE_PARTIAL || !is_final)
+					? DETECTION_RESULT_PARTIAL
+					: DETECTION_RESULT_SPEECH;
 			
 			// Store result for potential fallback scenarios
 			gf->last_cloud_transcription_result = transcription;
 
-			obs_log(gf->log_level, "Cloud speech inference successful: '%s'", transcription.c_str());
+			if (gf->log_level >= LOG_DEBUG) {
+				obs_log(LOG_DEBUG, "Cloud speech inference successful: '%s'",
+					transcription.c_str());
+			}
 		} else {
 			obs_log(LOG_WARNING, "Cloud speech returned empty transcription");
 			result.result = DETECTION_RESULT_SILENCE;

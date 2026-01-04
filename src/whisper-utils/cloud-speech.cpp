@@ -43,6 +43,41 @@
 // Global AWS SDK initialization state with thread-safe initialization
 std::atomic<int> g_aws_init_state{0}; // 0=not initialized, 1=initializing, 2=initialized, -1=failed
 
+namespace {
+std::mutex g_curl_mutex;
+int g_curl_refcount = 0;
+bool g_curl_initialized = false;
+
+bool acquire_curl_global()
+{
+	std::lock_guard<std::mutex> lock(g_curl_mutex);
+	if (g_curl_refcount == 0) {
+		const CURLcode curl_init_result = curl_global_init(CURL_GLOBAL_DEFAULT);
+		if (curl_init_result != CURLE_OK) {
+			blog(LOG_ERROR, "curl_global_init failed: %s",
+			     curl_easy_strerror(curl_init_result));
+			return false;
+		}
+		g_curl_initialized = true;
+	}
+	++g_curl_refcount;
+	return true;
+}
+
+void release_curl_global()
+{
+	std::lock_guard<std::mutex> lock(g_curl_mutex);
+	if (g_curl_refcount <= 0) {
+		return;
+	}
+	--g_curl_refcount;
+	if (g_curl_refcount == 0 && g_curl_initialized) {
+		curl_global_cleanup();
+		g_curl_initialized = false;
+	}
+}
+} // namespace
+
 #if defined(ENABLE_AWS_TRANSCRIBE_SDK)
 static Aws::SDKOptions g_aws_options;
 static std::mutex g_aws_init_mutex;
@@ -115,12 +150,14 @@ extern "C" bool initialize_aws_sdk_once() {
 		blog(LOG_INFO, "Initializing AWS SDK...");
 		
 		// Set environment variables to disable problematic features
+#ifdef _WIN32
 		SetEnvironmentVariableW(L"AWS_EC2_METADATA_DISABLED", L"true");
 		SetEnvironmentVariableW(L"AWS_IMDS_CLIENT_DISABLED", L"true");
 		SetEnvironmentVariableW(L"AWS_RETRY_QUOTA_DISABLED", L"true");
 		SetEnvironmentVariableW(L"AWS_ENABLE_RUNTIME_COMPONENTS", L"false");
 		SetEnvironmentVariableW(L"AWS_METADATA_SERVICE_TIMEOUT", L"0");
 		SetEnvironmentVariableW(L"AWS_METADATA_SERVICE_NUM_ATTEMPTS", L"0");
+#endif
 		
 		// Initialize AWS SDK with custom memory manager
 		Aws::SDKOptions options;
@@ -212,6 +249,11 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, std::stri
 
 CloudSpeechProcessor::CloudSpeechProcessor(const CloudSpeechConfig &config)
 	: config_(config), initialized_(false) {
+	curl_global_acquired_ = acquire_curl_global();
+	if (!curl_global_acquired_) {
+		initialized_ = false;
+		return;
+	}
 #if defined(ENABLE_AWS_TRANSCRIBE_SDK)
 	if (config_.provider == CloudSpeechProvider::AMAZON_TRANSCRIBE) {
 		amazon_ = std::make_unique<AmazonStreamState>();
@@ -233,12 +275,13 @@ CloudSpeechProcessor::~CloudSpeechProcessor() {
 		}
 	}
 #endif
+	if (curl_global_acquired_) {
+		release_curl_global();
+		curl_global_acquired_ = false;
+	}
 }
 
 bool CloudSpeechProcessor::initializeApiClient() {
-	// Initialize curl globally if not already done
-	curl_global_init(CURL_GLOBAL_DEFAULT);
-	
 	// Validate configuration
 	if (!validateConfig()) {
 		blog(LOG_ERROR, "Invalid cloud speech configuration");
@@ -275,6 +318,16 @@ void CloudSpeechProcessor::submitAudio16kMono(const float *audio_data, size_t fr
 		}
 		amazon_->audio_samples.insert(amazon_->audio_samples.end(), converted.begin(),
 					      converted.end());
+		constexpr size_t kMaxBufferedAudioSamples = 16000 * 10; // 10 seconds @ 16kHz
+		if (amazon_->audio_samples.size() > kMaxBufferedAudioSamples) {
+			const size_t to_drop = amazon_->audio_samples.size() - kMaxBufferedAudioSamples;
+			for (size_t i = 0; i < to_drop; ++i) {
+				amazon_->audio_samples.pop_front();
+			}
+			blog(LOG_WARNING,
+			     "[Transcribe] Audio buffer overflow; dropped %zu old samples",
+			     to_drop);
+		}
 	}
 	amazon_->cv.notify_one();
 #else
@@ -453,6 +506,7 @@ void CloudSpeechProcessor::amazonStreamThreadMain()
 			return "";
 		};
 
+		constexpr size_t kMaxQueuedTranscriptUpdates = 200;
 		handler.SetTranscriptEventCallback([this, build_alternative_text](
 							   const Aws::TranscribeStreamingService::Model::TranscriptEvent
 								   &ev) {
@@ -497,8 +551,7 @@ void CloudSpeechProcessor::amazonStreamThreadMain()
 					amazon_->transcript_updates.push_back({text, true});
 				}
 
-				const size_t kMaxQueuedUpdates = 200;
-				while (amazon_->transcript_updates.size() > kMaxQueuedUpdates) {
+				while (amazon_->transcript_updates.size() > kMaxQueuedTranscriptUpdates) {
 					amazon_->transcript_updates.pop_front();
 				}
 			}
@@ -614,12 +667,11 @@ void CloudSpeechProcessor::amazonStreamThreadMain()
 std::string CloudSpeechProcessor::processAudio(const float *audio_data, size_t frames, uint32_t sample_rate,
 					       bool *out_is_final)
 {
-	blog(LOG_INFO, "=== CLOUD SPEECH PROCESS AUDIO START ===");
-	blog(LOG_INFO, "Processor initialized: %s", initialized_ ? "YES" : "NO");
-	blog(LOG_INFO, "Provider: %d", static_cast<int>(config_.provider));
-	blog(LOG_INFO, "API Key empty: %s", config_.api_key.empty() ? "YES" : "NO");
-	blog(LOG_INFO, "Region: %s", config_.region.c_str());
-	blog(LOG_INFO, "Audio frames: %zu, Sample rate: %u", frames, sample_rate);
+	blog(LOG_DEBUG, "=== CLOUD SPEECH PROCESS AUDIO START ===");
+	blog(LOG_DEBUG, "Processor initialized: %s", initialized_ ? "YES" : "NO");
+	blog(LOG_DEBUG, "Provider: %d", static_cast<int>(config_.provider));
+	blog(LOG_DEBUG, "Region: %s", config_.region.c_str());
+	blog(LOG_DEBUG, "Audio frames: %zu, Sample rate: %u", frames, sample_rate);
 	
 	if (!initialized_) {
 		blog(LOG_ERROR, "Cloud speech processor not initialized");
@@ -737,10 +789,13 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 			credentials = Aws::Auth::AWSCredentials(config_.api_key, config_.secret_key);
 		}
 
-		blog(LOG_INFO, "[obs-localvocal] AWS Credentials Check:");
-		blog(LOG_INFO, "  - Access Key ID: %s (length: %zu)", config_.api_key.empty() ? "[EMPTY]" : "[SET]", config_.api_key.length());
-		blog(LOG_INFO, "  - Secret Access Key: %s (length: %zu)", config_.secret_key.empty() ? "[EMPTY]" : "[SET]", config_.secret_key.length());
-		blog(LOG_INFO, "  - Session Token: %s (length: %zu)", config_.session_token.empty() ? "[NOT SET]" : "[SET]", config_.session_token.length());
+		blog(LOG_DEBUG, "[obs-localvocal] AWS Credentials Check:");
+		blog(LOG_DEBUG, "  - Access Key ID: %s",
+		     config_.api_key.empty() ? "[EMPTY]" : "[SET]");
+		blog(LOG_DEBUG, "  - Secret Access Key: %s",
+		     config_.secret_key.empty() ? "[EMPTY]" : "[SET]");
+		blog(LOG_DEBUG, "  - Session Token: %s",
+		     config_.session_token.empty() ? "[NOT SET]" : "[SET]");
 		
 		// Create a credentials provider
 		auto credProvider = Aws::MakeShared<Aws::Auth::SimpleAWSCredentialsProvider>("obs-localvocal", credentials);
@@ -976,7 +1031,7 @@ std::string CloudSpeechProcessor::transcribeWithAmazonTranscribe(const float *au
 			}
 
 			// Give the HTTP/2 stack a moment to flush the last DATA frames before we signal EOF.
-			std::this_thread::sleep_for(std::chrono::milliseconds(750));
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
 			// Signal end-of-stream to finalize the transcription.
 			blog(LOG_INFO, "[Transcribe] Closing request body stream (EOF).");
