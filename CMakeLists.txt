@@ -10,7 +10,9 @@ option(ENABLE_TESTS "Enable tests" OFF)
 # WebVTT embedding pulls in a Rust toolchain via Corrosion; keep it opt-in.
 option(ENABLE_WEBVTT "Enable WebVTT embedding" OFF)
 option(ENABLE_AWS_TRANSCRIBE "Enable AWS Transcribe streaming support" ON)
-set(AWS_SDK_ROOT "" CACHE PATH "Path to an AWS SDK for C++ install prefix (contains include/ and lib/cmake/)")
+set(AWS_SDK_ROOT
+    ""
+    CACHE PATH "Path to an AWS SDK for C++ install prefix (contains include/ and lib/cmake/)")
 
 option(USE_SYSTEM_CURL "Use system cURL" OFF)
 option(USE_SYSTEM_ICU "Use system ICU" OFF)
@@ -77,7 +79,9 @@ if(ENABLE_AWS_TRANSCRIBE)
 
   # Prefer a repo-local SDK install if present, but allow overriding via -DAWS_SDK_ROOT=...
   if(NOT AWS_SDK_ROOT AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/aws-sdk-built-curl/lib/cmake/AWSSDK/AWSSDKConfig.cmake")
-    set(AWS_SDK_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/aws-sdk-built-curl" CACHE PATH "Path to an AWS SDK for C++ install prefix (contains include/ and lib/cmake/)" FORCE)
+    set(AWS_SDK_ROOT
+        "${CMAKE_CURRENT_SOURCE_DIR}/aws-sdk-built-curl"
+        CACHE PATH "Path to an AWS SDK for C++ install prefix (contains include/ and lib/cmake/)" FORCE)
   endif()
   if(AWS_SDK_ROOT)
     list(PREPEND CMAKE_PREFIX_PATH "${AWS_SDK_ROOT}")
@@ -97,12 +101,17 @@ if(ENABLE_AWS_TRANSCRIBE)
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_AWS_TRANSCRIBE_SDK)
 
     if(WIN32)
-      target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::CURL_CLIENT")
+      target_compile_definitions(${CMAKE_PROJECT_NAME}
+                                 PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::CURL_CLIENT")
     else()
-      target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::DEFAULT_CLIENT")
+      target_compile_definitions(${CMAKE_PROJECT_NAME}
+                                 PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::DEFAULT_CLIENT")
     endif()
   else()
-    message(STATUS "AWS SDK not found - AWS Transcribe disabled (set -DAWS_SDK_ROOT=/path/to/aws-sdk-install or -DAWSSDK_DIR=/path/to/AWSSDKConfig.cmake)")
+    message(
+      STATUS
+        "AWS SDK not found - AWS Transcribe disabled (set -DAWS_SDK_ROOT=/path/to/aws-sdk-install or -DAWSSDK_DIR=/path/to/AWSSDKConfig.cmake)"
+    )
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_AWS_TRANSCRIBE_FALLBACK)
   endif()
 else()

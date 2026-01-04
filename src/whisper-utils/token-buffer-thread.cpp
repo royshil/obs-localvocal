@@ -242,7 +242,8 @@ void TokenBufferThread::monitor()
 					std::lock_guard<std::mutex> lock(inputQueueMutex);
 
 					if (!inputQueue.empty()) {
-						const bool input_is_partial = inputQueue.back().is_partial;
+						const bool input_is_partial =
+							inputQueue.back().is_partial;
 						// if the input on the inputQueue is partial - first remove all partials
 						// from the end of the presentation queue
 						while (!presentationQueue.empty() &&
@@ -263,8 +264,10 @@ void TokenBufferThread::monitor()
 							if (this->segmentation ==
 							    SEGMENTATION_SENTENCE) {
 								// add all the tokens from the input queue to the presentation queue
-								for (const auto &token : inputQueue) {
-									presentationQueue.push_back(token);
+								for (const auto &token :
+								     inputQueue) {
+									presentationQueue.push_back(
+										token);
 								}
 								inputQueue.clear();
 							} else if (this->segmentation ==
@@ -277,13 +280,15 @@ void TokenBufferThread::monitor()
 								// SEGMENTATION_WORD
 								// skip spaces in the beginning of the input queue
 								while (!inputQueue.empty() &&
-								       inputQueue.front().token == SPACE) {
+								       inputQueue.front().token ==
+									       SPACE) {
 									inputQueue.pop_front();
 								}
 								// add one word to the presentation queue
 								TokenBufferToken word;
 								while (!inputQueue.empty() &&
-								       inputQueue.front().token != SPACE) {
+								       inputQueue.front().token !=
+									       SPACE) {
 									word = inputQueue.front();
 									inputQueue.pop_front();
 								}

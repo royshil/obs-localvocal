@@ -38,18 +38,21 @@ void send_caption_to_source(const std::string &target_source_name, const std::st
 	if (target_source_name.empty()) {
 		return;
 	}
-	
+
 	// Handle file output
 	if (target_source_name == "file") {
 		if (!caption.empty()) {
 			obs_log(gf->log_level, "Writing to file: %s", caption.c_str());
 			// Write to file output
-			if (!gf->output_file.is_open() && !gf->text_source_output_filename.empty()) {
+			if (!gf->output_file.is_open() &&
+			    !gf->text_source_output_filename.empty()) {
 				gf->output_file.close();
 				gf->output_file.clear();
-				gf->output_file.open(gf->text_source_output_filename, std::ios::app);
+				gf->output_file.open(gf->text_source_output_filename,
+						     std::ios::app);
 				if (gf->output_file.is_open()) {
-					obs_log(gf->log_level, "File output opened successfully: %s",
+					obs_log(gf->log_level,
+						"File output opened successfully: %s",
 						gf->text_source_output_filename.c_str());
 				} else {
 					obs_log(LOG_ERROR, "Failed to open file output: %s",
@@ -65,7 +68,7 @@ void send_caption_to_source(const std::string &target_source_name, const std::st
 		}
 		return;
 	}
-	
+
 	// Handle OBS text source
 	auto target = obs_get_source_by_name(target_source_name.c_str());
 	if (!target) {

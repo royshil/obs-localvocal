@@ -16,4 +16,3 @@ void transcription_filter_defaults(obs_data_t *settings);
 #ifdef __cplusplus
 }
 #endif
-

@@ -543,7 +543,7 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	// cloud speech options
 	gf->use_cloud_speech = obs_data_get_bool(s, "use_cloud_speech");
 	const char *cloud_speech_provider = obs_data_get_string(s, "cloud_speech_provider");
-	
+
 	// Update cloud speech configuration
 	if (strcmp(cloud_speech_provider, "amazon-transcribe") == 0) {
 		gf->cloud_speech_config.provider = CloudSpeechProvider::AMAZON_TRANSCRIBE;
@@ -556,15 +556,19 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	} else if (strcmp(cloud_speech_provider, "custom") == 0) {
 		gf->cloud_speech_config.provider = CloudSpeechProvider::CUSTOM;
 	}
-	
-	gf->cloud_speech_config.api_key = trim(std::string(obs_data_get_string(s, "cloud_speech_api_key")));
-	gf->cloud_speech_config.secret_key = trim(std::string(obs_data_get_string(s, "cloud_speech_secret_key")));
-	gf->cloud_speech_config.session_token = trim(std::string(obs_data_get_string(s, "cloud_speech_session_token")));
+
+	gf->cloud_speech_config.api_key =
+		trim(std::string(obs_data_get_string(s, "cloud_speech_api_key")));
+	gf->cloud_speech_config.secret_key =
+		trim(std::string(obs_data_get_string(s, "cloud_speech_secret_key")));
+	gf->cloud_speech_config.session_token =
+		trim(std::string(obs_data_get_string(s, "cloud_speech_session_token")));
 	gf->cloud_speech_config.region = obs_data_get_string(s, "cloud_speech_region");
 	gf->cloud_speech_config.endpoint = obs_data_get_string(s, "cloud_speech_endpoint");
 	gf->cloud_speech_config.model = obs_data_get_string(s, "cloud_speech_model");
 	gf->cloud_speech_config.language = obs_data_get_string(s, "cloud_speech_language");
-	gf->cloud_speech_config.enable_fallback = obs_data_get_bool(s, "cloud_speech_enable_fallback");
+	gf->cloud_speech_config.enable_fallback =
+		obs_data_get_bool(s, "cloud_speech_enable_fallback");
 	gf->cloud_speech_config.max_retries =
 		static_cast<int>(obs_data_get_int(s, "cloud_speech_max_retries"));
 	gf->cloud_speech_config.timeout_seconds =
@@ -573,7 +577,8 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	// Initialize or update cloud speech processor
 	if (gf->use_cloud_speech && !gf->cloud_speech_processor) {
 		obs_log(gf->log_level, "Initializing cloud speech processor");
-		gf->cloud_speech_processor = std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
+		gf->cloud_speech_processor =
+			std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
 		gf->cloud_speech_enabled = gf->cloud_speech_processor->isReady();
 		if (!gf->cloud_speech_enabled) {
 			obs_log(LOG_WARNING, "Cloud speech processor initialization failed");
@@ -585,7 +590,8 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	} else if (gf->use_cloud_speech && gf->cloud_speech_processor) {
 		// Configuration may have changed, recreate processor
 		obs_log(gf->log_level, "Recreating cloud speech processor with new configuration");
-		gf->cloud_speech_processor = std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
+		gf->cloud_speech_processor =
+			std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
 		gf->cloud_speech_enabled = gf->cloud_speech_processor->isReady();
 	}
 
@@ -628,9 +634,11 @@ void transcription_filter_update(void *data, obs_data_t *s)
 					gf->output_file.close();
 				}
 				gf->output_file.clear();
-				gf->output_file.open(gf->text_source_output_filename, std::ios::app);
+				gf->output_file.open(gf->text_source_output_filename,
+						     std::ios::app);
 				if (gf->output_file.is_open()) {
-					obs_log(gf->log_level, "File output opened successfully: %s",
+					obs_log(gf->log_level,
+						"File output opened successfully: %s",
 						gf->text_source_output_filename.c_str());
 					gf->last_written_text_source_file_caption.clear();
 				} else {
@@ -640,7 +648,8 @@ void transcription_filter_update(void *data, obs_data_t *s)
 				}
 			}
 		} else {
-			obs_log(gf->log_level, "File output selected but no output filename provided");
+			obs_log(gf->log_level,
+				"File output selected but no output filename provided");
 		}
 	}
 
@@ -797,8 +806,9 @@ void *transcription_filter_create(obs_data_t *settings, obs_source_t *filter)
 		gf->text_source_output_filename =
 			(output_filename != nullptr) ? std::string(output_filename) : std::string();
 		obs_log(gf->log_level, "Output filename from settings: %s",
-			gf->text_source_output_filename.empty() ? "NULL"
-								: gf->text_source_output_filename.c_str());
+			gf->text_source_output_filename.empty()
+				? "NULL"
+				: gf->text_source_output_filename.c_str());
 		if (!gf->text_source_output_filename.empty()) {
 			// Close existing file if open
 			if (gf->output_file.is_open()) {
