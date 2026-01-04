@@ -1428,6 +1428,10 @@ std::string CloudSpeechProcessor::sendHttpRequest(const std::string &url, const 
 				}
 			}
 			break;
+		case CloudSpeechProvider::AMAZON_TRANSCRIBE:
+			blog(LOG_WARNING,
+			     "Unexpected Amazon Transcribe response parsing request: Amazon Transcribe uses a streaming API.");
+			break;
 		case CloudSpeechProvider::AZURE:
 		case CloudSpeechProvider::CUSTOM:
 			if (response_json.contains("transcription")) {
@@ -1435,6 +1439,8 @@ std::string CloudSpeechProcessor::sendHttpRequest(const std::string &url, const 
 			} else if (response_json.contains("text")) {
 				return response_json["text"].get<std::string>();
 			}
+			break;
+		default:
 			break;
 		}
 		
