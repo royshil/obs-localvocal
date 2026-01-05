@@ -5,92 +5,104 @@
 #include <obs-frontend-api.h>
 #include <plugin-support.h>
 
+static void ensure_localvocal_text_source_in_current_scene()
+{
+	const char *kSourceName = "LocalVocal Subtitles";
+	obs_source_t *source = obs_get_source_by_name(kSourceName);
+	const bool created = (source == nullptr);
+
+	if (!source) {
+		obs_log(LOG_INFO, "(LocalVocal) Creating text source '%s'", kSourceName);
+#ifdef _WIN32
+		source = obs_source_create("text_gdiplus_v3", kSourceName, nullptr, nullptr);
+#else
+		source = obs_source_create("text_ft2_source_v2", kSourceName, nullptr, nullptr);
+#endif
+	}
+
+	if (!source) {
+		obs_log(LOG_WARNING, "(LocalVocal) Failed to create/find text source '%s'",
+			kSourceName);
+		return;
+	}
+
+	if (created) {
+		obs_data_t *source_settings = obs_source_get_settings(source);
+		obs_data_set_bool(source_settings, "word_wrap", true);
+		obs_data_set_bool(source_settings, "extents", true);
+		obs_data_set_bool(source_settings, "outline", true);
+		obs_data_set_int(source_settings, "outline_color", 4278190080);
+		obs_data_set_int(source_settings, "outline_size", 7);
+		obs_data_set_int(source_settings, "extents_cx", 1500);
+		obs_data_set_int(source_settings, "extents_cy", 230);
+		obs_data_t *font_data = obs_data_create();
+		obs_data_set_string(font_data, "face", "Arial");
+		obs_data_set_string(font_data, "style", "Regular");
+		obs_data_set_int(font_data, "size", 72);
+		obs_data_set_int(font_data, "flags", 0);
+		obs_data_set_obj(source_settings, "font", font_data);
+		obs_data_release(font_data);
+		obs_source_update(source, source_settings);
+		obs_data_release(source_settings);
+	}
+
+	obs_source_t *scene_as_source = obs_frontend_get_current_scene();
+	if (!scene_as_source) {
+		obs_log(LOG_WARNING, "(LocalVocal) Failed to get current scene");
+		obs_source_release(source);
+		return;
+	}
+
+	obs_scene_t *scene = obs_scene_from_source(scene_as_source);
+	if (!scene) {
+		obs_log(LOG_WARNING, "(LocalVocal) Failed to get scene from current scene source");
+		obs_source_release(scene_as_source);
+		obs_source_release(source);
+		return;
+	}
+
+	obs_sceneitem_t *item = obs_scene_find_source(scene, kSourceName);
+	if (!item) {
+		uint32_t scene_width = obs_source_get_width(scene_as_source);
+		uint32_t scene_height = obs_source_get_height(scene_as_source);
+
+		obs_transform_info transform_info;
+		transform_info.bounds.x = ((float)scene_width) - 40.0f;
+		transform_info.bounds.y = 145.0;
+		transform_info.pos.x = ((float)scene_width) / 2.0f;
+		transform_info.pos.y =
+			(((float)scene_height) - ((transform_info.bounds.y / 2.0f) + 20.0f));
+		transform_info.bounds_type = obs_bounds_type::OBS_BOUNDS_SCALE_INNER;
+		transform_info.bounds_alignment = OBS_ALIGN_CENTER;
+		transform_info.alignment = OBS_ALIGN_CENTER;
+		transform_info.scale.x = 1.0;
+		transform_info.scale.y = 1.0;
+		transform_info.rot = 0.0;
+		transform_info.crop_to_bounds = false;
+
+		item = obs_scene_add(scene, source);
+		obs_sceneitem_set_info2(item, &transform_info);
+	}
+
+	obs_sceneitem_set_visible(item, true);
+
+	obs_source_release(scene_as_source);
+	obs_source_release(source);
+}
+
 void add_text_source_to_scenes_callback(obs_frontend_event event, void *)
 {
-	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
-		// check if a source called "LocalVocal Subtitles" exists
-		obs_source_t *source = obs_get_source_by_name("LocalVocal Subtitles");
-		if (source) {
-			obs_log(LOG_INFO, "(add_text_source_callback) Text source exists");
-			// source already exists, release it
-			obs_source_release(source);
-			return;
-		}
-
-		obs_log(LOG_INFO,
-			"(add_text_source_callback) Creating text source 'LocalVocal Subtitles'");
-		// create a new OBS text source called "LocalVocal Subtitles"
-#ifdef _WIN32
-		source = obs_source_create("text_gdiplus_v3", "LocalVocal Subtitles", nullptr,
-					   nullptr);
-#else
-		source = obs_source_create("text_ft2_source_v2", "LocalVocal Subtitles", nullptr,
-					   nullptr);
-#endif
-		if (source) {
-			// set source settings
-			obs_data_t *source_settings = obs_source_get_settings(source);
-			obs_data_set_bool(source_settings, "word_wrap", true);
-			obs_data_set_bool(source_settings, "extents", true);
-			obs_data_set_bool(source_settings, "outline", true);
-			obs_data_set_int(source_settings, "outline_color", 4278190080);
-			obs_data_set_int(source_settings, "outline_size", 7);
-			obs_data_set_int(source_settings, "extents_cx", 1500);
-			obs_data_set_int(source_settings, "extents_cy", 230);
-			obs_data_t *font_data = obs_data_create();
-			obs_data_set_string(font_data, "face", "Arial");
-			obs_data_set_string(font_data, "style", "Regular");
-			obs_data_set_int(font_data, "size", 72);
-			obs_data_set_int(font_data, "flags", 0);
-			obs_data_set_obj(source_settings, "font", font_data);
-			obs_data_release(font_data);
-			obs_source_update(source, source_settings);
-			obs_data_release(source_settings);
-
-			obs_source_t *scene_as_source = obs_frontend_get_current_scene();
-			if (!scene_as_source) {
-				obs_log(LOG_WARNING, "Failed to get current scene");
-			}
-			obs_scene_t *scene = obs_scene_from_source(scene_as_source);
-
-			uint32_t scene_width = obs_source_get_width(scene_as_source);
-			uint32_t scene_height = obs_source_get_height(scene_as_source);
-
-			// set transform settings
-			obs_transform_info transform_info;
-			transform_info.bounds.x = ((float)scene_width) - 40.0f;
-			transform_info.bounds.y = 145.0;
-			transform_info.pos.x = ((float)scene_width) / 2.0f;
-			transform_info.pos.y = (((float)scene_height) -
-						((transform_info.bounds.y / 2.0f) + 20.0f));
-			transform_info.bounds_type = obs_bounds_type::OBS_BOUNDS_SCALE_INNER;
-			transform_info.bounds_alignment = OBS_ALIGN_CENTER;
-			transform_info.alignment = OBS_ALIGN_CENTER;
-			transform_info.scale.x = 1.0;
-			transform_info.scale.y = 1.0;
-			transform_info.rot = 0.0;
-			transform_info.crop_to_bounds = false;
-
-			// add source to the scene
-			obs_sceneitem_t *source_sceneitem = obs_scene_add(scene, source);
-
-			// apply settings to source for the scene and set visible
-			obs_sceneitem_set_info2(source_sceneitem, &transform_info);
-			obs_sceneitem_set_visible(source_sceneitem, true);
-
-			obs_source_release(scene_as_source);
-		} else {
-			obs_log(LOG_DEBUG, "Failed to create text source");
-		}
-
-		obs_source_release(source);
-		obs_frontend_remove_event_callback(add_text_source_to_scenes_callback, nullptr);
+	if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED ||
+	    event == OBS_FRONTEND_EVENT_SCENE_CHANGED ||
+	    event == OBS_FRONTEND_EVENT_FINISHED_LOADING) {
+		ensure_localvocal_text_source_in_current_scene();
 	}
 };
 
 void create_obs_text_source_if_needed()
 {
-	// Add event callback to add source to scenes once they've been loaded
+	// Ensure now, and keep ensuring when scene/collection changes.
+	ensure_localvocal_text_source_in_current_scene();
 	obs_frontend_add_event_callback(add_text_source_to_scenes_callback, nullptr);
 }
 
