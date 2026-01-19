@@ -202,15 +202,15 @@ jobs:
         uses: actions/upload-artifact@v4
         if: steps.package_plugin.outcome == 'success'
         with:
-          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.architecture }}-${{ needs.check-event.outputs.commitHash }}
-          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.architecture }}.*
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.macos_version }}-${{ matrix.architecture }}-${{ needs.check-event.outputs.commitHash }}
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.macos_version }}-${{ matrix.architecture }}.*
 
       - name: Upload Debug Symbol Artifacts 🪲
         uses: actions/upload-artifact@v4
-        if: ${{ needs.check-event.outputs.config == 'Release' }} && ${{ steps.package_plugin.outcome == 'success' }}
+        if: needs.check-event.outputs.config == 'Release' && steps.package_plugin.outcome == 'success'
         with:
-          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.architecture }}-${{ needs.check-event.outputs.commitHash }}-dSYMs
-          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.architecture }}-dSYMs.*
+          name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.macos_version }}-${{ matrix.architecture }}-${{ needs.check-event.outputs.commitHash }}-dSYMs
+          path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-${{ matrix.macos_version }}-${{ matrix.architecture }}-dSYMs.*
 
   ubuntu-build:
     name: Build for Ubuntu 🐧
