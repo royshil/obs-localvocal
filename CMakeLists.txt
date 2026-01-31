@@ -87,8 +87,8 @@ if(ENABLE_AWS_TRANSCRIBE)
     list(PREPEND CMAKE_PREFIX_PATH "${AWS_SDK_ROOT}")
   endif()
 
-  # aws-sdk-cpp may link zlib and refer to the imported target ZLIB::ZLIB in its exported targets.
-  # Ensure it exists before loading the AWSSDK config.
+  # aws-sdk-cpp may link zlib and refer to the imported target ZLIB::ZLIB in its exported targets. Ensure it exists
+  # before loading the AWSSDK config.
   find_package(ZLIB QUIET)
   if(ZLIB_FOUND AND NOT TARGET ZLIB::ZLIB)
     add_library(ZLIB::ZLIB UNKNOWN IMPORTED)
