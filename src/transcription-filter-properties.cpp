@@ -760,8 +760,10 @@ void add_cloud_speech_group_properties(obs_properties_t *ppts)
 		OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
 
 	// Add provider options
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
 	obs_property_list_add_string(prop_cloud_speech_provider, "Amazon Transcribe",
 				     "amazon-transcribe");
+#endif
 	obs_property_list_add_string(prop_cloud_speech_provider, "OpenAI Whisper", "openai");
 	obs_property_list_add_string(prop_cloud_speech_provider, "Google Speech-to-Text", "google");
 	obs_property_list_add_string(prop_cloud_speech_provider, "Azure Speech Services", "azure");
@@ -938,7 +940,11 @@ void transcription_filter_defaults(obs_data_t *s)
 
 	// cloud speech options
 	obs_data_set_default_bool(s, "use_cloud_speech", false);
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
 	obs_data_set_default_string(s, "cloud_speech_provider", "amazon-transcribe");
+#else
+	obs_data_set_default_string(s, "cloud_speech_provider", "openai");
+#endif
 	obs_data_set_default_string(s, "cloud_speech_api_key", "");
 	obs_data_set_default_string(s, "cloud_speech_secret_key", "");
 	obs_data_set_default_string(s, "cloud_speech_region", "us-east-1");

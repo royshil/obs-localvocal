@@ -135,6 +135,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-icu-build-${{ matrix.architecture }}-
 
+      - uses: actions/cache@v4
+        id: aws-sdk-cache
+        with:
+          path: ${{ github.workspace }}/aws-sdk-built-curl
+          key: ${{ runner.os }}-aws-sdk-1.11.710-${{ needs.check-event.outputs.config }}-${{ matrix.architecture }}
+          restore-keys: |
+            ${{ runner.os }}-aws-sdk-1.11.710-${{ matrix.architecture }}-
+
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         if: matrix.architecture == 'arm64'
         with:
@@ -244,7 +252,15 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-      
+
+      - uses: actions/cache@v4
+        id: aws-sdk-cache
+        with:
+          path: ${{ github.workspace }}/aws-sdk-built-curl
+          key: ${{ runner.os }}-aws-sdk-1.11.710-${{ needs.check-event.outputs.config }}-${{ matrix.acceleration }}
+          restore-keys: |
+            ${{ runner.os }}-aws-sdk-1.11.710-
+       
       - name: "Setup additional apt repos, keys and pre-requisites"
         run: |
           wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
@@ -258,6 +274,7 @@ jobs:
             libcurl4-openssl-dev
             libicu-dev
             libgles2-mesa-dev
+            libssl-dev
             libopenblas0
             libopenblas0-openmp
             libopenblas0-pthread
@@ -274,6 +291,7 @@ jobs:
             qt6-base-dev
             qt6-base-private-dev
             vulkan-sdk
+            zlib1g-dev
           add-repository: ppa:obsproject/obs-studio
           version: 1.0
           execute_install_scripts: true

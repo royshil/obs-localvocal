@@ -84,7 +84,13 @@ public:
 	bool isReady() const { return initialized_; }
 	bool isAmazonStreamingEnabled() const
 	{
+#if defined(ENABLE_AWS_TRANSCRIBE_SDK)
 		return config_.provider == CloudSpeechProvider::AMAZON_TRANSCRIBE;
+#else
+		// Without the AWS SDK, the Amazon streaming code path is compiled out; reporting
+		// "enabled" here causes the pipeline to suppress local inference and emit no output.
+		return false;
+#endif
 	}
 
 private:

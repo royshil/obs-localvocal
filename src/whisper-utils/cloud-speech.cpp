@@ -300,6 +300,14 @@ bool CloudSpeechProcessor::initializeApiClient()
 		return false;
 	}
 
+#if !defined(ENABLE_AWS_TRANSCRIBE_SDK)
+	if (config_.provider == CloudSpeechProvider::AMAZON_TRANSCRIBE) {
+		blog(LOG_ERROR,
+		     "Amazon Transcribe selected, but this build has no AWS SDK (ENABLE_AWS_TRANSCRIBE_SDK is not set).");
+		return false;
+	}
+#endif
+
 	blog(LOG_INFO, "Cloud speech processor initialized for provider: %d",
 	     static_cast<int>(config_.provider));
 	return true;
@@ -384,7 +392,8 @@ bool CloudSpeechProcessor::validateConfig() const
 {
 	switch (config_.provider) {
 	case CloudSpeechProvider::AMAZON_TRANSCRIBE:
-		return !config_.api_key.empty() && !config_.region.empty();
+		return !config_.api_key.empty() && !config_.secret_key.empty() &&
+		       !config_.region.empty();
 	case CloudSpeechProvider::OPENAI:
 		return !config_.api_key.empty() && !config_.model.empty();
 	case CloudSpeechProvider::GOOGLE:
