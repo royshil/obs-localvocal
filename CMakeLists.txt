@@ -87,6 +87,24 @@ if(ENABLE_AWS_TRANSCRIBE)
     list(PREPEND CMAKE_PREFIX_PATH "${AWS_SDK_ROOT}")
   endif()
 
+  # aws-sdk-cpp may link zlib and refer to the imported target ZLIB::ZLIB in its exported targets.
+  # Ensure it exists before loading the AWSSDK config.
+  find_package(ZLIB QUIET)
+  if(ZLIB_FOUND AND NOT TARGET ZLIB::ZLIB)
+    add_library(ZLIB::ZLIB UNKNOWN IMPORTED)
+    if(DEFINED ZLIB_LIBRARY AND EXISTS "${ZLIB_LIBRARY}")
+      set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION "${ZLIB_LIBRARY}")
+    elseif(DEFINED ZLIB_LIBRARIES)
+      list(GET ZLIB_LIBRARIES 0 _zlib_lib)
+      if(EXISTS "${_zlib_lib}")
+        set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION "${_zlib_lib}")
+      endif()
+    endif()
+    if(DEFINED ZLIB_INCLUDE_DIRS)
+      set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIRS}")
+    endif()
+  endif()
+
   # AWS SDK is optional for building; when absent we compile but disable AWS Transcribe at runtime.
   find_package(AWSSDK QUIET COMPONENTS transcribestreaming)
   if(AWSSDK_FOUND)
