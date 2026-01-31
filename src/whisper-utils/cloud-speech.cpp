@@ -31,7 +31,7 @@
 #include <aws/core/utils/memory/MemorySystemInterface.h>
 #include <aws/core/utils/memory/stl/AWSString.h>
 #include <aws/core/utils/StringUtils.h>
-#include <aws/core/utils/Threading/Semaphore.h>
+#include <aws/core/utils/threading/Semaphore.h>
 #include <aws/transcribestreaming/TranscribeStreamingServiceClient.h>
 #include <aws/transcribestreaming/TranscribeStreamingServiceEndpointProvider.h>
 #include <aws/transcribestreaming/model/PartialResultsStability.h>
