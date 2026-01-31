@@ -25,6 +25,9 @@ int get_data_from_buf_and_resample(transcription_filter_data *gf,
 				   uint64_t &start_timestamp_offset_ns,
 				   uint64_t &end_timestamp_offset_ns)
 {
+	const bool amazon_streaming = gf->use_cloud_speech && gf->cloud_speech_processor &&
+				      gf->cloud_speech_processor->isReady() &&
+				      gf->cloud_speech_processor->isAmazonStreamingEnabled();
 	uint32_t num_frames_from_infos = 0;
 
 	{
@@ -41,8 +44,9 @@ int get_data_from_buf_and_resample(transcription_filter_data *gf,
 			gf->input_buffers[0].size);
 #endif
 
-		// max number of frames is 10 seconds worth of audio
-		const size_t max_num_frames = gf->sample_rate * 10;
+		// For low-latency Amazon streaming, drain smaller chunks to avoid sending stale audio.
+		const size_t max_num_frames = amazon_streaming ? (gf->sample_rate / 4)
+							       : (gf->sample_rate * 10);
 
 		// pop all infos from the info buffer and mark the beginning timestamp from the first
 		// info as the beginning timestamp of the segment
@@ -106,6 +110,14 @@ int get_data_from_buf_and_resample(transcription_filter_data *gf,
 						 &resampled_16khz_frames, &ts_offset,
 						 (const uint8_t **)gf->copy_buffers,
 						 (uint32_t)num_frames_from_infos);
+		}
+
+		// Low-latency cloud speech: feed resampled 16kHz mono audio continuously.
+		if (gf->use_cloud_speech && gf->cloud_speech_processor &&
+		    gf->cloud_speech_processor->isReady() &&
+		    gf->cloud_speech_processor->isAmazonStreamingEnabled()) {
+			gf->cloud_speech_processor->submitAudio16kMono(resampled_16khz[0],
+								       resampled_16khz_frames);
 		}
 
 		deque_push_back(&gf->resampled_buffer, resampled_16khz[0],

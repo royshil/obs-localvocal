@@ -9,6 +9,7 @@
 #include "whisper-processing.h"
 #include "whisper-utils.h"
 #include "transcription-utils.h"
+#include "cloud-speech.h"
 
 #ifdef _WIN32
 #include <fstream>
@@ -339,6 +340,15 @@ struct DetectionResultWithText run_whisper_inference(struct transcription_filter
 void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_offset_ms,
 				 uint64_t end_offset_ms, int vad_state)
 {
+	// For Amazon Transcribe we keep a long-lived streaming session open and publish updates from
+	// the stream as they arrive (see whisper_loop). Segment-based inference would add latency.
+	if (gf->use_cloud_speech && gf->cloud_speech_processor &&
+	    gf->cloud_speech_processor->isReady() &&
+	    gf->cloud_speech_processor->isAmazonStreamingEnabled()) {
+		deque_pop_front(&gf->whisper_buffer, nullptr, gf->whisper_buffer.size);
+		return;
+	}
+
 	// get the data from the entire whisper buffer
 	// add 50ms of silence to the beginning and end of the buffer
 	const size_t pcm32f_size = gf->whisper_buffer.size / sizeof(float);
@@ -356,9 +366,30 @@ void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_o
 
 	auto inference_start_ts = now_ms();
 
-	struct DetectionResultWithText inference_result =
-		run_whisper_inference(gf, pcm32f_data, pcm32f_size_with_silence, start_offset_ms,
-				      end_offset_ms, vad_state);
+	struct DetectionResultWithText inference_result;
+
+	// Try cloud speech first if enabled
+	if (gf->use_cloud_speech && gf->cloud_speech_processor &&
+	    gf->cloud_speech_processor->isReady()) {
+		inference_result =
+			run_cloud_speech_inference(gf, pcm32f_data, pcm32f_size_with_silence,
+						   start_offset_ms, end_offset_ms, vad_state);
+
+		// If cloud speech failed and fallback is enabled, try local Whisper
+		if (inference_result.result == DETECTION_RESULT_NO_INFERENCE &&
+		    gf->cloud_speech_config.enable_fallback && gf->whisper_context) {
+			obs_log(gf->log_level,
+				"Cloud speech failed, falling back to local Whisper");
+			inference_result =
+				run_whisper_inference(gf, pcm32f_data, pcm32f_size_with_silence,
+						      start_offset_ms, end_offset_ms, vad_state);
+		}
+	} else {
+		// Use local Whisper
+		inference_result = run_whisper_inference(gf, pcm32f_data, pcm32f_size_with_silence,
+							 start_offset_ms, end_offset_ms, vad_state);
+	}
+
 	// output inference result to a text source
 	set_text_callback(inference_start_ts, gf, inference_result);
 
@@ -369,6 +400,89 @@ void run_inference_and_callbacks(transcription_filter_data *gf, uint64_t start_o
 
 	// free the buffer
 	bfree(pcm32f_data);
+}
+
+struct DetectionResultWithText run_cloud_speech_inference(transcription_filter_data *gf,
+							  const float *pcm32f_data,
+							  size_t pcm32f_size,
+							  uint64_t start_offset_ms,
+							  uint64_t end_offset_ms, int vad_state)
+{
+	struct DetectionResultWithText result;
+	result.result = DETECTION_RESULT_UNKNOWN;
+	result.text = "";
+	result.start_timestamp_ms = start_offset_ms;
+	result.end_timestamp_ms = end_offset_ms;
+	result.language = gf->cloud_speech_config.language;
+
+	// Check if cloud speech is enabled and processor is ready
+	if (!gf->use_cloud_speech || !gf->cloud_speech_processor ||
+	    !gf->cloud_speech_processor->isReady()) {
+		obs_log(LOG_WARNING,
+			"Cloud speech not available, falling back to local processing");
+		result.result = DETECTION_RESULT_NO_INFERENCE;
+		return result;
+	}
+
+	try {
+		if (gf->log_level >= LOG_DEBUG) {
+			obs_log(LOG_DEBUG, "=== CLOUD SPEECH INFERENCE START ===");
+			obs_log(LOG_DEBUG, "Cloud speech enabled: %s",
+				gf->use_cloud_speech ? "YES" : "NO");
+			obs_log(LOG_DEBUG, "Cloud speech processor exists: %s",
+				gf->cloud_speech_processor ? "YES" : "NO");
+			obs_log(LOG_DEBUG,
+				"Running cloud speech inference for audio segment %lu-%lu ms",
+				start_offset_ms, end_offset_ms);
+		}
+
+		if (!gf->cloud_speech_processor) {
+			obs_log(LOG_ERROR, "Cloud speech processor is null!");
+			result.text = "";
+			result.result = DETECTION_RESULT_NO_INFERENCE;
+			return result;
+		}
+
+		// Process audio through cloud service
+		bool is_final = true;
+		std::string transcription = gf->cloud_speech_processor->processAudio(
+			pcm32f_data, pcm32f_size, WHISPER_SAMPLE_RATE, &is_final);
+
+		if (gf->log_level >= LOG_DEBUG) {
+			obs_log(LOG_DEBUG, "Cloud service returned: '%s'",
+				transcription.empty() ? "[EMPTY]" : transcription.c_str());
+		}
+
+		if (!transcription.empty()) {
+			result.text = transcription;
+			result.result = (vad_state == VAD_STATE_PARTIAL || !is_final)
+						? DETECTION_RESULT_PARTIAL
+						: DETECTION_RESULT_SPEECH;
+
+			// Store result for potential fallback scenarios
+			gf->last_cloud_transcription_result = transcription;
+
+			if (gf->log_level >= LOG_DEBUG) {
+				obs_log(LOG_DEBUG, "Cloud speech inference successful: '%s'",
+					transcription.c_str());
+			}
+		} else {
+			obs_log(LOG_WARNING, "Cloud speech returned empty transcription");
+			result.result = DETECTION_RESULT_SILENCE;
+		}
+
+	} catch (const std::exception &e) {
+		obs_log(LOG_ERROR, "Cloud speech inference failed: %s", e.what());
+		result.result = DETECTION_RESULT_NO_INFERENCE;
+
+		// If fallback is enabled, we'll let the caller handle local processing
+		if (gf->cloud_speech_config.enable_fallback) {
+			obs_log(LOG_INFO,
+				"Cloud speech failed, fallback to local processing enabled");
+		}
+	}
+
+	return result;
 }
 
 void whisper_loop(void *data)
@@ -414,6 +528,49 @@ void whisper_loop(void *data)
 			current_vad_state = vad_based_segmentation(gf, current_vad_state);
 		} else if (gf->vad_mode == VAD_MODE_DISABLED) {
 			current_vad_state = vad_disabled_segmentation(gf, current_vad_state);
+		}
+
+		// Low-latency Amazon Transcribe streaming: publish partial/final updates as soon as they arrive.
+		if (gf->use_cloud_speech && gf->cloud_speech_processor &&
+		    gf->cloud_speech_processor->isReady() &&
+		    gf->cloud_speech_processor->isAmazonStreamingEnabled()) {
+			std::string last_partial;
+			bool have_partial = false;
+
+			while (true) {
+				std::string text;
+				bool is_final = false;
+				if (!gf->cloud_speech_processor->consumeLatestTranscriptUpdate(
+					    text, is_final) ||
+				    text.empty()) {
+					break;
+				}
+
+				if (is_final) {
+					const uint64_t ts = now_ms();
+					DetectionResultWithText r;
+					r.result = DETECTION_RESULT_SPEECH;
+					r.text = text;
+					r.start_timestamp_ms = ts;
+					r.end_timestamp_ms = ts;
+					r.language = gf->cloud_speech_config.language;
+					set_text_callback(ts, gf, r);
+				} else {
+					last_partial = std::move(text);
+					have_partial = true;
+				}
+			}
+
+			if (have_partial && !last_partial.empty()) {
+				const uint64_t ts = now_ms();
+				DetectionResultWithText r;
+				r.result = DETECTION_RESULT_PARTIAL;
+				r.text = std::move(last_partial);
+				r.start_timestamp_ms = ts;
+				r.end_timestamp_ms = ts;
+				r.language = gf->cloud_speech_config.language;
+				set_text_callback(ts, gf, r);
+			}
 		}
 
 		if (!gf->cleared_last_sub) {

@@ -29,6 +29,7 @@
 #include "whisper-utils/whisper-model-utils.h"
 #include "whisper-utils/whisper-utils.h"
 #include "whisper-utils/whisper-params.h"
+#include "whisper-utils/cloud-speech.h"
 #include "translation/language_codes.h"
 #include "translation/translation-utils.h"
 #include "translation/translation.h"
@@ -539,6 +540,61 @@ void transcription_filter_update(void *data, obs_data_t *s)
 	gf->translate_cloud_config.response_json_path =
 		obs_data_get_string(s, "translate_cloud_response_json_path");
 
+	// cloud speech options
+	gf->use_cloud_speech = obs_data_get_bool(s, "use_cloud_speech");
+	const char *cloud_speech_provider = obs_data_get_string(s, "cloud_speech_provider");
+
+	// Update cloud speech configuration
+	if (strcmp(cloud_speech_provider, "amazon-transcribe") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::AMAZON_TRANSCRIBE;
+	} else if (strcmp(cloud_speech_provider, "openai") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::OPENAI;
+	} else if (strcmp(cloud_speech_provider, "google") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::GOOGLE;
+	} else if (strcmp(cloud_speech_provider, "azure") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::AZURE;
+	} else if (strcmp(cloud_speech_provider, "custom") == 0) {
+		gf->cloud_speech_config.provider = CloudSpeechProvider::CUSTOM;
+	}
+
+	gf->cloud_speech_config.api_key =
+		trim(std::string(obs_data_get_string(s, "cloud_speech_api_key")));
+	gf->cloud_speech_config.secret_key =
+		trim(std::string(obs_data_get_string(s, "cloud_speech_secret_key")));
+	gf->cloud_speech_config.session_token =
+		trim(std::string(obs_data_get_string(s, "cloud_speech_session_token")));
+	gf->cloud_speech_config.region = obs_data_get_string(s, "cloud_speech_region");
+	gf->cloud_speech_config.endpoint = obs_data_get_string(s, "cloud_speech_endpoint");
+	gf->cloud_speech_config.model = obs_data_get_string(s, "cloud_speech_model");
+	gf->cloud_speech_config.language = obs_data_get_string(s, "cloud_speech_language");
+	gf->cloud_speech_config.enable_fallback =
+		obs_data_get_bool(s, "cloud_speech_enable_fallback");
+	gf->cloud_speech_config.max_retries =
+		static_cast<int>(obs_data_get_int(s, "cloud_speech_max_retries"));
+	gf->cloud_speech_config.timeout_seconds =
+		static_cast<int>(obs_data_get_int(s, "cloud_speech_timeout_seconds"));
+
+	// Initialize or update cloud speech processor
+	if (gf->use_cloud_speech && !gf->cloud_speech_processor) {
+		obs_log(gf->log_level, "Initializing cloud speech processor");
+		gf->cloud_speech_processor =
+			std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
+		gf->cloud_speech_enabled = gf->cloud_speech_processor->isReady();
+		if (!gf->cloud_speech_enabled) {
+			obs_log(LOG_WARNING, "Cloud speech processor initialization failed");
+		}
+	} else if (!gf->use_cloud_speech && gf->cloud_speech_processor) {
+		obs_log(gf->log_level, "Disabling cloud speech processor");
+		gf->cloud_speech_processor.reset();
+		gf->cloud_speech_enabled = false;
+	} else if (gf->use_cloud_speech && gf->cloud_speech_processor) {
+		// Configuration may have changed, recreate processor
+		obs_log(gf->log_level, "Recreating cloud speech processor with new configuration");
+		gf->cloud_speech_processor =
+			std::make_unique<CloudSpeechProcessor>(gf->cloud_speech_config);
+		gf->cloud_speech_enabled = gf->cloud_speech_processor->isReady();
+	}
+
 	int new_backend_device = (int)obs_data_get_int(s, "backend_device");
 	bool enable_flash_attn = obs_data_get_bool(s, "enable_flash_attn");
 	bool whisper_backend_changed = (gf->gpu_device == new_backend_device) ||
@@ -548,8 +604,54 @@ void transcription_filter_update(void *data, obs_data_t *s)
 
 	obs_log(gf->log_level, "update text source");
 	// update the text source
+	const std::string prev_text_source = gf->text_source_name;
 	text_output_source_update(obs_data_get_string(s, "subtitle_sources"), gf->text_source_name,
 				  gf);
+
+	// Handle opening/closing subtitle "file" output when switching output target at runtime.
+	const bool was_file = (prev_text_source == "file");
+	const bool is_file = (gf->text_source_name == "file");
+	if (was_file && !is_file && gf->output_file.is_open()) {
+		gf->output_file.close();
+	}
+	if (is_file) {
+		const std::string prev_file_path = gf->text_source_output_filename;
+		const char *output_filename = obs_data_get_string(s, "output_filename");
+		if (output_filename == nullptr || strlen(output_filename) == 0) {
+			// Fallback to the file-output group path if the "subtitle_sources=file" path isn't set.
+			output_filename = obs_data_get_string(s, "subtitle_output_filename");
+		}
+
+		gf->text_source_output_filename =
+			(output_filename != nullptr) ? std::string(output_filename) : std::string();
+
+		if (!gf->text_source_output_filename.empty()) {
+			const bool needs_reopen =
+				(!gf->output_file.is_open() ||
+				 prev_file_path != gf->text_source_output_filename);
+			if (needs_reopen) {
+				if (gf->output_file.is_open()) {
+					gf->output_file.close();
+				}
+				gf->output_file.clear();
+				gf->output_file.open(gf->text_source_output_filename,
+						     std::ios::app);
+				if (gf->output_file.is_open()) {
+					obs_log(gf->log_level,
+						"File output opened successfully: %s",
+						gf->text_source_output_filename.c_str());
+					gf->last_written_text_source_file_caption.clear();
+				} else {
+					obs_log(gf->log_level, "Failed to open file: %s",
+						gf->text_source_output_filename.c_str());
+					gf->output_file.clear();
+				}
+			}
+		} else {
+			obs_log(gf->log_level,
+				"File output selected but no output filename provided");
+		}
+	}
 
 	obs_log(gf->log_level, "update whisper params");
 	{
@@ -693,6 +795,38 @@ void *transcription_filter_create(obs_data_t *settings, obs_source_t *filter)
 		obs_log(gf->log_level, "Create text source");
 		gf->text_source_name = "LocalVocal Subtitles";
 		obs_data_set_string(settings, "subtitle_sources", "LocalVocal Subtitles");
+	} else if (strcmp(subtitle_sources, "file") == 0) {
+		obs_log(gf->log_level, "File output selected");
+		gf->text_source_name = "file";
+		// Initialize file output if needed
+		const char *output_filename = obs_data_get_string(settings, "output_filename");
+		if (output_filename == nullptr || strlen(output_filename) == 0) {
+			output_filename = obs_data_get_string(settings, "subtitle_output_filename");
+		}
+		gf->text_source_output_filename =
+			(output_filename != nullptr) ? std::string(output_filename) : std::string();
+		obs_log(gf->log_level, "Output filename from settings: %s",
+			gf->text_source_output_filename.empty()
+				? "NULL"
+				: gf->text_source_output_filename.c_str());
+		if (!gf->text_source_output_filename.empty()) {
+			// Close existing file if open
+			if (gf->output_file.is_open()) {
+				gf->output_file.close();
+			}
+			// Open new file for writing
+			gf->output_file.open(gf->text_source_output_filename, std::ios::app);
+			if (gf->output_file.is_open()) {
+				obs_log(gf->log_level, "File output opened successfully: %s",
+					gf->text_source_output_filename.c_str());
+				gf->last_written_text_source_file_caption.clear();
+			} else {
+				obs_log(gf->log_level, "Failed to open file: %s",
+					gf->text_source_output_filename.c_str());
+			}
+		} else {
+			obs_log(gf->log_level, "No output filename provided");
+		}
 	} else {
 		// set the text source name
 		gf->text_source_name = subtitle_sources;
@@ -762,9 +896,17 @@ obs_output_remove_packet_callback_t *obs_output_remove_packet_callback_ = nullpt
 
 void load_packet_callback_functions()
 {
-	auto libobs = os_dlopen("obs");
-	if (!libobs)
+	void *libobs = nullptr;
+#if defined(__APPLE__)
+	// Prefer the main process image (bundle-safe) over a bare-name dlopen.
+	libobs = os_dlopen(nullptr);
+#else
+	libobs = os_dlopen("obs");
+#endif
+	if (!libobs) {
+		obs_log(LOG_WARNING, "Failed to load OBS symbols for packet callbacks");
 		return;
+	}
 
 	auto add_callback = os_dlsym(libobs, "obs_output_add_packet_callback");
 	auto remove_callback = os_dlsym(libobs, "obs_output_remove_packet_callback");

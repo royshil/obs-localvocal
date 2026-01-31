@@ -7,7 +7,12 @@ project(${_name} VERSION ${_version})
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
 option(ENABLE_TESTS "Enable tests" OFF)
-option(ENABLE_WEBVTT "Enable WebVTT embedding" ON)
+# WebVTT embedding pulls in a Rust toolchain via Corrosion; keep it opt-in.
+option(ENABLE_WEBVTT "Enable WebVTT embedding" OFF)
+option(ENABLE_AWS_TRANSCRIBE "Enable AWS Transcribe streaming support" ON)
+set(AWS_SDK_ROOT
+    ""
+    CACHE PATH "Path to an AWS SDK for C++ install prefix (contains include/ and lib/cmake/)")
 
 option(USE_SYSTEM_CURL "Use system cURL" OFF)
 option(USE_SYSTEM_ICU "Use system ICU" OFF)
@@ -39,6 +44,7 @@ add_library(${CMAKE_PROJECT_NAME} MODULE)
 
 find_package(libobs REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE OBS::libobs)
+target_compile_definitions(${CMAKE_PROJECT_NAME} PUBLIC USE_CURL_CLIENT)
 
 if(ENABLE_FRONTEND_API)
   find_package(obs-frontend-api REQUIRED)
@@ -65,6 +71,69 @@ if(USE_SYSTEM_CURL)
 else()
   include(cmake/BuildMyCurl.cmake)
   target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE libcurl)
+endif()
+
+# AWS Transcribe SDK support
+if(ENABLE_AWS_TRANSCRIBE)
+  message(STATUS "AWS Transcribe support enabled")
+
+  # Prefer a repo-local SDK install if present, but allow overriding via -DAWS_SDK_ROOT=...
+  if(NOT AWS_SDK_ROOT AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/aws-sdk-built-curl/lib/cmake/AWSSDK/AWSSDKConfig.cmake")
+    set(AWS_SDK_ROOT
+        "${CMAKE_CURRENT_SOURCE_DIR}/aws-sdk-built-curl"
+        CACHE PATH "Path to an AWS SDK for C++ install prefix (contains include/ and lib/cmake/)" FORCE)
+  endif()
+  if(AWS_SDK_ROOT)
+    list(PREPEND CMAKE_PREFIX_PATH "${AWS_SDK_ROOT}")
+  endif()
+
+  # aws-sdk-cpp may link zlib and refer to the imported target ZLIB::ZLIB in its exported targets. Ensure it exists
+  # before loading the AWSSDK config.
+  find_package(ZLIB QUIET)
+  if(ZLIB_FOUND AND NOT TARGET ZLIB::ZLIB)
+    add_library(ZLIB::ZLIB UNKNOWN IMPORTED)
+    if(DEFINED ZLIB_LIBRARY AND EXISTS "${ZLIB_LIBRARY}")
+      set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION "${ZLIB_LIBRARY}")
+    elseif(DEFINED ZLIB_LIBRARIES)
+      list(GET ZLIB_LIBRARIES 0 _zlib_lib)
+      if(EXISTS "${_zlib_lib}")
+        set_target_properties(ZLIB::ZLIB PROPERTIES IMPORTED_LOCATION "${_zlib_lib}")
+      endif()
+    endif()
+    if(DEFINED ZLIB_INCLUDE_DIRS)
+      set_target_properties(ZLIB::ZLIB PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_INCLUDE_DIRS}")
+    endif()
+  endif()
+
+  # AWS SDK is optional for building; when absent we compile but disable AWS Transcribe at runtime.
+  find_package(AWSSDK QUIET COMPONENTS transcribestreaming)
+  if(AWSSDK_FOUND)
+    message(STATUS "AWS SDK found - enabling full AWS Transcribe support")
+    if(TARGET AWS::aws-cpp-sdk-transcribestreaming)
+      target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE AWS::aws-cpp-sdk-transcribestreaming)
+    elseif(TARGET aws-cpp-sdk-transcribestreaming)
+      target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE aws-cpp-sdk-transcribestreaming)
+    else()
+      target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${AWSSDK_LIBRARIES})
+    endif()
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_AWS_TRANSCRIBE_SDK)
+
+    if(WIN32)
+      target_compile_definitions(${CMAKE_PROJECT_NAME}
+                                 PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::CURL_CLIENT")
+    else()
+      target_compile_definitions(${CMAKE_PROJECT_NAME}
+                                 PRIVATE "HTTP_CLIENT_IMPL=Aws::Http::TransferLibType::DEFAULT_CLIENT")
+    endif()
+  else()
+    message(
+      STATUS
+        "AWS SDK not found - AWS Transcribe disabled (set -DAWS_SDK_ROOT=/path/to/aws-sdk-install or -DAWSSDK_DIR=/path/to/AWSSDKConfig.cmake)"
+    )
+    target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE ENABLE_AWS_TRANSCRIBE_FALLBACK)
+  endif()
+else()
+  message(STATUS "AWS Transcribe support disabled")
 endif()
 
 if(DEFINED ENV{ACCELERATION})
@@ -153,8 +222,8 @@ endif()
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE src/plugin-main.c
-          src/transcription-filter.cpp
           src/transcription-filter.c
+          src/transcription-filter.cpp
           src/transcription-filter-callbacks.cpp
           src/transcription-filter-properties.cpp
           src/transcription-filter-utils.cpp
@@ -171,6 +240,8 @@ target_sources(
           src/whisper-utils/silero-vad-onnx.cpp
           src/whisper-utils/token-buffer-thread.cpp
           src/whisper-utils/vad-processing.cpp
+          src/whisper-utils/cloud-speech.cpp
+          src/whisper-utils/ssl-utils.cpp
           src/translation/language_codes.cpp
           src/translation/translation.cpp
           src/translation/translation-utils.cpp
