@@ -898,13 +898,12 @@ void load_packet_callback_functions()
 {
 	void *libobs = nullptr;
 #if defined(__APPLE__)
-	// Prefer the main process image (bundle-safe) over a bare-name dlopen under hardened runtime.
+	// Prefer the main process image (bundle-safe) over a bare-name dlopen.
 	libobs = os_dlopen(nullptr);
 #else
 	libobs = os_dlopen("obs");
 #endif
-	if (!libobs)
-	{
+	if (!libobs) {
 		obs_log(LOG_WARNING, "Failed to load OBS symbols for packet callbacks");
 		return;
 	}
