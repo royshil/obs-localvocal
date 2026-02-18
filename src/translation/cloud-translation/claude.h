@@ -7,7 +7,7 @@ class CurlHelper; // Forward declaration
 class ClaudeTranslator : public ITranslator {
 public:
 	explicit ClaudeTranslator(const std::string &api_key,
-				  const std::string &model = "claude-3-sonnet-20240229");
+				  const std::string &model = "claude-3-haiku-20240307");
 	~ClaudeTranslator() override;
 
 	std::string translate(const std::string &text, const std::string &target_lang,
