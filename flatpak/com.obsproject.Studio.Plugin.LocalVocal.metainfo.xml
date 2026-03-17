@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="addon">
+  <id>com.obsproject.Studio.Plugin.LocalVocal</id>
+  <extends>com.obsproject.Studio</extends>
+  <name>LocalVocal</name>
+  <summary>Local real-time speech transcription and translation for OBS</summary>
+  <description>
+    <p>
+      LocalVocal is an OBS Studio plugin providing real-time AI-powered speech-to-text
+      transcription and translation. It runs entirely on your local machine — no cloud
+      services, no API keys, and no data ever leaves your computer.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Real-time transcription of audio to text in over 100 languages using OpenAI Whisper</li>
+      <li>Local neural machine translation powered by CTranslate2</li>
+      <li>On-screen caption display via OBS text sources</li>
+      <li>Export captions to SRT/TXT files or embed as WebVTT in a stream</li>
+      <li>Voice Activity Detection (VAD) to reduce false transcriptions</li>
+      <li>Support for custom and fine-tuned Whisper models in GGML format</li>
+      <li>GPU acceleration on NVIDIA (CUDA), AMD (ROCm) and Apple Silicon (Metal)</li>
+    </ul>
+  </description>
+  <url type="homepage">https://github.com/locaal-ai/obs-localvocal</url>
+  <url type="bugtracker">https://github.com/locaal-ai/obs-localvocal/issues</url>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <releases>
+    <release version="0.6.0" date="2026-01-05">
+      <description>
+        <p>Experimental release with per-macOS-version Metal builds to fix crashes on older macOS releases.</p>
+      </description>
+    </release>
+  </releases>
+  <screenshots>
+    <screenshot type="default">
+      <caption>LocalVocal settings panel in OBS Studio</caption>
+      <image>https://raw.githubusercontent.com/locaal-ai/obs-localvocal/main/docs/media/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+</component>

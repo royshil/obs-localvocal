@@ -27,6 +27,15 @@ elseif(WIN32)
 
 else()
 
+  if(USE_SYSTEM_SENTENCEPIECE)
+    message(STATUS "Using system sentencepiece")
+    find_library(SP_LIBRARY sentencepiece REQUIRED)
+    find_path(SP_INCLUDE_DIR sentencepiece_processor.h REQUIRED)
+
+    add_library(sentencepiece INTERFACE)
+    target_link_libraries(sentencepiece INTERFACE ${SP_LIBRARY})
+    target_include_directories(sentencepiece INTERFACE ${SP_INCLUDE_DIR})
+  else()
   # Enable ccache if available
   find_program(CCACHE_PROGRAM ccache)
   if(CCACHE_PROGRAM)
@@ -68,4 +77,5 @@ else()
   target_link_libraries(sentencepiece INTERFACE libsentencepiece)
   target_include_directories(sentencepiece INTERFACE ${INSTALL_DIR}/include)
 
+  endif()
 endif()

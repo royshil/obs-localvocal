@@ -1,0 +1,173 @@
+app-id: com.obsproject.Studio.Plugin.LocalVocal
+branch: stable
+runtime: com.obsproject.Studio
+runtime-version: stable
+sdk: org.kde.Sdk//6.8
+build-extension: true
+separate-locales: false
+
+build-options:
+  prefix: /app/plugins/LocalVocal
+  prepend-pkg-config-path: /app/plugins/LocalVocal/lib/pkgconfig
+
+modules:
+  # OpenBLAS – required by whisper.cpp and CTranslate2 for optimal CPU performance
+  - name: openblas
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=ON
+      - -DBUILD_TESTING=OFF
+      - -DUSE_OPENMP=ON
+      - -DNUM_THREADS=64
+    sources:
+      - type: git
+        url: https://github.com/OpenMathLib/OpenBLAS.git
+        tag: v0.3.27
+        commit: ce3f668c992cb3cc80849d5c30ed637f5adbd5b2
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
+
+  # ONNX Runtime – prebuilt binary for Silero VAD inference
+  - name: onnxruntime
+    buildsystem: simple
+    build-commands:
+      - mkdir -p ${FLATPAK_DEST}/include
+      - cp -r include/* ${FLATPAK_DEST}/include/
+      - cp -r lib/* ${FLATPAK_DEST}/lib/
+      - mkdir -p ${FLATPAK_DEST}/share/onnxruntime
+      - install -Dm644 LICENSE ${FLATPAK_DEST}/share/onnxruntime/
+    sources:
+      - type: archive
+        url: https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-gpu-1.20.1.tgz
+        sha256: 6bfb87c6ebe55367a94509b8ef062239e188dccf8d5caac8d6909b2344893bf0
+        strip-components: 1
+
+  # whisper.cpp – speech recognition library (CPU + OpenBLAS build, no GPU backends)
+  - name: whispercpp
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
+      - -DBUILD_SHARED_LIBS=ON
+      - -DWHISPER_BUILD_TESTS=OFF
+      - -DWHISPER_BUILD_EXAMPLES=OFF
+      - -DGGML_BLAS=ON
+      - -DGGML_BLAS_VENDOR=OpenBLAS
+      - -DGGML_NATIVE=OFF
+      - -DGGML_BACKEND_DL=OFF
+      - -DGGML_VULKAN=OFF
+      - -DGGML_OPENCL=OFF
+      - -DGGML_CUDA=OFF
+    sources:
+      - type: git
+        url: https://github.com/ggerganov/whisper.cpp.git
+        tag: v1.8.2
+        commit: 4979e04f5dcaccb36057e059bbaed8a2f5288315
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
+
+  # CTranslate2 – neural machine translation library (static build)
+  # Submodules (spdlog and cpu_features) are provided as separate sources.
+  - name: ctranslate2
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+      - -DOPENMP_RUNTIME=COMP
+      - -DWITH_MKL=OFF
+      - -DWITH_DNNL=OFF
+      - -DWITH_ACCELERATE=OFF
+      - -DWITH_OPENBLAS=ON
+      - -DWITH_RUY=OFF
+      - -DWITH_CUDA=OFF
+      - -DWITH_CUDNN=OFF
+      - -DWITH_TENSOR_PARALLEL=ON
+      - -DENABLE_CPU_DISPATCH=ON
+      - -DENABLE_PROFILING=OFF
+      - -DBUILD_CLI=OFF
+      - -DBUILD_TESTS=OFF
+    sources:
+      - type: git
+        url: https://github.com/OpenNMT/CTranslate2.git
+        tag: v4.1.1
+        commit: bfa0cb3c03ba02df0d53659aa5235611d701c574
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
+      # git submodule: third_party/cpu_features (required on x86_64)
+      - type: git
+        url: https://github.com/google/cpu_features.git
+        commit: 8a494eb1e158ec2050e5f699a504fbc9b896a43b
+        dest: third_party/cpu_features
+      # git submodule: third_party/spdlog (always required)
+      - type: git
+        url: https://github.com/gabime/spdlog.git
+        commit: 76fb40d95455f249bd70824ecfcae7a8f0930fa3
+        dest: third_party/spdlog
+
+  # SentencePiece – text tokenizer used by CTranslate2 translation models
+  - name: sentencepiece
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DSPM_ENABLE_SHARED=OFF
+      - -DSPM_BUILD_TEST=OFF
+    sources:
+      - type: git
+        url: https://github.com/google/sentencepiece.git
+        tag: v0.2.1
+        commit: 31646a467d2051eb904e0b45de3a73e91fe1c1e3
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
+
+  # obs-localvocal – the main plugin
+  - name: obs-localvocal
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
+      - -DENABLE_FRONTEND_API=ON
+      - -DENABLE_QT=ON
+      - -DUSE_SYSTEM_CURL=ON
+      - -DUSE_SYSTEM_ICU=ON
+      - -DUSE_SYSTEM_ONNXRUNTIME=ON
+      - -DUSE_SYSTEM_WHISPERCPP=ON
+      - -DUSE_SYSTEM_CTRANSLATE2=ON
+      - -DUSE_SYSTEM_SENTENCEPIECE=ON
+      - -DLINUX_SOURCE_BUILD=OFF
+      - -DACCELERATION=generic
+      - -DENABLE_TESTS=OFF
+    sources:
+      - type: git
+        url: https://github.com/locaal-ai/obs-localvocal.git
+        tag: "0.6.0"
+        commit: 9c0b317212f5f6d0012623af78582f997ae8b242
+        x-checker-data:
+          type: git
+          tag-pattern: ^([\d.]+)$
+      - type: file
+        path: com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
+    post-install:
+      - install -Dm644 --target-directory=${FLATPAK_DEST}/share/metainfo
+          ${FLATPAK_BUILDER_BUILDDIR}/com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
+
+cleanup:
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - /lib64/cmake
+  - /lib64/pkgconfig
+  - /share/aclocal
+  - "*.la"
+  - "*.a"
