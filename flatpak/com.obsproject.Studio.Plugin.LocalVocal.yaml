@@ -99,6 +99,9 @@ modules:
         url: https://github.com/OpenNMT/CTranslate2.git
         tag: v4.1.1
         commit: bfa0cb3c03ba02df0d53659aa5235611d701c574
+        # Prevent flatpak-builder from creating gitlink stubs for submodules;
+        # cpu_features and spdlog are supplied as explicit dest: sources below.
+        disable-submodules: true
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
