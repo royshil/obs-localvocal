@@ -139,6 +139,9 @@ modules:
   - name: obs-localvocal
     buildsystem: cmake-ninja
     builddir: true
+    build-options:
+      env:
+        ACCELERATION: generic
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
