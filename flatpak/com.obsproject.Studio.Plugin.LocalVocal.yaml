@@ -86,7 +86,7 @@ modules:
       - -DWITH_DNNL=OFF
       - -DWITH_ACCELERATE=OFF
       - -DWITH_OPENBLAS=ON
-      - -DOPENBLAS_INCLUDE_DIR=/app/plugins/LocalVocal/include
+      - -DOPENBLAS_INCLUDE_DIR=/app/plugins/LocalVocal/include/openblas
       - -DOPENBLAS_LIBRARY=/app/plugins/LocalVocal/lib/libopenblas.so
       - -DWITH_RUY=OFF
       - -DWITH_CUDA=OFF
