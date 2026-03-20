@@ -6,25 +6,42 @@ sdk: org.kde.Sdk//6.8
 build-extension: true
 separate-locales: false
 
-# The Rust toolchain (needed by Corrosion / cmake/BuildWebVTT.cmake) is
-# provided via base-extensions.  We cannot use sdk-extensions here because
-# flatpak-builder resolves sdk-extension branches from the SDK branch (6.8),
-# but the rust-stable extension only exists at branch 24.08 (freedesktop SDK).
-# base-extensions resolves branches from base-version instead, which we set
-# to "24.08" to match the freedesktop SDK that KDE SDK 6.8 is built on.
-# To build locally, install both beforehand:
-#   flatpak install flathub org.freedesktop.Sdk//24.08
-#   flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//24.08
-base: org.freedesktop.Sdk
-base-version: "24.08"
-base-extensions:
-  - org.freedesktop.Sdk.Extension.rust-stable
-
 build-options:
   prefix: /app/plugins/LocalVocal
   prepend-pkg-config-path: /app/plugins/LocalVocal/lib/pkgconfig
 
 modules:
+  # Rust toolchain – required to compile the c-webvtt-in-video-stream crate
+  # via Corrosion / cmake/BuildWebVTT.cmake.
+  #
+  # sdk-extensions always resolves extension branches from the SDK branch (6.8),
+  # but org.freedesktop.Sdk.Extension.rust-stable only exists at branch 24.08.
+  # There is no standard flatpak-builder mechanism to mix SDK branches for
+  # sdk-extensions, so we install the Rust toolchain directly as a module.
+  #
+  # The binary is installed to /usr/lib/sdk/rust-stable/ (the same path used
+  # by the extension) so the obs-localvocal module's existing
+  # append-path: /usr/lib/sdk/rust-stable/bin requires no changes.
+  # Files under /usr/ are build-environment-only and are NOT exported in the
+  # final extension package (whose prefix is /app/plugins/LocalVocal/).
+  #
+  # Source mirrors org.freedesktop.Sdk.Extension.rust-stable//24.08 on Flathub:
+  # https://github.com/flathub/org.freedesktop.Sdk.Extension.rust-stable/blob/branch/24.08/org.freedesktop.Sdk.Extension.rust-stable.json
+  - name: rust-toolchain
+    buildsystem: simple
+    build-commands:
+      - cd rust-x86_64-unknown-linux-gnu && ./install.sh
+          --prefix=/usr/lib/sdk/rust-stable
+          --without=rust-docs --without=rust-docs-json-preview
+          --disable-ldconfig
+    sources:
+      - type: archive
+        only-arches:
+          - x86_64
+        dest: rust-x86_64-unknown-linux-gnu
+        url: https://static.rust-lang.org/dist/2025-08-07/rust-1.89.0-x86_64-unknown-linux-gnu.tar.xz
+        sha256: c4f2796b10ee886001f0799bc40caea38746403a33c379d77878c4f4683f9b51
+
   # OpenBLAS – required by whisper.cpp and CTranslate2 for optimal CPU performance
   - name: openblas
     buildsystem: cmake-ninja
