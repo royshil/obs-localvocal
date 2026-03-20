@@ -179,7 +179,7 @@ else()
     set(WHISPER_LIBRARY_TYPE SHARED)
     set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
     list(APPEND WHISPER_DEPENDENCY_LIBRARIES Vulkan::Vulkan BLAS::BLAS)
-    if(NOT ${ACCELERATION} STREQUAL "nvidia")
+    if(NOT "${ACCELERATION}" STREQUAL "nvidia")
       # NVidia CUDA has its own OpenCL library
       list(APPEND WHISPER_DEPENDENCY_LIBRARIES OpenCL::OpenCL)
     endif()
@@ -202,7 +202,7 @@ else()
       Vulkan
       COMPONENTS glslc
       REQUIRED)
-    if(NOT ${ACCELERATION} STREQUAL "nvidia")
+    if(NOT "${ACCELERATION}" STREQUAL "nvidia")
       # NVidia CUDA provides its own OpenCL; skip the standalone OpenCL search.
       find_package(OpenCL REQUIRED)
     endif()
