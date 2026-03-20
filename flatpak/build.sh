@@ -49,29 +49,29 @@ sed \
 # Replace the upstream obs-localvocal git source with the local repository so
 # that cmake improvements in this fork (e.g. USE_SYSTEM_WHISPERCPP support,
 # the conditional OpenCL search for nvidia) are applied during the build.
-python3 - "${PATCHED}" "${REPO_DIR}" << 'PYEOF'
-import sys, re
-
-manifest_path, repo_dir = sys.argv[1], sys.argv[2]
-
-with open(manifest_path) as f:
-    content = f.read()
-
-# Match the 6-space YAML list item for the locaal-ai git source and replace it
-# with a local dir source.  The negative lookahead stops at the next list item
-# at the same indentation level ("      - ").
-content = re.sub(
-    r'      - type: git\n'
-    r'        url: https://github\.com/locaal-ai/obs-localvocal\.git\n'
-    r'(?:(?!      - ).*\n)*',
-    '      - type: dir\n        path: ' + repo_dir + '\n',
-    content,
-    count=1,
-)
-
-with open(manifest_path, 'w') as f:
-    f.write(content)
-PYEOF
+# The awk script detects the 6-space YAML list item whose next line is the
+# locaal-ai git URL, skips all lines in that item, and emits a type:dir entry
+# in its place.  Every other line is passed through unchanged.
+awk -v repo_dir="${REPO_DIR}" '
+    in_skip && /^      - / {
+        print "      - type: dir"
+        print "        path: " repo_dir
+        in_skip = 0
+    }
+    in_skip { next }
+    /^      - type: git$/ { pending = $0; next }
+    pending && /^        url: https:\/\/github\.com\/locaal-ai\/obs-localvocal\.git$/ {
+        in_skip = 1; pending = ""; next
+    }
+    pending { print pending; pending = "" }
+    { print }
+    END {
+        if (in_skip) {
+            print "      - type: dir"
+            print "        path: " repo_dir
+        }
+    }
+' "${PATCHED}" > "${PATCHED}.tmp" && mv "${PATCHED}.tmp" "${PATCHED}"
 
 # The manifest references the metainfo XML via a relative path; copy it so
 # flatpak-builder can find it relative to the patched manifest location.
