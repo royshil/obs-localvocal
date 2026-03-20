@@ -6,10 +6,19 @@ sdk: org.kde.Sdk//6.8
 build-extension: true
 separate-locales: false
 
-# The Rust toolchain is required to compile the c-webvtt-in-video-stream crate
-# via Corrosion / cmake/BuildWebVTT.cmake.
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.rust-stable//24.08
+# The Rust toolchain (needed by Corrosion / cmake/BuildWebVTT.cmake) is
+# provided via base-extensions.  We cannot use sdk-extensions here because
+# flatpak-builder resolves sdk-extension branches from the SDK branch (6.8),
+# but the rust-stable extension only exists at branch 24.08 (freedesktop SDK).
+# base-extensions resolves branches from base-version instead, which we set
+# to "24.08" to match the freedesktop SDK that KDE SDK 6.8 is built on.
+# To build locally, install both beforehand:
+#   flatpak install flathub org.freedesktop.Sdk//24.08
+#   flatpak install flathub org.freedesktop.Sdk.Extension.rust-stable//24.08
+base: org.freedesktop.Sdk
+base-version: "24.08"
+base-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
 
 build-options:
   prefix: /app/plugins/LocalVocal
