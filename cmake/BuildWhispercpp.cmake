@@ -202,7 +202,10 @@ else()
       Vulkan
       COMPONENTS glslc
       REQUIRED)
-    find_package(OpenCL REQUIRED)
+    if(NOT ${ACCELERATION} STREQUAL "nvidia")
+      # NVidia CUDA provides its own OpenCL; skip the standalone OpenCL search.
+      find_package(OpenCL REQUIRED)
+    endif()
     find_package(Python3 REQUIRED)
 
     set(ARCH_PREFIX "-x86_64")
