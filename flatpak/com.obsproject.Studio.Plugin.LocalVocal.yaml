@@ -166,6 +166,25 @@ modules:
           type: git
           tag-pattern: ^v([\d.]+)$
 
+  # OpenCL Headers – required at build time by cmake/BuildWhispercpp.cmake
+  # (find_package OpenCL REQUIRED).  The KDE SDK ships libOpenCL.so (ICD loader)
+  # but not the headers; this module supplies them.  Stripped by cleanup:/include.
+  - name: opencl-headers
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DOPENCL_HEADERS_BUILD_TESTING=OFF
+      - -DOPENCL_HEADERS_BUILD_CL_LINK=OFF
+    sources:
+      - type: git
+        url: https://github.com/KhronosGroup/OpenCL-Headers.git
+        tag: v2024.10.24
+        commit: 4ea6df132107e3b4b9407f903204b5522fdffcd6
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+\.\d+)$
+
   # obs-localvocal – the main plugin
   - name: obs-localvocal
     buildsystem: cmake-ninja
@@ -184,15 +203,16 @@ modules:
       - -DUSE_SYSTEM_CURL=ON
       - -DUSE_SYSTEM_ICU=ON
       - -DUSE_SYSTEM_ONNXRUNTIME=ON
-      - -DUSE_SYSTEM_WHISPERCPP=ON
-      - -DUSE_SYSTEM_CTRANSLATE2=ON
-      - -DUSE_SYSTEM_SENTENCEPIECE=ON
       - -DLINUX_SOURCE_BUILD=OFF
       - -DACCELERATION=generic
       - -DENABLE_TESTS=OFF
       # Corrosion (needed by BuildWebVTT) is pre-populated as a source entry;
       # tell FetchContent where to find it so it does not attempt a network clone.
       - -DFETCHCONTENT_SOURCE_DIR_CORROSION=/run/build/obs-localvocal/corrosion-src
+      # whispercpp prebuilt binary (generic, x86_64) is bundled as a source archive.
+      # Setting FETCHCONTENT_SOURCE_DIR bypasses the network download that
+      # cmake/BuildWhispercpp.cmake would otherwise attempt at configure time.
+      - -DFETCHCONTENT_SOURCE_DIR_WHISPERCPP_FETCH=/run/build/obs-localvocal/whispercpp-prebuilt
     sources:
       - type: git
         url: https://github.com/locaal-ai/obs-localvocal.git
@@ -211,6 +231,17 @@ modules:
         tag: v0.5
         commit: a1a1aaa057a5da656c06c3d8505b767a4e941709
         dest: corrosion-src
+      # Prebuilt whispercpp generic binary for x86_64 Linux.
+      # The release tarball has a single "release/" top-level directory; strip it
+      # so that lib/, bin/, include/ land directly under whispercpp-prebuilt/.
+      # SHA-256 taken from cmake/BuildWhispercpp.cmake WHISPER_CPP_HASH for generic.
+      - type: archive
+        only-arches:
+          - x86_64
+        url: https://github.com/locaal-ai/occ-ai-dep-whispercpp/releases/download/0.0.13/whispercpp-linux-x86_64-generic-Release.tar.gz
+        sha256: 5811798e245482597ad393fac7bab82f0df8664e6b82be6231d089af13de0656
+        dest: whispercpp-prebuilt
+        strip-components: 1
       # Redirect cargo to the pre-vendored crates so it never touches the network.
       # CARGO_HOME (set in build-options.env) points to the cargo/ directory here.
       - type: inline
