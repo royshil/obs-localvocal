@@ -133,6 +133,13 @@ modules:
         url: https://github.com/gabime/spdlog.git
         commit: 76fb40d95455f249bd70824ecfcae7a8f0930fa3
         dest: third_party/spdlog
+    # CTranslate2 builds cpu_features from its submodule (EXCLUDE_FROM_ALL) and links
+    # it into libctranslate2.a as a PRIVATE dependency; libcpu_features.a is therefore
+    # built but NOT installed by cmake --install.  Copy it to the prefix so that
+    # obs-localvocal can link against it when USE_SYSTEM_CTRANSLATE2=ON.
+    post-install:
+      - install -Dm644 _flatpak_build/third_party/cpu_features/libcpu_features.a
+          ${FLATPAK_DEST}/lib/libcpu_features.a
 
   # SentencePiece – text tokenizer used by CTranslate2 translation models
   - name: sentencepiece
@@ -187,6 +194,8 @@ modules:
       - -DENABLE_QT=ON
       - -DUSE_SYSTEM_CURL=ON
       - -DUSE_SYSTEM_ICU=ON
+      - -DUSE_SYSTEM_CTRANSLATE2=ON
+      - -DUSE_SYSTEM_SENTENCEPIECE=ON
       - -DLINUX_SOURCE_BUILD=OFF
       - -DACCELERATION=generic
       - -DENABLE_TESTS=OFF
@@ -209,6 +218,13 @@ modules:
         x-checker-data:
           type: git
           tag-pattern: ^([\d.]+)$
+      # Patches applied to the obs-localvocal source to support pre-installed
+      # CTranslate2 and SentencePiece system libraries on Linux, avoiding the
+      # ExternalProject git-clone steps that require network access.
+      - type: patch
+        path: patches/0001-BuildCTranslate2-use-system-option.patch
+      - type: patch
+        path: patches/0002-BuildSentencepiece-use-system-option.patch
       - type: file
         path: com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
       # Corrosion is fetched by cmake/BuildWebVTT.cmake via FetchContent.

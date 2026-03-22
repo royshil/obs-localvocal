@@ -1,0 +1,24 @@
+--- a/cmake/BuildCTranslate2.cmake
++++ b/cmake/BuildCTranslate2.cmake
+@@ -47,6 +47,22 @@ elseif(WIN32)
+   file(GLOB CT2_DLLS ${ctranslate2_fetch_SOURCE_DIR}/bin/*.dll)
+   install(FILES ${CT2_DLLS} DESTINATION "obs-plugins/64bit")
+ else()
++  option(USE_SYSTEM_CTRANSLATE2 "Use pre-installed CTranslate2 instead of building from source" OFF)
++  if(USE_SYSTEM_CTRANSLATE2)
++    message(STATUS "Using system CTranslate2")
++    find_library(CT2_LIBRARY NAMES ctranslate2 REQUIRED)
++    find_library(CPU_FEATURES_LIBRARY NAMES cpu_features)
++    find_path(CT2_INCLUDE_DIR NAMES ctranslate2/translator.h REQUIRED)
++    add_library(ct2 INTERFACE)
++    target_link_libraries(ct2 INTERFACE "${CT2_LIBRARY}" ${BLAS_LIBRARIES})
++    if(CPU_FEATURES_LIBRARY)
++      target_link_libraries(ct2 INTERFACE "${CPU_FEATURES_LIBRARY}")
++    endif()
++    target_include_directories(ct2 INTERFACE "${CT2_INCLUDE_DIR}")
++    return()
++  endif()
++
+   message(STATUS "Building CTranslate2 from source")
+   # Enable ccache if available
+   find_program(CCACHE_PROGRAM ccache)
