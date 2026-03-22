@@ -19,11 +19,11 @@ modules:
   # There is no standard flatpak-builder mechanism to mix SDK branches for
   # sdk-extensions, so we install the Rust toolchain directly as a module.
   #
-  # The binary is installed to /usr/lib/sdk/rust-stable/ (the same path used
-  # by the extension) so the obs-localvocal module's existing
-  # append-path: /usr/lib/sdk/rust-stable/bin requires no changes.
-  # Files under /usr/ are build-environment-only and are NOT exported in the
-  # final extension package (whose prefix is /app/plugins/LocalVocal/).
+  # In a build-extension: true sandbox, /usr/ is the SDK mount and is
+  # read-only.  The writable area is the extension's prefix /app/plugins/LocalVocal/.
+  # We install Rust there under a rust-toolchain/ subdirectory, and the cleanup
+  # section below removes that subdirectory from the final package so that the
+  # ~300 MB Rust toolchain is not shipped to end users.
   #
   # Source mirrors org.freedesktop.Sdk.Extension.rust-stable//24.08 on Flathub:
   # https://github.com/flathub/org.freedesktop.Sdk.Extension.rust-stable/blob/branch/24.08/org.freedesktop.Sdk.Extension.rust-stable.json
@@ -31,7 +31,7 @@ modules:
     buildsystem: simple
     build-commands:
       - cd rust-x86_64-unknown-linux-gnu && ./install.sh
-          --prefix=/usr/lib/sdk/rust-stable
+          --prefix=/app/plugins/LocalVocal/rust-toolchain
           --without=rust-docs --without=rust-docs-json-preview
           --disable-ldconfig
     sources:
@@ -172,7 +172,7 @@ modules:
     builddir: true
     build-options:
       # Add Rust toolchain to PATH and point cargo at the pre-vendored crates.
-      append-path: /usr/lib/sdk/rust-stable/bin
+      append-path: /app/plugins/LocalVocal/rust-toolchain/bin
       env:
         ACCELERATION: generic
         CARGO_HOME: /run/build/obs-localvocal/cargo
@@ -230,6 +230,7 @@ modules:
           ${FLATPAK_BUILDER_BUILDDIR}/com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
 
 cleanup:
+  - /rust-toolchain
   - /include
   - /lib/cmake
   - /lib/pkgconfig
