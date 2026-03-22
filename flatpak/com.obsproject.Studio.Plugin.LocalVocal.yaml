@@ -61,21 +61,6 @@ modules:
           type: git
           tag-pattern: ^v([\d.]+)$
 
-  # ONNX Runtime – prebuilt binary for Silero VAD inference
-  - name: onnxruntime
-    buildsystem: simple
-    build-commands:
-      - mkdir -p ${FLATPAK_DEST}/include
-      - cp -r include/* ${FLATPAK_DEST}/include/
-      - cp -r lib/* ${FLATPAK_DEST}/lib/
-      - mkdir -p ${FLATPAK_DEST}/share/onnxruntime
-      - install -Dm644 LICENSE ${FLATPAK_DEST}/share/onnxruntime/
-    sources:
-      - type: archive
-        url: https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-gpu-1.20.1.tgz
-        sha256: 6bfb87c6ebe55367a94509b8ef062239e188dccf8d5caac8d6909b2344893bf0
-        strip-components: 1
-
   # whisper.cpp – speech recognition library (CPU + OpenBLAS build, no GPU backends)
   - name: whispercpp
     buildsystem: cmake-ninja
@@ -202,7 +187,6 @@ modules:
       - -DENABLE_QT=ON
       - -DUSE_SYSTEM_CURL=ON
       - -DUSE_SYSTEM_ICU=ON
-      - -DUSE_SYSTEM_ONNXRUNTIME=ON
       - -DLINUX_SOURCE_BUILD=OFF
       - -DACCELERATION=generic
       - -DENABLE_TESTS=OFF
@@ -213,6 +197,10 @@ modules:
       # Setting FETCHCONTENT_SOURCE_DIR bypasses the network download that
       # cmake/BuildWhispercpp.cmake would otherwise attempt at configure time.
       - -DFETCHCONTENT_SOURCE_DIR_WHISPERCPP_FETCH=/run/build/obs-localvocal/whispercpp-prebuilt
+      # onnxruntime prebuilt binary (x86_64 Linux gpu) is bundled as a source archive.
+      # cmake/FetchOnnxruntime.cmake uses FetchContent; point it at the pre-extracted
+      # directory so no network download is attempted inside the sandbox.
+      - -DFETCHCONTENT_SOURCE_DIR_ONNXRUNTIME=/run/build/obs-localvocal/onnxruntime-prebuilt
     sources:
       - type: git
         url: https://github.com/locaal-ai/obs-localvocal.git
@@ -241,6 +229,18 @@ modules:
         url: https://github.com/locaal-ai/occ-ai-dep-whispercpp/releases/download/0.0.13/whispercpp-linux-x86_64-generic-Release.tar.gz
         sha256: 5811798e245482597ad393fac7bab82f0df8664e6b82be6231d089af13de0656
         dest: whispercpp-prebuilt
+        strip-components: 1
+      # Prebuilt ONNX Runtime binary for x86_64 Linux.
+      # cmake/FetchOnnxruntime.cmake uses FetchContent (not USE_SYSTEM_ONNXRUNTIME)
+      # and expects include/ and lib/ directly under onnxruntime_SOURCE_DIR.
+      # The release tarball has a single top-level directory; strip-components:1
+      # puts include/ and lib/ directly under onnxruntime-prebuilt/.
+      - type: archive
+        only-arches:
+          - x86_64
+        url: https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-gpu-1.20.1.tgz
+        sha256: 6bfb87c6ebe55367a94509b8ef062239e188dccf8d5caac8d6909b2344893bf0
+        dest: onnxruntime-prebuilt
         strip-components: 1
       # Redirect cargo to the pre-vendored crates so it never touches the network.
       # CARGO_HOME (set in build-options.env) points to the cargo/ directory here.
