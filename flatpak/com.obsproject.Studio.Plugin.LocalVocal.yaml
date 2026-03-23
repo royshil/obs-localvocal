@@ -185,17 +185,16 @@ modules:
   # Background: cmake AutoUIC spawns uic through the subprocess chain
   #   flatpak-builder → cmake-ninja → ninja → cmake -E cmake_autogen → uic
   # Both the KDE SDK's uic (/usr/lib/libexec/uic) and OBS Studio's uic
-  # (/app/libexec/qt/uic) are linked against libicui18n.so.77.  OBS bundles
-  # ICU 77 in /app/lib.
+  # (/app/libexec/qt/uic) are linked against libicui18n.so.77.
   #
   # The wrapper for the SDK's uic MUST NOT put /app/lib in LD_LIBRARY_PATH:
   # doing so causes /app/lib/libQt6Core.so.6 (OBS's Qt) to shadow the SDK's
   # Qt6Core, producing "undefined symbol: ucnv_cbToUWriteUChars_77" because
   # the two Qt libraries were built against different ICU symbol sets.
-  # Instead the wrapper lazily stages ICU 77 from /app/lib (accessible at
-  # obs-localvocal build time) into icu-for-uic/ on first invocation, then
-  # sets LD_LIBRARY_PATH=icu-for-uic only.  This gives uic the real ICU 77
-  # without loading OBS's Qt6Core.
+  # Instead the wrapper lazily stages ICU 77 (searched in SDK paths like
+  # /usr/lib/x86_64-linux-gnu first, then /app/lib) into icu-for-uic/ on
+  # first invocation, then sets LD_LIBRARY_PATH=icu-for-uic only.  This
+  # gives uic the real ICU 77 without loading OBS's Qt6Core.
   #
   # For OBS's own uic (fallback when no SDK uic is found) /app/lib is fine:
   # OBS's Qt and ICU live there together and are ABI-consistent.
@@ -244,29 +243,35 @@ modules:
 
         case "${_uic}" in
           /usr/*)
-            # SDK uic: the wrapper lazily stages ICU 77 from /app/lib at its
-            # first invocation (when /app IS mounted during obs-localvocal's
-            # build).  Only icu-for-uic is added to LD_LIBRARY_PATH so the
-            # dynamic linker satisfies libicui18n.so.77 WITHOUT loading
+            # SDK uic: the wrapper lazily stages ICU 77 from SDK paths
+            # (/usr/lib*) or OBS paths (/app/lib*) on first invocation.
+            # Only icu-for-uic is added to LD_LIBRARY_PATH so the dynamic
+            # linker satisfies libicui18n.so.77 WITHOUT loading
             # /app/lib/libQt6Core.so.6 (which would cause symbol-version
             # mismatches with the SDK's Qt6Core).
             # Use printf (not heredoc) so the YAML block indentation rules
             # do not break the generated file.
             printf '%s\n' \
               '#!/bin/sh' \
-              '# Stage ICU 77 from OBS /app/lib on first run (accessible at' \
-              '# obs-localvocal build time). Only icu-for-uic goes into' \
-              '# LD_LIBRARY_PATH so OBS Qt6Core is never loaded alongside' \
-              '# the SDK uic (that mix produces symbol-version errors).' \
+              '# Stage ICU 77 from the SDK (/usr/lib*) or OBS (/app/lib*)' \
+              '# on first run. Only icu-for-uic goes into LD_LIBRARY_PATH' \
+              '# so OBS Qt6Core is never loaded alongside the SDK uic' \
+              '# (that mix produces symbol-version errors).' \
               '_icu=/app/plugins/LocalVocal/icu-for-uic' \
               'mkdir -p "${_icu}" || { echo "uic-wrapper: ERROR: cannot create ${_icu}" >&2; exit 1; }' \
               'for _b in libicui18n libicudata libicuuc; do' \
               '  [ -f "${_icu}/${_b}.so.77" ] && continue' \
-              '  _found=$(find /app/lib /app/lib64 -maxdepth 2 -name "${_b}.so.77*" -print -quit 2>/dev/null)' \
+              '  _found=""' \
+              '  for _dir in /usr/lib /usr/lib64 /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /app/lib /app/lib64; do' \
+              '    for _f in "${_dir}/${_b}.so.77"*; do' \
+              '      if [ -f "${_f}" ]; then _found="${_f}"; break 2; fi' \
+              '    done' \
+              '  done' \
+              '  [ -z "${_found}" ] && _found=$(find /usr /app -maxdepth 8 -name "${_b}.so.77*" -print -quit 2>/dev/null)' \
               '  if [ -n "${_found}" ]; then' \
               '    cp -L "${_found}" "${_icu}/${_b}.so.77" 2>/dev/null || true' \
               '  else' \
-              '    echo "uic-wrapper: WARNING: ${_b}.so.77 not found in /app/lib – uic may fail" >&2' \
+              '    echo "uic-wrapper: WARNING: ${_b}.so.77 not found anywhere – uic may fail" >&2' \
               '  fi' \
               'done' \
               'export LD_LIBRARY_PATH="${_icu}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"' \
