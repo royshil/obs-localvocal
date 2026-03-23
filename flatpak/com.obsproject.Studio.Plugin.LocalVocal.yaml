@@ -179,21 +179,68 @@ modules:
           type: git
           tag-pattern: ^v([\d.]+\.\d+)$
 
-  # qt-uic-wrapper – a thin shell script that injects /app/lib into
-  # LD_LIBRARY_PATH before invoking /app/libexec/qt/uic.
+  # qt-uic-wrapper – locates the ICU 77 shared libraries that
+  # /app/libexec/qt/uic needs, stages copies inside the extension prefix, and
+  # writes a thin shell wrapper that adds them to LD_LIBRARY_PATH before
+  # invoking the real uic binary.
   #
-  # OBS Studio ships Qt and ICU 77 under /app/lib.  cmake AutoUIC spawns uic
-  # as a child of ninja via "cmake -E cmake_autogen"; the library search path
-  # may not propagate reliably through that sub-process chain.  cmake 3.14+
-  # respects CMAKE_AUTOUIC_EXECUTABLE to override uic discovery, so pointing
-  # it at this wrapper is the cmake-level fix that works regardless of how
-  # flatpak-builder sets up LD_LIBRARY_PATH at each build phase.
-  # The script is removed from the final package by the cleanup section.
+  # Background: cmake AutoUIC spawns uic through the subprocess chain
+  #   flatpak-builder → cmake-ninja → ninja → cmake -E cmake_autogen → uic
+  # The dynamic linker cannot find libicui18n.so.77 along the default search
+  # path in the extension-build sandbox (OBS Studio may store ICU in a
+  # non-standard location, or the path may not survive the cmake_autogen
+  # subprocess boundary).  Rather than guessing the path, this module:
+  #
+  #   1. Locates the ICU 77 .so files at module-build time by checking common
+  #      directories and falling back to "find" when needed.
+  #   2. Copies them into ${FLATPAK_DEST}/icu-for-uic/ (a writable location
+  #      within our extension prefix).
+  #   3. Writes a wrapper script that prepends that directory to
+  #      LD_LIBRARY_PATH before exec-ing the real uic.
+  #
+  # cmake 3.14+ respects CMAKE_AUTOUIC_EXECUTABLE, so obs-localvocal's
+  # config-opts point at the wrapper to guarantee every AutoUIC call uses it.
+  # Both /uic-wrapper and /icu-for-uic are removed by the cleanup section.
   - name: qt-uic-wrapper
     buildsystem: simple
     build-commands:
+      # Stage copies of the ICU 77 libraries needed by uic.  We check
+      # common installation directories first for speed, then fall back to
+      # a recursive "find" search if they are not found there.
       - |
-        printf '#!/bin/sh\nexec env LD_LIBRARY_PATH=/app/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}} /app/libexec/qt/uic "$@"\n' \
+        mkdir -p "${FLATPAK_DEST}/icu-for-uic"
+        for _icu in libicui18n.so.77 libicudata.so.77 libicuuc.so.77; do
+          _found=""
+          for _dir in \
+              /app/lib \
+              /app/lib64 \
+              /usr/lib \
+              /usr/lib/x86_64-linux-gnu \
+              /usr/lib64 \
+              /usr/lib/aarch64-linux-gnu; do
+            if [ -f "${_dir}/${_icu}" ]; then
+              _found="${_dir}/${_icu}"
+              break
+            fi
+          done
+          if [ -z "${_found}" ]; then
+            # Fallback: recursive search limited to 6 levels deep, which is
+            # more than enough for any standard flatpak directory layout
+            # (e.g. /usr/lib/x86_64-linux-gnu/ is only 4 levels from /).
+            _found=$(find /app /usr -maxdepth 6 -name "${_icu}" -print -quit 2>/dev/null)
+          fi
+          if [ -n "${_found}" ]; then
+            cp -L "${_found}" "${FLATPAK_DEST}/icu-for-uic/${_icu}"
+          else
+            echo "ERROR: could not locate ${_icu} — uic will fail at build time" >&2
+            exit 1
+          fi
+        done
+      # Write the wrapper: export LD_LIBRARY_PATH, then exec the real uic.
+      # Using export rather than "exec env VAR=..." avoids any chance of the
+      # env(1) invocation silently resetting the environment.
+      - |
+        printf '#!/bin/sh\nLD_LIBRARY_PATH=/app/plugins/LocalVocal/icu-for-uic${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}\nexport LD_LIBRARY_PATH\nexec /app/libexec/qt/uic "$@"\n' \
           > "${FLATPAK_DEST}/uic-wrapper"
         chmod 755 "${FLATPAK_DEST}/uic-wrapper"
     sources: []
@@ -205,17 +252,13 @@ modules:
     build-options:
       # Add Rust toolchain to PATH and point cargo at the pre-vendored crates.
       append-path: /app/plugins/LocalVocal/rust-toolchain/bin
-      # Belt-and-suspenders: also set LD_LIBRARY_PATH at the flatpak-builder
-      # level so every command in this module can find /app/lib.
-      prepend-ld-library-path: /app/lib
       env:
         ACCELERATION: generic
         CARGO_HOME: /run/build/obs-localvocal/cargo
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
-      # cmake 3.14+ CMAKE_AUTOUIC_EXECUTABLE overrides uic discovery so the
-      # wrapper (which ensures /app/lib is in LD_LIBRARY_PATH) is used instead
-      # of /app/libexec/qt/uic directly.
+      # cmake 3.14+ CMAKE_AUTOUIC_EXECUTABLE guarantees the wrapper is used
+      # for every AutoUIC invocation, regardless of how cmake discovers Qt.
       - -DCMAKE_AUTOUIC_EXECUTABLE=/app/plugins/LocalVocal/uic-wrapper
       - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
       - -DENABLE_FRONTEND_API=ON
@@ -307,6 +350,7 @@ modules:
 cleanup:
   - /rust-toolchain
   - /uic-wrapper
+  - /icu-for-uic
   - /include
   - /lib/cmake
   - /lib/pkgconfig
