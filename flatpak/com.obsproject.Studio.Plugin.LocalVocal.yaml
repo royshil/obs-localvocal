@@ -230,6 +230,10 @@ modules:
           echo "ERROR: no uic binary found in /usr or /app/libexec/qt/" >&2
           exit 1
         fi
+        # Guard against paths that would break the generated wrapper script.
+        case "${_uic}" in
+          *'"'*) echo "ERROR: uic path contains a double-quote: ${_uic}" >&2; exit 1 ;;
+        esac
         echo "qt-uic-wrapper: uic binary = ${_uic}"
 
         # ── Step 2: locate ICU 77 and stage a copy ─────────────────────────
@@ -244,16 +248,17 @@ modules:
         _icu_staged=0
         for _icu_base in libicui18n libicudata libicuuc; do
           _found=""
-          # Fast path: .so.77 or .so.77.X in common dirs
+          # Fast path: .so.77 or .so.77.X in common dirs.
+          # Use a for-loop glob (not ls) to safely handle the no-match case.
           for _dir in /app/lib /app/lib64 /usr/lib \
               /usr/lib/x86_64-linux-gnu /usr/lib64 \
               /usr/lib/aarch64-linux-gnu; do
-            # Accept .so.77 symlink or .so.77.X versioned file
-            _f=$(ls "${_dir}/${_icu_base}.so.77"* 2>/dev/null | head -1)
-            if [ -n "$_f" ]; then
-              _found="$_f"
-              break
-            fi
+            for _f in "${_dir}/${_icu_base}.so.77"*; do
+              if [ -f "$_f" ]; then
+                _found="$_f"
+                break 2
+              fi
+            done
           done
           # Fallback: any versioned ICU file in /usr or /app
           if [ -z "$_found" ]; then
