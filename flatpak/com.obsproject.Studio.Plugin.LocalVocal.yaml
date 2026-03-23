@@ -186,6 +186,10 @@ modules:
     build-options:
       # Add Rust toolchain to PATH and point cargo at the pre-vendored crates.
       append-path: /app/plugins/LocalVocal/rust-toolchain/bin
+      # OBS Studio ships its Qt (and ICU 77) under /app/lib.  cmake AutoUIC runs
+      # /app/libexec/qt/uic at build time; without /app/lib in LD_LIBRARY_PATH
+      # that binary fails with "libicui18n.so.77: cannot open shared object file".
+      prepend-ld-library-path: /app/lib
       env:
         ACCELERATION: generic
         CARGO_HOME: /run/build/obs-localvocal/cargo
