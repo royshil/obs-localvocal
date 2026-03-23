@@ -137,8 +137,10 @@ modules:
     # it into libctranslate2.a as a PRIVATE dependency; libcpu_features.a is therefore
     # built but NOT installed by cmake --install.  Copy it to the prefix so that
     # obs-localvocal can link against it when USE_SYSTEM_CTRANSLATE2=ON.
+    # post-install runs from the cmake build dir (inside _flatpak_build/), so the
+    # path to cpu_features is relative to that, not to the source dir.
     post-install:
-      - install -Dm644 _flatpak_build/third_party/cpu_features/libcpu_features.a
+      - install -Dm644 third_party/cpu_features/libcpu_features.a
           ${FLATPAK_DEST}/lib/libcpu_features.a
 
   # SentencePiece – text tokenizer used by CTranslate2 translation models
