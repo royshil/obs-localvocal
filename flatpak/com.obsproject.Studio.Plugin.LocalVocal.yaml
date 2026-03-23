@@ -203,8 +203,9 @@ modules:
     buildsystem: simple
     build-commands:
       - |
-        # ── Step 1: find a working uic ─────────────────────────────────────
-        # Prefer the SDK's uic (no ICU 77 requirement).
+        # ── Step 1: find a uic binary ──────────────────────────────────────
+        # Prefer the KDE SDK's uic; fall back to OBS Studio's uic.
+        # Both may require libicui18n.so.77 at runtime (see Step 2).
         _uic=""
         for _p in \
             /usr/bin/uic \
@@ -217,67 +218,73 @@ modules:
             break
           fi
         done
-        # Fallback: broader search inside /usr (SDK territory only)
+        # Broader search inside /usr
         if [ -z "$_uic" ]; then
           _uic=$(find /usr -maxdepth 8 -name uic -type f \( -perm /0111 \) -print -quit 2>/dev/null)
         fi
+        # Last resort: OBS Studio's own uic
+        if [ -z "$_uic" ] && [ -x /app/libexec/qt/uic ]; then
+          _uic=/app/libexec/qt/uic
+        fi
+        if [ -z "$_uic" ]; then
+          echo "ERROR: no uic binary found in /usr or /app/libexec/qt/" >&2
+          exit 1
+        fi
+        echo "qt-uic-wrapper: uic binary = ${_uic}"
 
-        if [ -n "$_uic" ]; then
-          # SDK uic found – write a trivial wrapper, no ICU staging required.
-          printf '#!/bin/sh\nexec "%s" "$@"\n' "${_uic}" \
-            > "${FLATPAK_DEST}/uic-wrapper"
-          chmod 755 "${FLATPAK_DEST}/uic-wrapper"
-          echo "qt-uic-wrapper: using SDK uic at ${_uic}"
-        else
-          # ── Step 2 (fallback): OBS Studio's uic + ICU shim ────────────────
-          # libicui18n.so.77 is not in the sandbox; find whatever ICU version
-          # IS available in /usr and stage a copy named .so.77.  Also keep a
-          # copy under the original name so intra-ICU DT_NEEDED entries resolve.
-          mkdir -p "${FLATPAK_DEST}/icu-for-uic"
-          for _icu_base in libicui18n libicudata libicuuc; do
-            _found=""
-            # Exact .so.77 in common dirs (fast path)
-            for _dir in /app/lib /app/lib64 /usr/lib \
-                /usr/lib/x86_64-linux-gnu /usr/lib64 \
-                /usr/lib/aarch64-linux-gnu; do
-              if [ -f "${_dir}/${_icu_base}.so.77" ]; then
-                _found="${_dir}/${_icu_base}.so.77"
-                break
-              fi
-            done
-            # Any version in /usr (the SDK ships some ICU)
-            if [ -z "$_found" ]; then
-              _found=$(find /usr -maxdepth 8 \
-                  -name "${_icu_base}.so.[0-9]*" \
-                  ! -name "${_icu_base}.so" \
-                  -print -quit 2>/dev/null)
-            fi
-            # Any version anywhere
-            if [ -z "$_found" ]; then
-              _found=$(find /app /usr -maxdepth 8 \
-                  -name "${_icu_base}.so.[0-9]*" \
-                  ! -name "${_icu_base}.so" \
-                  -print -quit 2>/dev/null)
-            fi
-            if [ -n "$_found" ]; then
-              # Stage as .so.77 so uic's DT_NEEDED lookup succeeds.
-              cp -L "${_found}" "${FLATPAK_DEST}/icu-for-uic/${_icu_base}.so.77"
-              # Keep original name so intra-ICU deps (e.g. libicuuc.so.74) resolve.
-              _orig=$(basename "${_found}")
-              if [ "${_orig}" != "${_icu_base}.so.77" ]; then
-                cp -L "${_found}" "${FLATPAK_DEST}/icu-for-uic/${_orig}"
-              fi
-              echo "qt-uic-wrapper: staged ${_found} as ${_icu_base}.so.77"
-            else
-              echo "ERROR: could not locate any version of ${_icu_base}" >&2
-              exit 1
+        # ── Step 2: locate ICU 77 and stage a copy ─────────────────────────
+        # Both the KDE SDK's uic and OBS Studio's uic link against
+        # libicui18n.so.77.  OBS bundles ICU 77 in /app/lib, but the dynamic
+        # linker cannot find it unless LD_LIBRARY_PATH is set before uic runs.
+        # We try to stage copies at module-build time so the wrapper has a
+        # known path.  If staging fails (e.g. /app not yet fully mounted),
+        # the wrapper falls back to /app/lib at runtime — which IS available
+        # when obs-localvocal builds later.
+        mkdir -p "${FLATPAK_DEST}/icu-for-uic"
+        _icu_staged=0
+        for _icu_base in libicui18n libicudata libicuuc; do
+          _found=""
+          # Fast path: .so.77 or .so.77.X in common dirs
+          for _dir in /app/lib /app/lib64 /usr/lib \
+              /usr/lib/x86_64-linux-gnu /usr/lib64 \
+              /usr/lib/aarch64-linux-gnu; do
+            # Accept .so.77 symlink or .so.77.X versioned file
+            _f=$(ls "${_dir}/${_icu_base}.so.77"* 2>/dev/null | head -1)
+            if [ -n "$_f" ]; then
+              _found="$_f"
+              break
             fi
           done
-          printf '#!/bin/sh\nLD_LIBRARY_PATH=/app/plugins/LocalVocal/icu-for-uic${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}\nexport LD_LIBRARY_PATH\nexec /app/libexec/qt/uic "$@"\n' \
-            > "${FLATPAK_DEST}/uic-wrapper"
-          chmod 755 "${FLATPAK_DEST}/uic-wrapper"
-          echo "qt-uic-wrapper: using OBS uic with ICU shim"
-        fi
+          # Fallback: any versioned ICU file in /usr or /app
+          if [ -z "$_found" ]; then
+            _found=$(find /app /usr -maxdepth 8 \
+                -name "${_icu_base}.so.[0-9]*" \
+                ! -name "${_icu_base}.so" \
+                -print -quit 2>/dev/null)
+          fi
+          if [ -n "$_found" ]; then
+            cp -L "${_found}" "${FLATPAK_DEST}/icu-for-uic/${_icu_base}.so.77"
+            _orig=$(basename "${_found}")
+            if [ "${_orig}" != "${_icu_base}.so.77" ]; then
+              cp -L "${_found}" "${FLATPAK_DEST}/icu-for-uic/${_orig}"
+            fi
+            echo "qt-uic-wrapper: staged ${_found} as ${_icu_base}.so.77"
+            _icu_staged=$((_icu_staged + 1))
+          else
+            echo "qt-uic-wrapper: WARNING – ${_icu_base} not found at build time; relying on /app/lib at runtime" >&2
+          fi
+        done
+
+        # ── Step 3: write the wrapper ──────────────────────────────────────
+        # Always prepend /app/lib (OBS's bundled ICU 77 location) and the
+        # staged copy directory to LD_LIBRARY_PATH so the linker finds
+        # libicui18n.so.77 regardless of which uic binary is in use.
+        _ld_prefix="/app/plugins/LocalVocal/icu-for-uic:/app/lib"
+        printf '#!/bin/sh\nexport LD_LIBRARY_PATH="%s${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"\nexec "%s" "$@"\n' \
+          "${_ld_prefix}" "${_uic}" \
+          > "${FLATPAK_DEST}/uic-wrapper"
+        chmod 755 "${FLATPAK_DEST}/uic-wrapper"
+        echo "qt-uic-wrapper: wrapper written (uic=${_uic}, staged=${_icu_staged}/3, LD_LIBRARY_PATH prefix=${_ld_prefix})"
     sources: []
 
   # obs-localvocal – the main plugin
