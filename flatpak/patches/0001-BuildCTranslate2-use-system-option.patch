@@ -1,6 +1,6 @@
 --- a/cmake/BuildCTranslate2.cmake
 +++ b/cmake/BuildCTranslate2.cmake
-@@ -47,6 +47,22 @@ elseif(WIN32)
+@@ -46,6 +46,21 @@
    file(GLOB CT2_DLLS ${ctranslate2_fetch_SOURCE_DIR}/bin/*.dll)
    install(FILES ${CT2_DLLS} DESTINATION "obs-plugins/64bit")
  else()

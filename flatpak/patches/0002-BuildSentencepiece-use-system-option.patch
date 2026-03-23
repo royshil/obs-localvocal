@@ -1,12 +1,9 @@
 --- a/cmake/BuildSentencepiece.cmake
 +++ b/cmake/BuildSentencepiece.cmake
-@@ -30,7 +30,21 @@ elseif(WIN32)
-   set_target_properties(sentencepiece PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
+@@ -26,6 +26,16 @@
                                                   ${sentencepiece_fetch_SOURCE_DIR}/include)
  
--else()
--
-+else()
+ else()
 +  option(USE_SYSTEM_SENTENCEPIECE "Use pre-installed SentencePiece instead of building from source" OFF)
 +  if(USE_SYSTEM_SENTENCEPIECE)
 +    message(STATUS "Using system SentencePiece")
@@ -17,6 +14,6 @@
 +    target_include_directories(sentencepiece INTERFACE "${SENTENCEPIECE_INCLUDE_DIR}")
 +    return()
 +  endif()
-+
+ 
    # Enable ccache if available
    find_program(CCACHE_PROGRAM ccache)
