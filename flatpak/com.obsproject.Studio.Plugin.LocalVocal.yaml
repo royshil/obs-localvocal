@@ -179,6 +179,25 @@ modules:
           type: git
           tag-pattern: ^v([\d.]+\.\d+)$
 
+  # qt-uic-wrapper – a thin shell script that injects /app/lib into
+  # LD_LIBRARY_PATH before invoking /app/libexec/qt/uic.
+  #
+  # OBS Studio ships Qt and ICU 77 under /app/lib.  cmake AutoUIC spawns uic
+  # as a child of ninja via "cmake -E cmake_autogen"; the library search path
+  # may not propagate reliably through that sub-process chain.  cmake 3.14+
+  # respects CMAKE_AUTOUIC_EXECUTABLE to override uic discovery, so pointing
+  # it at this wrapper is the cmake-level fix that works regardless of how
+  # flatpak-builder sets up LD_LIBRARY_PATH at each build phase.
+  # The script is removed from the final package by the cleanup section.
+  - name: qt-uic-wrapper
+    buildsystem: simple
+    build-commands:
+      - |
+        printf '#!/bin/sh\nexec env LD_LIBRARY_PATH=/app/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}} /app/libexec/qt/uic "$@"\n' \
+          > "${FLATPAK_DEST}/uic-wrapper"
+        chmod 755 "${FLATPAK_DEST}/uic-wrapper"
+    sources: []
+
   # obs-localvocal – the main plugin
   - name: obs-localvocal
     buildsystem: cmake-ninja
@@ -186,15 +205,18 @@ modules:
     build-options:
       # Add Rust toolchain to PATH and point cargo at the pre-vendored crates.
       append-path: /app/plugins/LocalVocal/rust-toolchain/bin
-      # OBS Studio ships its Qt (and ICU 77) under /app/lib.  cmake AutoUIC runs
-      # /app/libexec/qt/uic at build time; without /app/lib in LD_LIBRARY_PATH
-      # that binary fails with "libicui18n.so.77: cannot open shared object file".
+      # Belt-and-suspenders: also set LD_LIBRARY_PATH at the flatpak-builder
+      # level so every command in this module can find /app/lib.
       prepend-ld-library-path: /app/lib
       env:
         ACCELERATION: generic
         CARGO_HOME: /run/build/obs-localvocal/cargo
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
+      # cmake 3.14+ CMAKE_AUTOUIC_EXECUTABLE overrides uic discovery so the
+      # wrapper (which ensures /app/lib is in LD_LIBRARY_PATH) is used instead
+      # of /app/libexec/qt/uic directly.
+      - -DCMAKE_AUTOUIC_EXECUTABLE=/app/plugins/LocalVocal/uic-wrapper
       - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
       - -DENABLE_FRONTEND_API=ON
       - -DENABLE_QT=ON
@@ -284,6 +306,7 @@ modules:
 
 cleanup:
   - /rust-toolchain
+  - /uic-wrapper
   - /include
   - /lib/cmake
   - /lib/pkgconfig
