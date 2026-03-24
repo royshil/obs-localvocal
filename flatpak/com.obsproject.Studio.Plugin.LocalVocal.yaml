@@ -36,13 +36,14 @@ modules:
       - -DUSE_OPENMP=ON
       - -DNUM_THREADS=64
     sources:
-      - type: git
-        url: https://github.com/OpenMathLib/OpenBLAS.git
-        tag: v0.3.32
-        commit: 8cecf899e21d99f9d8766ed34bfeeb3e2992c844
+      - type: archive
+        url: https://github.com/OpenMathLib/OpenBLAS/archive/refs/tags/v0.3.32.tar.gz
+        sha256: f8a1138e01fddca9e4c29f9684fd570ba39dedc9ca76055e1425d5d4b1a4a766
         x-checker-data:
-          type: git
-          tag-pattern: ^v([\d.]+)$
+          type: json
+          url: https://api.github.com/repos/OpenMathLib/OpenBLAS/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
 
   # whisper.cpp - Speech recognition engine
   - name: whispercpp
@@ -62,13 +63,14 @@ modules:
       - -DGGML_OPENCL=OFF
       - -DGGML_CUDA=OFF
     sources:
-      - type: git
-        url: https://github.com/ggerganov/whisper.cpp.git
-        tag: v1.8.2
-        commit: 4979e04f5dcaccb36057e059bbaed8a2f5288315
+      - type: archive
+        url: https://github.com/ggerganov/whisper.cpp/archive/refs/tags/v1.8.4.tar.gz
+        sha256: b26f30e52c095ccb75da40b168437736605eb280de57381887bf9e2b65f31e66
         x-checker-data:
-          type: git
-          tag-pattern: ^v([\d.]+)$
+          type: json
+          url: https://api.github.com/repos/ggerganov/whisper.cpp/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
 
   # CTranslate2 - Neural machine translation engine
   - name: ctranslate2
@@ -95,32 +97,34 @@ modules:
       - -DBUILD_CLI=OFF
       - -DBUILD_TESTS=OFF
     sources:
-      - type: git
-        url: https://github.com/OpenNMT/CTranslate2.git
-        tag: v4.7.1
-        commit: 226c95d94e660c48b11c62e108886b7ef76d589d
-        disable-submodules: true
+      - type: archive
+        url: https://github.com/OpenNMT/CTranslate2/archive/refs/tags/v4.7.1.tar.gz
+        sha256: 64beb499c1e33500a691dfbe10cc5def7b914413c7f7c2830b0e0d8d544a9f7e
         x-checker-data:
-          type: git
-          tag-pattern: ^v([\d.]+)$
+          type: json
+          url: https://api.github.com/repos/OpenNMT/CTranslate2/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
       # Submodule: cpu_features - CPU feature detection library
-      - type: git
-        url: https://github.com/google/cpu_features.git
-        tag: v0.10.1
-        commit: d3b2440fcfc25fe8e6d0d4a85f06d68e98312f5b
+      - type: archive
+        url: https://github.com/google/cpu_features/archive/refs/tags/v0.10.1.tar.gz
+        sha256: 52639b380fced11d738f8b151dbfee63fb94957731d07f1966c812e5b90cbad4
         dest: third_party/cpu_features
         x-checker-data:
-          type: git
-          tag-pattern: ^v([\d.]+)$
+          type: json
+          url: https://api.github.com/repos/google/cpu_features/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
       # Submodule: spdlog - Logging library
-      - type: git
-        url: https://github.com/gabime/spdlog.git
-        tag: v1.17.0
-        commit: 79524ddd08a4ec981b7fea76afd08ee05f83755d
+      - type: archive
+        url: https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.tar.gz
+        sha256: d8862955c6d74e5846b3f580b1605d2428b11d97a410d86e2fb13e857cd3a744
         dest: third_party/spdlog
         x-checker-data:
-          type: git
-          tag-pattern: ^v([\d.]+)$
+          type: json
+          url: https://api.github.com/repos/gabime/spdlog/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
     post-install:
       - install -Dm644 third_party/cpu_features/libcpu_features.a
           ${FLATPAK_DEST}/lib/libcpu_features.a
@@ -134,13 +138,14 @@ modules:
       - -DSPM_ENABLE_SHARED=OFF
       - -DSPM_BUILD_TEST=OFF
     sources:
-      - type: git
-        url: https://github.com/google/sentencepiece.git
-        tag: v0.2.1
-        commit: 31646a467d2051eb904e0b45de3a73e91fe1c1e3
+      - type: archive
+        url: https://github.com/google/sentencepiece/archive/refs/tags/v0.2.1.tar.gz
+        sha256: c1a59e9259c9653ad0ade653dadff074cd31f0a6ff2a11316f67bee4189a8f1b
         x-checker-data:
-          type: git
-          tag-pattern: ^v([\d.]+)$
+          type: json
+          url: https://api.github.com/repos/google/sentencepiece/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
 
   # OpenCL Headers - OpenCL header files for GPU programming
   - name: opencl-headers
@@ -151,13 +156,14 @@ modules:
       - -DOPENCL_HEADERS_BUILD_TESTING=OFF
       - -DOPENCL_HEADERS_BUILD_CL_LINK=OFF
     sources:
-      - type: git
-        url: https://github.com/KhronosGroup/OpenCL-Headers.git
-        tag: v2025.07.22
-        commit: 8a97ebc88daa3495d6f57ec10bb515224400186f
+      - type: archive
+        url: https://github.com/KhronosGroup/OpenCL-Headers/archive/refs/tags/v2025.07.22.tar.gz
+        sha256: 98f0a3ea26b4aec051e533cb1750db2998ab8e82eda97269ed6efe66ec94a240
         x-checker-data:
-          type: git
-          tag-pattern: ^v([\d.]+\.\d+)$
+          type: json
+          url: https://api.github.com/repos/KhronosGroup/OpenCL-Headers/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
 
   # Qt UIC wrapper - Uses ICU from SDK instead of custom build
   - name: qt-uic-wrapper
@@ -220,11 +226,15 @@ modules:
         path: ..
       - type: file
         path: com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
-      - type: git
-        url: https://github.com/corrosion-rs/corrosion.git
-        tag: v0.5
-        commit: a1a1aaa057a5da656c06c3d8505b767a4e941709
+      - type: archive
+        url: https://github.com/corrosion-rs/corrosion/archive/refs/tags/v0.6.1.tar.gz
+        sha256: e9e95b1ee2bad52681f347993fb1a5af5cce458c5ce8a2636c9e476e4babf8e3
         dest: corrosion-src
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/corrosion-rs/corrosion/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
       - type: archive
         only-arches:
           - x86_64
