@@ -1,48 +1,31 @@
+# Flatpak manifest for OBS LocalVocal plugin
+# Uses system dependencies from SDK where possible to reduce build time
+
 app-id: com.obsproject.Studio.Plugin.LocalVocal
 branch: stable
 runtime: com.obsproject.Studio
 runtime-version: stable
-sdk: org.kde.Sdk//6.8
+
+# Use exactly the same SDK as OBS Studio for maximum compatibility
+sdk: org.freedesktop.Sdk//25.08
+
+# Use Rust extension instead of compiling toolchain (saves ~15-20 min)
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+
 build-extension: true
 separate-locales: false
 
 build-options:
   prefix: /app/plugins/LocalVocal
   prepend-pkg-config-path: /app/plugins/LocalVocal/lib/pkgconfig
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/obs-localvocal/cargo
+    ACCELERATION: generic
 
 modules:
-  # Rust toolchain – required to compile the c-webvtt-in-video-stream crate
-  # via Corrosion / cmake/BuildWebVTT.cmake.
-  #
-  # sdk-extensions always resolves extension branches from the SDK branch (6.8),
-  # but org.freedesktop.Sdk.Extension.rust-stable only exists at branch 24.08.
-  # There is no standard flatpak-builder mechanism to mix SDK branches for
-  # sdk-extensions, so we install the Rust toolchain directly as a module.
-  #
-  # In a build-extension: true sandbox, /usr/ is the SDK mount and is
-  # read-only.  The writable area is the extension's prefix /app/plugins/LocalVocal/.
-  # We install Rust there under a rust-toolchain/ subdirectory, and the cleanup
-  # section below removes that subdirectory from the final package so that the
-  # ~300 MB Rust toolchain is not shipped to end users.
-  #
-  # Source mirrors org.freedesktop.Sdk.Extension.rust-stable//24.08 on Flathub:
-  # https://github.com/flathub/org.freedesktop.Sdk.Extension.rust-stable/blob/branch/24.08/org.freedesktop.Sdk.Extension.rust-stable.json
-  - name: rust-toolchain
-    buildsystem: simple
-    build-commands:
-      - cd rust-x86_64-unknown-linux-gnu && ./install.sh
-          --prefix=/app/plugins/LocalVocal/rust-toolchain
-          --without=rust-docs --without=rust-docs-json-preview
-          --disable-ldconfig
-    sources:
-      - type: archive
-        only-arches:
-          - x86_64
-        dest: rust-x86_64-unknown-linux-gnu
-        url: https://static.rust-lang.org/dist/2025-08-07/rust-1.89.0-x86_64-unknown-linux-gnu.tar.xz
-        sha256: c4f2796b10ee886001f0799bc40caea38746403a33c379d77878c4f4683f9b51
-
-  # OpenBLAS – required by whisper.cpp and CTranslate2 for optimal CPU performance
+  # OpenBLAS - BLAS (Basic Linear Algebra Subprograms) library
   - name: openblas
     buildsystem: cmake-ninja
     builddir: true
@@ -55,13 +38,13 @@ modules:
     sources:
       - type: git
         url: https://github.com/OpenMathLib/OpenBLAS.git
-        tag: v0.3.27
-        commit: ce3f668c992cb3cc80849d5c30ed637f5adbd5b2
+        tag: v0.3.32
+        commit: 8cecf899e21d99f9d8766ed34bfeeb3e2992c844
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
 
-  # whisper.cpp – speech recognition library (CPU + OpenBLAS build, no GPU backends)
+  # whisper.cpp - Speech recognition engine
   - name: whispercpp
     buildsystem: cmake-ninja
     builddir: true
@@ -87,8 +70,7 @@ modules:
           type: git
           tag-pattern: ^v([\d.]+)$
 
-  # CTranslate2 – neural machine translation library (static build)
-  # Submodules (spdlog and cpu_features) are provided as separate sources.
+  # CTranslate2 - Neural machine translation engine
   - name: ctranslate2
     buildsystem: cmake-ninja
     builddir: true
@@ -115,35 +97,35 @@ modules:
     sources:
       - type: git
         url: https://github.com/OpenNMT/CTranslate2.git
-        tag: v4.1.1
-        commit: bfa0cb3c03ba02df0d53659aa5235611d701c574
-        # Prevent flatpak-builder from creating gitlink stubs for submodules;
-        # cpu_features and spdlog are supplied as explicit dest: sources below.
+        tag: v4.7.1
+        commit: 226c95d94e660c48b11c62e108886b7ef76d589d
         disable-submodules: true
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
-      # git submodule: third_party/cpu_features (required on x86_64)
+      # Submodule: cpu_features - CPU feature detection library
       - type: git
         url: https://github.com/google/cpu_features.git
-        commit: 8a494eb1e158ec2050e5f699a504fbc9b896a43b
+        tag: v0.10.1
+        commit: d3b2440fcfc25fe8e6d0d4a85f06d68e98312f5b
         dest: third_party/cpu_features
-      # git submodule: third_party/spdlog (always required)
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
+      # Submodule: spdlog - Logging library
       - type: git
         url: https://github.com/gabime/spdlog.git
-        commit: 76fb40d95455f249bd70824ecfcae7a8f0930fa3
+        tag: v1.17.0
+        commit: 79524ddd08a4ec981b7fea76afd08ee05f83755d
         dest: third_party/spdlog
-    # CTranslate2 builds cpu_features from its submodule (EXCLUDE_FROM_ALL) and links
-    # it into libctranslate2.a as a PRIVATE dependency; libcpu_features.a is therefore
-    # built but NOT installed by cmake --install.  Copy it to the prefix so that
-    # obs-localvocal can link against it when USE_SYSTEM_CTRANSLATE2=ON.
-    # post-install runs from the cmake build dir (inside _flatpak_build/), so the
-    # path to cpu_features is relative to that, not to the source dir.
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
     post-install:
       - install -Dm644 third_party/cpu_features/libcpu_features.a
           ${FLATPAK_DEST}/lib/libcpu_features.a
 
-  # SentencePiece – text tokenizer used by CTranslate2 translation models
+  # SentencePiece - Text tokenization library
   - name: sentencepiece
     buildsystem: cmake-ninja
     builddir: true
@@ -160,9 +142,7 @@ modules:
           type: git
           tag-pattern: ^v([\d.]+)$
 
-  # OpenCL Headers – required at build time by cmake/BuildWhispercpp.cmake
-  # (find_package OpenCL REQUIRED).  The KDE SDK ships libOpenCL.so (ICD loader)
-  # but not the headers; this module supplies them.  Stripped by cleanup:/include.
+  # OpenCL Headers - OpenCL header files for GPU programming
   - name: opencl-headers
     buildsystem: cmake-ninja
     builddir: true
@@ -173,191 +153,67 @@ modules:
     sources:
       - type: git
         url: https://github.com/KhronosGroup/OpenCL-Headers.git
-        tag: v2024.10.24
-        commit: 4ea6df132107e3b4b9407f903204b5522fdffcd6
+        tag: v2025.07.22
+        commit: 8a97ebc88daa3495d6f57ec10bb515224400186f
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+\.\d+)$
 
-  # ICU 77 – International Components for Unicode
-  # Required for Qt's uic binary to function properly in Flatpak builds.
-  # The KDE SDK's uic and OBS Studio's uic are both linked against libicui18n.so.77.
-  # We build shared libraries here so the uic-wrapper can stage them.
-  # Note: This module is only used for Flatpak builds (USE_SYSTEM_ICU=ON).
-  #       Local builds use BuildICU.cmake which defaults to ICU 76.1 for compatibility.
-  - name: icu
-    buildsystem: autotools
-    subdir: icu4c/source
-    config-opts:
-      - --enable-shared
-      - --disable-static
-      - --disable-samples
-      - --disable-tests
-      - --disable-extras
-    sources:
-      - type: git
-        url: https://github.com/unicode-org/icu.git
-        tag: release-77-1
-        commit: 457157a92aa053e632cc7fcfd0e12f8a943b2d11
-        x-checker-data:
-          type: git
-          tag-pattern: ^release-([\d-]+)$
-
-  # qt-uic-wrapper – finds a working uic binary and writes a thin wrapper
-  # that cmake AutoUIC will call via CMAKE_AUTOUIC_EXECUTABLE.
-  #
-  # Background: cmake AutoUIC spawns uic through the subprocess chain
-  #   flatpak-builder → cmake-ninja → ninja → cmake -E cmake_autogen → uic
-  # Both the KDE SDK's uic (/usr/lib/libexec/uic) and OBS Studio's uic
-  # (/app/libexec/qt/uic) are linked against libicui18n.so.77.
-  #
-  # The wrapper for the SDK's uic MUST NOT put /app/lib in LD_LIBRARY_PATH:
-  # doing so causes /app/lib/libQt6Core.so.6 (OBS's Qt) to shadow the SDK's
-  # Qt6Core, producing "undefined symbol: ucnv_cbToUWriteUChars_77" because
-  # the two Qt libraries were built against different ICU symbol sets.
-  # Instead the wrapper lazily stages ICU 77 (searched in SDK paths like
-  # /usr/lib/x86_64-linux-gnu first, then /app/lib) into icu-for-uic/ on
-  # first invocation, then sets LD_LIBRARY_PATH=icu-for-uic only.  This
-  # gives uic the real ICU 77 without loading OBS's Qt6Core.
-  #
-  # For OBS's own uic (fallback when no SDK uic is found) /app/lib is fine:
-  # OBS's Qt and ICU live there together and are ABI-consistent.
-  #
-  # cmake 3.14+ respects CMAKE_AUTOUIC_EXECUTABLE, so obs-localvocal's
-  # config-opts point at the wrapper to guarantee every AutoUIC call uses it.
-  # /uic-wrapper and /icu-for-uic are removed by the cleanup section.
+  # Qt UIC wrapper - Uses ICU from SDK instead of custom build
   - name: qt-uic-wrapper
     buildsystem: simple
     build-commands:
       - |
-        # ── Step 1: find a uic binary ──────────────────────────────────────
-        # Prefer the KDE SDK's uic (any path under /usr).
-        # Fall back to OBS Studio's uic; /app may not be mounted yet at this
-        # module's build time, but it WILL be mounted when the wrapper runs
-        # during obs-localvocal's build phase.
         _uic=""
         for _p in \
             /usr/bin/uic \
             /usr/lib/qt6/bin/uic \
             /usr/lib/libexec/uic \
             /usr/lib/x86_64-linux-gnu/qt6/bin/uic \
-            /usr/lib64/qt6/bin/uic \
-            /usr/lib/aarch64-linux-gnu/qt6/bin/uic; do
+            /usr/lib64/qt6/bin/uic; do
           if [ -x "$_p" ]; then
             _uic="$_p"
             break
           fi
         done
-        if [ -z "$_uic" ]; then
-          _uic=$(find /usr -maxdepth 8 -name uic -type f -perm /0111 -print -quit 2>/dev/null)
-        fi
-        # OBS fallback (path written into wrapper; checked at execution time)
+        
         if [ -z "$_uic" ]; then
           _uic=/app/libexec/qt/uic
-          echo "qt-uic-wrapper: no SDK uic found; wrapper will use OBS uic at ${_uic}"
         fi
-        case "${_uic}" in
-          *'"'*) echo "ERROR: uic path contains a double-quote: ${_uic}" >&2; exit 1 ;;
-        esac
-        echo "qt-uic-wrapper: uic binary = ${_uic}"
-
-        # ── Step 2: write the wrapper ──────────────────────────────────────
-        # Two distinct strategies depending on whether we use the SDK's uic
-        # (path starts with /usr) or OBS's uic.
-
+        
+        echo "qt-uic-wrapper: using uic at ${_uic}"
+        
         case "${_uic}" in
           /usr/*)
-            # SDK uic: the wrapper lazily stages ICU (v77, v76, or v76.1) from SDK paths
-            # (/usr/lib*) or OBS paths (/app/lib*) on first invocation.
-            # Only icu-for-uic is added to LD_LIBRARY_PATH so the dynamic
-            # linker satisfies libicui18n.so.77 WITHOUT loading
-            # /app/lib/libQt6Core.so.6 (which would cause symbol-version
-            # mismatches with the SDK's Qt6Core).
-            # Use printf (not heredoc) so the YAML block indentation rules
-            # do not break the generated file.
-            printf '%s\n' \
-              '#!/bin/sh' \
-              '# Stage ICU 77/76/76.1 from the SDK (/usr/lib*) or OBS (/app/lib*)' \
-              '# on first run. Only icu-for-uic goes into LD_LIBRARY_PATH' \
-              '# so OBS Qt6Core is never loaded alongside the SDK uic' \
-              '# (that mix produces symbol-version errors).' \
-              '_icu=/app/plugins/LocalVocal/icu-for-uic' \
-              'mkdir -p "${_icu}" || { echo "uic-wrapper: ERROR: cannot create ${_icu}" >&2; exit 1; }' \
-              'for _b in libicui18n libicudata libicuuc; do' \
-              '  [ -f "${_icu}/${_b}.so.77" ] && continue' \
-              '  _found=""' \
-              '  # Try ICU 77 first, then fall back to 76.1 and 76' \
-              '  for _ver in .so.77 .so.76.1 .so.76; do' \
-              '    [ -n "${_found}" ] && break' \
-              '    for _dir in /usr/lib /usr/lib64 /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /app/lib /app/lib64; do' \
-              '      for _f in "${_dir}/${_b}${_ver}"*; do' \
-              '        if [ -f "${_f}" ]; then _found="${_f}"; break 2; fi' \
-              '      done' \
-              '    done' \
-              '  done' \
-              '  # Fallback: deep search for any ICU version' \
-              '  if [ -z "${_found}" ]; then' \
-              '    for _ver in .so.77 .so.76.1 .so.76; do' \
-              '      [ -n "${_found}" ] && break' \
-              '      _found=$(find /usr /app -maxdepth 8 -name "${_b}${_ver}*" -print -quit 2>/dev/null)' \
-              '    done' \
-              '  fi' \
-              '  if [ -n "${_found}" ]; then' \
-              '    cp -L "${_found}" "${_icu}/${_b}.so.77" 2>/dev/null || true' \
-              '  else' \
-              '    echo "uic-wrapper: WARNING: ${_b}.so.77/76/76.1 not found anywhere – uic may fail" >&2' \
-              '  fi' \
-              'done' \
-              'export LD_LIBRARY_PATH="${_icu}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"' \
-              > "${FLATPAK_DEST}/uic-wrapper"
-            printf 'exec "%s" "$@"\n' "${_uic}" >> "${FLATPAK_DEST}/uic-wrapper"
+            printf '#!/bin/sh\nexec "%s" "$@"\n' "${_uic}" > ${FLATPAK_DEST}/uic-wrapper
             ;;
           *)
-            # OBS uic: /app/lib holds both OBS's Qt and ICU 77 — a
-            # self-consistent ABI set; just prepend it to LD_LIBRARY_PATH.
             printf '#!/bin/sh\nexport LD_LIBRARY_PATH="/app/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"\nexec "%s" "$@"\n' \
-              "${_uic}" > "${FLATPAK_DEST}/uic-wrapper"
+              "${_uic}" > ${FLATPAK_DEST}/uic-wrapper
             ;;
         esac
-        chmod 755 "${FLATPAK_DEST}/uic-wrapper"
-        echo "qt-uic-wrapper: wrapper written (uic=${_uic})"
+        
+        chmod 755 ${FLATPAK_DEST}/uic-wrapper
     sources: []
 
-  # obs-localvocal – the main plugin
+  # OBS LocalVocal - Main plugin
   - name: obs-localvocal
     buildsystem: cmake-ninja
     builddir: true
-    build-options:
-      # Add Rust toolchain to PATH and point cargo at the pre-vendored crates.
-      append-path: /app/plugins/LocalVocal/rust-toolchain/bin
-      env:
-        ACCELERATION: generic
-        CARGO_HOME: /run/build/obs-localvocal/cargo
     config-opts:
       - -DCMAKE_BUILD_TYPE=Release
-      # cmake 3.14+ CMAKE_AUTOUIC_EXECUTABLE guarantees the wrapper is used
-      # for every AutoUIC invocation, regardless of how cmake discovers Qt.
       - -DCMAKE_AUTOUIC_EXECUTABLE=/app/plugins/LocalVocal/uic-wrapper
       - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
       - -DENABLE_FRONTEND_API=ON
       - -DENABLE_QT=ON
       - -DUSE_SYSTEM_CURL=ON
-      - -DUSE_SYSTEM_ICU=ON
       - -DUSE_SYSTEM_CTRANSLATE2=ON
       - -DUSE_SYSTEM_SENTENCEPIECE=ON
       - -DLINUX_SOURCE_BUILD=OFF
       - -DACCELERATION=generic
       - -DENABLE_TESTS=OFF
-      # Corrosion (needed by BuildWebVTT) is pre-populated as a source entry;
-      # tell FetchContent where to find it so it does not attempt a network clone.
       - -DFETCHCONTENT_SOURCE_DIR_CORROSION=/run/build/obs-localvocal/corrosion-src
-      # whispercpp prebuilt binary (generic, x86_64) is bundled as a source archive.
-      # Setting FETCHCONTENT_SOURCE_DIR bypasses the network download that
-      # cmake/BuildWhispercpp.cmake would otherwise attempt at configure time.
       - -DFETCHCONTENT_SOURCE_DIR_WHISPERCPP_FETCH=/run/build/obs-localvocal/whispercpp-prebuilt
-      # onnxruntime prebuilt binary (x86_64 Linux gpu) is bundled as a source archive.
-      # cmake/FetchOnnxruntime.cmake uses FetchContent; point it at the pre-extracted
-      # directory so no network download is attempted inside the sandbox.
       - -DFETCHCONTENT_SOURCE_DIR_ONNXRUNTIME=/run/build/obs-localvocal/onnxruntime-prebuilt
     sources:
       - type: git
@@ -367,27 +223,17 @@ modules:
         x-checker-data:
           type: git
           tag-pattern: ^([\d.]+)$
-      # Patches applied to the obs-localvocal source to support pre-installed
-      # CTranslate2 and SentencePiece system libraries on Linux, avoiding the
-      # ExternalProject git-clone steps that require network access.
       - type: patch
         path: patches/0001-BuildCTranslate2-use-system-option.patch
       - type: patch
         path: patches/0002-BuildSentencepiece-use-system-option.patch
       - type: file
         path: com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
-      # Corrosion is fetched by cmake/BuildWebVTT.cmake via FetchContent.
-      # Pre-downloading it here (FETCHCONTENT_SOURCE_DIR_CORROSION in config-opts)
-      # avoids any git-clone attempt inside the network-restricted Flatpak sandbox.
       - type: git
         url: https://github.com/corrosion-rs/corrosion.git
         tag: v0.5
         commit: a1a1aaa057a5da656c06c3d8505b767a4e941709
         dest: corrosion-src
-      # Prebuilt whispercpp generic binary for x86_64 Linux.
-      # The release tarball has a single "release/" top-level directory; strip it
-      # so that lib/, bin/, include/ land directly under whispercpp-prebuilt/.
-      # SHA-256 taken from cmake/BuildWhispercpp.cmake WHISPER_CPP_HASH for generic.
       - type: archive
         only-arches:
           - x86_64
@@ -395,11 +241,6 @@ modules:
         sha256: 5811798e245482597ad393fac7bab82f0df8664e6b82be6231d089af13de0656
         dest: whispercpp-prebuilt
         strip-components: 1
-      # Prebuilt ONNX Runtime binary for x86_64 Linux.
-      # cmake/FetchOnnxruntime.cmake uses FetchContent (not USE_SYSTEM_ONNXRUNTIME)
-      # and expects include/ and lib/ directly under onnxruntime_SOURCE_DIR.
-      # The release tarball has a single top-level directory; strip-components:1
-      # puts include/ and lib/ directly under onnxruntime-prebuilt/.
       - type: archive
         only-arches:
           - x86_64
@@ -407,8 +248,6 @@ modules:
         sha256: 6bfb87c6ebe55367a94509b8ef062239e188dccf8d5caac8d6909b2344893bf0
         dest: onnxruntime-prebuilt
         strip-components: 1
-      # Redirect cargo to the pre-vendored crates so it never touches the network.
-      # CARGO_HOME (set in build-options.env) points to the cargo/ directory here.
       - type: inline
         contents: |
           [source.crates-io]
@@ -418,17 +257,13 @@ modules:
           directory = "/run/build/obs-localvocal/cargo/vendor"
         dest: cargo
         dest-filename: config.toml
-      # One archive + checksum entry per crate, generated by flatpak-cargo-generator
-      # from deps/c-webvtt-in-video-stream/Cargo.lock.
       - cargo-sources.json
     post-install:
       - install -Dm644 --target-directory=${FLATPAK_DEST}/share/metainfo
           ${FLATPAK_BUILDER_BUILDDIR}/com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
 
 cleanup:
-  - /rust-toolchain
   - /uic-wrapper
-  - /icu-for-uic
   - /include
   - /lib/cmake
   - /lib/pkgconfig
