@@ -1,10 +1,8 @@
 include(FetchContent)
 include(ExternalProject)
 
-# Default to ICU 76.1 for backwards compatibility with existing builds.
-# ICU 77+ is required for Flatpak builds (uic binary compatibility),
-# but Flatpak uses USE_SYSTEM_ICU=ON and provides ICU via a separate module.
 # Override the version if needed via -DICU_VERSION_OVERRIDE=77.1
+# When overriding the version, you MUST also provide -DICU_HASH_OVERRIDE=<sha256>
 if(DEFINED ICU_VERSION_OVERRIDE)
   set(ICU_VERSION "${ICU_VERSION_OVERRIDE}")
 else()
@@ -20,8 +18,22 @@ if(WIN32)
   set(ICU_URL
       "https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION_DASH}/icu4c-${ICU_VERSION_UNDERSCORE}-Win64-MSVC2022.zip"
   )
-  # SHA256 hash for ICU 76.1 Windows build (update if ICU_VERSION_OVERRIDE is used)
-  set(ICU_HASH "SHA256=bedba77dd1feca09e9ae9922109a285c0ecf46d09c80b65eae6eae63a4e155dc")
+  if(DEFINED ICU_HASH_OVERRIDE)
+    set(ICU_HASH "${ICU_HASH_OVERRIDE}")
+  else()
+    set(ICU_HASH "SHA256=bedba77dd1feca09e9ae9922109a285c0ecf46d09c80b65eae6eae63a4e155dc")
+  endif()
+  
+  # Validate that hash matches version when overriding
+  if(DEFINED ICU_VERSION_OVERRIDE AND NOT DEFINED ICU_HASH_OVERRIDE)
+    message(
+      FATAL_ERROR
+        "ICU_VERSION_OVERRIDE is set to ${ICU_VERSION}, but ICU_HASH_OVERRIDE is not defined.\n"
+        "When using a custom ICU version, you MUST provide the matching SHA256 hash via -DICU_HASH_OVERRIDE=SHA256=<hash>\n"
+        "Download the file from: ${ICU_URL}\n"
+        "Calculate the hash with: sha256sum <downloaded-file>"
+    )
+  endif()
 
   FetchContent_Declare(
     ICU_build
@@ -71,7 +83,24 @@ else()
   set(ICU_URL
       "https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION_DASH}/icu4c-${ICU_VERSION_UNDERSCORE}-src.tgz"
   )
-  set(ICU_HASH "SHA256=dfacb46bfe4747410472ce3e1144bf28a102feeaa4e3875bac9b4c6cf30f4f3e")
+  # SHA256 hash for ICU 76.1 source tarball
+  if(DEFINED ICU_HASH_OVERRIDE)
+    set(ICU_HASH "${ICU_HASH_OVERRIDE}")
+  else()
+    set(ICU_HASH "SHA256=dfacb46bfe4747410472ce3e1144bf28a102feeaa4e3875bac9b4c6cf30f4f3e")
+  endif()
+  
+  # Validate that hash matches version when overriding
+  if(DEFINED ICU_VERSION_OVERRIDE AND NOT DEFINED ICU_HASH_OVERRIDE)
+    message(
+      FATAL_ERROR
+        "ICU_VERSION_OVERRIDE is set to ${ICU_VERSION}, but ICU_HASH_OVERRIDE is not defined.\n"
+        "When using a custom ICU version, you MUST provide the matching SHA256 hash via -DICU_HASH_OVERRIDE=SHA256=<hash>\n"
+        "Download the file from: ${ICU_URL}\n"
+        "Calculate the hash with: sha256sum <downloaded-file>"
+    )
+  endif()
+  
   if(APPLE)
     set(ICU_PLATFORM "MacOSX")
     set(TARGET_ARCH -arch\ $ENV{MACOS_ARCH})
