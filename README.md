@@ -242,6 +242,88 @@ The default for a full source build is to build both Whisper and the plugin opti
 * to build all CPU backends add `-DWHISPER_DYNAMIC_BACKENDS=ON`
 * to build all CUDA kernels add `-DWHISPER_BUILD_ALL_CUDA_ARCHITECTURES=ON`
 
+### Linux (Flatpak)
+
+Building the plugin as a Flatpak extension for OBS Studio allows for easy distribution and installation on Linux systems.
+
+#### Prerequisites
+
+1. Install Flatpak and flatpak-builder:
+   ```sh
+   # On Ubuntu/Debian
+   sudo apt install flatpak flatpak-builder
+   
+   # On Fedora
+   sudo dnf install flatpak flatpak-builder
+   
+   # On Arch Linux
+   sudo pacman -S flatpak flatpak-builder
+   ```
+
+2. Add the Flathub repository:
+   ```sh
+   flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+   ```
+
+3. Install the OBS Studio Flatpak and required SDKs:
+   ```sh
+   flatpak install flathub com.obsproject.Studio
+   flatpak install flathub org.kde.Sdk//6.8
+   ```
+
+#### Building
+
+1. Clone the repository if you haven't already:
+   ```sh
+   git clone https://github.com/locaal-ai/obs-localvocal.git
+   cd obs-localvocal
+   ```
+
+2. Set the `ACCELERATION` environment variable to one of `generic`, `nvidia`, or `amd` (defaults to `generic` if unset):
+   ```sh
+   export ACCELERATION="nvidia"  # or "amd" or "generic"
+   ```
+
+3. Build the Flatpak extension:
+   ```sh
+   ./flatpak/build.sh --disable-rofiles-fuse --force-clean build-dir ./flatpak/com.obsproject.Studio.Plugin.LocalVocal.yaml
+   ```
+
+   The build process will:
+   - Compile all dependencies including ICU 77, whisper.cpp, CTranslate2, etc.
+   - Build the LocalVocal plugin with the selected acceleration backend
+   - Create a Flatpak extension that integrates with OBS Studio
+
+4. Installing the built extension:
+   ```sh
+   ./flatpak/build.sh --disable-rofiles-fuse --install build-dir ./flatpak/com.obsproject.Studio.Plugin.LocalVocal.yaml
+   ```
+
+   Or manually install using:
+   ```sh
+   flatpak-builder --user --install --force-clean build-dir ./flatpak/com.obsproject.Studio.Plugin.LocalVocal.yaml
+   ```
+
+5. Verify the installation:
+   ```sh
+   flatpak list | grep LocalVocal
+   ```
+
+#### Running OBS Studio with the Plugin
+
+After installation, simply launch OBS Studio from your application menu or via:
+```sh
+flatpak run com.obsproject.Studio
+```
+
+The LocalVocal plugin should now be available in OBS Studio's filters.
+
+#### Troubleshooting
+
+- **Build fails with ICU errors**: The Flatpak build uses ICU 77 which is compiled as part of the build process. This is required for Qt's `uic` binary compatibility.
+- **CUDA/ROCm not detected**: Make sure you've set the `ACCELERATION` environment variable before building.
+- **Plugin not visible in OBS**: Ensure the Flatpak extension was installed to the correct location and OBS Studio is running from Flatpak.
+
 ### Windows
 
 Use the CI scripts again, for example:

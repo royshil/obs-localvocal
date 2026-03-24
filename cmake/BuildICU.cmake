@@ -1,16 +1,26 @@
 include(FetchContent)
 include(ExternalProject)
 
-# 76 only needed on Windows. 70 works for other platforms
-set(ICU_VERSION "76.1")
-set(ICU_VERSION_UNDERSCORE "76_1")
-set(ICU_VERSION_DASH "76-1")
-set(ICU_VERSION_NO_MINOR "76")
+# Default to ICU 76.1 for backwards compatibility with existing builds.
+# ICU 77+ is required for Flatpak builds (uic binary compatibility),
+# but Flatpak uses USE_SYSTEM_ICU=ON and provides ICU via a separate module.
+# Override the version if needed via -DICU_VERSION_OVERRIDE=77.1
+if(DEFINED ICU_VERSION_OVERRIDE)
+  set(ICU_VERSION "${ICU_VERSION_OVERRIDE}")
+else()
+  set(ICU_VERSION "76.1")
+endif()
+
+# Derive version variants from ICU_VERSION
+string(REPLACE "." "_" ICU_VERSION_UNDERSCORE "${ICU_VERSION}")
+string(REPLACE "." "-" ICU_VERSION_DASH "${ICU_VERSION}")
+string(REGEX REPLACE "\\.[0-9]+$" "" ICU_VERSION_NO_MINOR "${ICU_VERSION}")
 
 if(WIN32)
   set(ICU_URL
       "https://github.com/unicode-org/icu/releases/download/release-${ICU_VERSION_DASH}/icu4c-${ICU_VERSION_UNDERSCORE}-Win64-MSVC2022.zip"
   )
+  # SHA256 hash for ICU 76.1 Windows build (update if ICU_VERSION_OVERRIDE is used)
   set(ICU_HASH "SHA256=bedba77dd1feca09e9ae9922109a285c0ecf46d09c80b65eae6eae63a4e155dc")
 
   FetchContent_Declare(
