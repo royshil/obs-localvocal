@@ -155,12 +155,34 @@ else()
   set(BLA_VENDOR OpenBLAS)
   find_package(BLAS REQUIRED)
 
-  if(NOT LINUX_SOURCE_BUILD)
+  if(USE_SYSTEM_WHISPERCPP)
+    # Use a system/prefix-installed whisper.cpp
+    find_path(Whispercpp_INCLUDE_DIR NAMES whisper.h REQUIRED)
+    cmake_path(GET Whispercpp_INCLUDE_DIR PARENT_PATH Whispercpp_PREFIX)
+    message(STATUS "Using system whisper.cpp at ${Whispercpp_PREFIX}")
+
+    set(WHISPER_SOURCE_DIR "${Whispercpp_PREFIX}")
+    set(WHISPER_LIB_DIR "${Whispercpp_PREFIX}")
+    set(WHISPER_LIBRARY_TYPE SHARED)
+    set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
+
+    # GGMLBase is optional depending on the whisper.cpp build configuration
+    find_library(
+      GGMLBase_LIB ggml-base
+      PATHS "${Whispercpp_PREFIX}/lib"
+      NO_DEFAULT_PATH)
+    if(NOT GGMLBase_LIB)
+      list(REMOVE_ITEM WHISPER_LIBRARIES GGMLBase)
+    endif()
+    unset(GGMLBase_LIB CACHE)
+
+    list(APPEND WHISPER_DEPENDENCY_LIBRARIES BLAS::BLAS)
+  elseif(NOT LINUX_SOURCE_BUILD)
     add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
     set(WHISPER_LIBRARY_TYPE SHARED)
     set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
     list(APPEND WHISPER_DEPENDENCY_LIBRARIES Vulkan::Vulkan BLAS::BLAS)
-    if(NOT ${ACCELERATION} STREQUAL "nvidia")
+    if(NOT "${ACCELERATION}" STREQUAL "nvidia")
       # NVidia CUDA has its own OpenCL library
       list(APPEND WHISPER_DEPENDENCY_LIBRARIES OpenCL::OpenCL)
     endif()
@@ -183,7 +205,10 @@ else()
       Vulkan
       COMPONENTS glslc
       REQUIRED)
-    find_package(OpenCL REQUIRED)
+    if(NOT "${ACCELERATION}" STREQUAL "nvidia")
+      # NVidia CUDA provides its own OpenCL; skip the standalone OpenCL search.
+      find_package(OpenCL REQUIRED)
+    endif()
     find_package(Python3 REQUIRED)
 
     set(ARCH_PREFIX "-x86_64")

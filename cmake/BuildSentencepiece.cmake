@@ -27,45 +27,55 @@ elseif(WIN32)
 
 else()
 
-  # Enable ccache if available
-  find_program(CCACHE_PROGRAM ccache)
-  if(CCACHE_PROGRAM)
-    message(STATUS "Found ccache: ${CCACHE_PROGRAM}")
-    set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
-    set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+  if(USE_SYSTEM_SENTENCEPIECE)
+    message(STATUS "Using system sentencepiece")
+    find_library(SP_LIBRARY sentencepiece REQUIRED)
+    find_path(SP_INCLUDE_DIR sentencepiece_processor.h REQUIRED)
+
+    add_library(sentencepiece INTERFACE)
+    target_link_libraries(sentencepiece INTERFACE ${SP_LIBRARY})
+    target_include_directories(sentencepiece INTERFACE ${SP_INCLUDE_DIR})
+  else()
+    # Enable ccache if available
+    find_program(CCACHE_PROGRAM ccache)
+    if(CCACHE_PROGRAM)
+      message(STATUS "Found ccache: ${CCACHE_PROGRAM}")
+      set(CMAKE_C_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+      set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+    endif()
+
+    set(SP_URL
+        "https://github.com/google/sentencepiece.git"
+        CACHE STRING "URL of sentencepiece repository")
+
+    set(SP_CMAKE_OPTIONS -DSPM_ENABLE_SHARED=OFF)
+    set(SENTENCEPIECE_INSTALL_LIB_LOCATION
+        ${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}sentencepiece${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+    include(ExternalProject)
+
+    ExternalProject_Add(
+      sentencepiece_build
+      GIT_REPOSITORY ${SP_URL}
+      GIT_TAG v0.2.1
+      BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
+      CMAKE_GENERATOR ${CMAKE_GENERATOR}
+      INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
+      BUILD_BYPRODUCTS <INSTALL_DIR>/${SENTENCEPIECE_INSTALL_LIB_LOCATION}
+      CMAKE_ARGS -DCMAKE_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+                 -DCMAKE_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+                 ${SP_CMAKE_OPTIONS})
+    ExternalProject_Get_Property(sentencepiece_build INSTALL_DIR)
+
+    add_library(libsentencepiece STATIC IMPORTED GLOBAL)
+    add_dependencies(libsentencepiece sentencepiece_build)
+    set_target_properties(libsentencepiece PROPERTIES IMPORTED_LOCATION
+                                                      ${INSTALL_DIR}/${SENTENCEPIECE_INSTALL_LIB_LOCATION})
+
+    add_library(sentencepiece INTERFACE)
+    add_dependencies(sentencepiece libsentencepiece)
+    target_link_libraries(sentencepiece INTERFACE libsentencepiece)
+    target_include_directories(sentencepiece INTERFACE ${INSTALL_DIR}/include)
+
   endif()
-
-  set(SP_URL
-      "https://github.com/google/sentencepiece.git"
-      CACHE STRING "URL of sentencepiece repository")
-
-  set(SP_CMAKE_OPTIONS -DSPM_ENABLE_SHARED=OFF)
-  set(SENTENCEPIECE_INSTALL_LIB_LOCATION
-      ${CMAKE_INSTALL_LIBDIR}/${CMAKE_STATIC_LIBRARY_PREFIX}sentencepiece${CMAKE_STATIC_LIBRARY_SUFFIX})
-
-  include(ExternalProject)
-
-  ExternalProject_Add(
-    sentencepiece_build
-    GIT_REPOSITORY ${SP_URL}
-    GIT_TAG v0.2.1
-    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
-    CMAKE_GENERATOR ${CMAKE_GENERATOR}
-    INSTALL_COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${CMAKE_BUILD_TYPE}
-    BUILD_BYPRODUCTS <INSTALL_DIR>/${SENTENCEPIECE_INSTALL_LIB_LOCATION}
-    CMAKE_ARGS -DCMAKE_GENERATOR_PLATFORM=${CMAKE_GENERATOR_PLATFORM} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
-               -DCMAKE_INSTALL_LIBDIR=${CMAKE_INSTALL_LIBDIR} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-               ${SP_CMAKE_OPTIONS})
-  ExternalProject_Get_Property(sentencepiece_build INSTALL_DIR)
-
-  add_library(libsentencepiece STATIC IMPORTED GLOBAL)
-  add_dependencies(libsentencepiece sentencepiece_build)
-  set_target_properties(libsentencepiece PROPERTIES IMPORTED_LOCATION
-                                                    ${INSTALL_DIR}/${SENTENCEPIECE_INSTALL_LIB_LOCATION})
-
-  add_library(sentencepiece INTERFACE)
-  add_dependencies(sentencepiece libsentencepiece)
-  target_link_libraries(sentencepiece INTERFACE libsentencepiece)
-  target_include_directories(sentencepiece INTERFACE ${INSTALL_DIR}/include)
-
 endif()

@@ -1,0 +1,275 @@
+# Flatpak manifest for OBS LocalVocal plugin
+# Uses system dependencies from SDK where possible to reduce build time
+
+app-id: com.obsproject.Studio.Plugin.LocalVocal
+branch: stable
+runtime: com.obsproject.Studio
+runtime-version: stable
+
+# Use exactly the same SDK as OBS Studio for maximum compatibility
+sdk: org.freedesktop.Sdk//25.08
+
+# Use Rust extension instead of compiling toolchain (saves ~15-20 min)
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+
+build-extension: true
+separate-locales: false
+
+build-options:
+  prefix: /app/plugins/LocalVocal
+  prepend-pkg-config-path: /app/plugins/LocalVocal/lib/pkgconfig
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/obs-localvocal/cargo
+    ACCELERATION: generic
+
+modules:
+  # OpenBLAS - BLAS (Basic Linear Algebra Subprograms) library
+  - name: openblas
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=ON
+      - -DBUILD_TESTING=OFF
+      - -DUSE_OPENMP=ON
+      - -DNUM_THREADS=64
+    sources:
+      - type: archive
+        url: https://github.com/OpenMathLib/OpenBLAS/archive/refs/tags/v0.3.32.tar.gz
+        sha256: f8a1138e01fddca9e4c29f9684fd570ba39dedc9ca76055e1425d5d4b1a4a766
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/OpenMathLib/OpenBLAS/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+
+  # whisper.cpp - Speech recognition engine
+  - name: whispercpp
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
+      - -DBUILD_SHARED_LIBS=ON
+      - -DWHISPER_BUILD_TESTS=OFF
+      - -DWHISPER_BUILD_EXAMPLES=OFF
+      - -DGGML_BLAS=ON
+      - -DGGML_BLAS_VENDOR=OpenBLAS
+      - -DGGML_NATIVE=OFF
+      - -DGGML_BACKEND_DL=OFF
+      - -DGGML_VULKAN=OFF
+      - -DGGML_OPENCL=OFF
+      - -DGGML_CUDA=OFF
+    sources:
+      - type: archive
+        url: https://github.com/ggerganov/whisper.cpp/archive/refs/tags/v1.8.4.tar.gz
+        sha256: b26f30e52c095ccb75da40b168437736605eb280de57381887bf9e2b65f31e66
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/ggerganov/whisper.cpp/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+
+  # CTranslate2 - Neural machine translation engine
+  - name: ctranslate2
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+      - -DOPENMP_RUNTIME=COMP
+      - -DWITH_MKL=OFF
+      - -DWITH_DNNL=OFF
+      - -DWITH_ACCELERATE=OFF
+      - -DWITH_OPENBLAS=ON
+      - -DOPENBLAS_INCLUDE_DIR=/app/plugins/LocalVocal/include/openblas
+      - -DOPENBLAS_LIBRARY=/app/plugins/LocalVocal/lib/libopenblas.so
+      - -DWITH_RUY=OFF
+      - -DWITH_CUDA=OFF
+      - -DWITH_CUDNN=OFF
+      - -DWITH_TENSOR_PARALLEL=ON
+      - -DENABLE_CPU_DISPATCH=ON
+      - -DENABLE_PROFILING=OFF
+      - -DBUILD_CLI=OFF
+      - -DBUILD_TESTS=OFF
+    sources:
+      - type: archive
+        url: https://github.com/OpenNMT/CTranslate2/archive/refs/tags/v4.7.1.tar.gz
+        sha256: 64beb499c1e33500a691dfbe10cc5def7b914413c7f7c2830b0e0d8d544a9f7e
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/OpenNMT/CTranslate2/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+      # Submodule: cpu_features - CPU feature detection library
+      - type: archive
+        url: https://github.com/google/cpu_features/archive/refs/tags/v0.10.1.tar.gz
+        sha256: 52639b380fced11d738f8b151dbfee63fb94957731d07f1966c812e5b90cbad4
+        dest: third_party/cpu_features
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/google/cpu_features/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+      # Submodule: spdlog - Logging library
+      - type: archive
+        url: https://github.com/gabime/spdlog/archive/refs/tags/v1.17.0.tar.gz
+        sha256: d8862955c6d74e5846b3f580b1605d2428b11d97a410d86e2fb13e857cd3a744
+        dest: third_party/spdlog
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/gabime/spdlog/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+    post-install:
+      - install -Dm644 third_party/cpu_features/libcpu_features.a
+          ${FLATPAK_DEST}/lib/libcpu_features.a
+
+  # SentencePiece - Text tokenization library
+  - name: sentencepiece
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DSPM_ENABLE_SHARED=OFF
+      - -DSPM_BUILD_TEST=OFF
+    sources:
+      - type: archive
+        url: https://github.com/google/sentencepiece/archive/refs/tags/v0.2.1.tar.gz
+        sha256: c1a59e9259c9653ad0ade653dadff074cd31f0a6ff2a11316f67bee4189a8f1b
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/google/sentencepiece/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+
+  # OpenCL Headers - OpenCL header files for GPU programming
+  - name: opencl-headers
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DOPENCL_HEADERS_BUILD_TESTING=OFF
+      - -DOPENCL_HEADERS_BUILD_CL_LINK=OFF
+    sources:
+      - type: archive
+        url: https://github.com/KhronosGroup/OpenCL-Headers/archive/refs/tags/v2025.07.22.tar.gz
+        sha256: 98f0a3ea26b4aec051e533cb1750db2998ab8e82eda97269ed6efe66ec94a240
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/KhronosGroup/OpenCL-Headers/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+
+  # Qt UIC wrapper - Uses ICU from SDK instead of custom build
+  - name: qt-uic-wrapper
+    buildsystem: simple
+    build-commands:
+      - |
+        _uic=""
+        for _p in \
+            /usr/bin/uic \
+            /usr/lib/qt6/bin/uic \
+            /usr/lib/libexec/uic \
+            /usr/lib/x86_64-linux-gnu/qt6/bin/uic \
+            /usr/lib64/qt6/bin/uic; do
+          if [ -x "$_p" ]; then
+            _uic="$_p"
+            break
+          fi
+        done
+        
+        if [ -z "$_uic" ]; then
+          _uic=/app/libexec/qt/uic
+        fi
+        
+        echo "qt-uic-wrapper: using uic at ${_uic}"
+        
+        case "${_uic}" in
+          /usr/*)
+            printf '#!/bin/sh\nexec "%s" "$@"\n' "${_uic}" > ${FLATPAK_DEST}/uic-wrapper
+            ;;
+          *)
+            printf '#!/bin/sh\nexport LD_LIBRARY_PATH="/app/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"\nexec "%s" "$@"\n' \
+              "${_uic}" > ${FLATPAK_DEST}/uic-wrapper
+            ;;
+        esac
+        
+        chmod 755 ${FLATPAK_DEST}/uic-wrapper
+    sources: []
+
+  # OBS LocalVocal - Main plugin
+  - name: obs-localvocal
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_AUTOUIC_EXECUTABLE=/app/plugins/LocalVocal/uic-wrapper
+      - -DCMAKE_PREFIX_PATH=/app/plugins/LocalVocal
+      - -DENABLE_FRONTEND_API=ON
+      - -DENABLE_QT=ON
+      - -DUSE_SYSTEM_CURL=ON
+      - -DUSE_SYSTEM_CTRANSLATE2=ON
+      - -DUSE_SYSTEM_SENTENCEPIECE=ON
+      - -DLINUX_SOURCE_BUILD=OFF
+      - -DACCELERATION=generic
+      - -DENABLE_TESTS=OFF
+      - -DFETCHCONTENT_SOURCE_DIR_CORROSION=/run/build/obs-localvocal/corrosion-src
+      - -DFETCHCONTENT_SOURCE_DIR_WHISPERCPP_FETCH=/run/build/obs-localvocal/whispercpp-prebuilt
+      - -DFETCHCONTENT_SOURCE_DIR_ONNXRUNTIME=/run/build/obs-localvocal/onnxruntime-prebuilt
+    sources:
+      - type: dir
+        path: ..
+      - type: file
+        path: com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
+      - type: archive
+        url: https://github.com/corrosion-rs/corrosion/archive/refs/tags/v0.6.1.tar.gz
+        sha256: e9e95b1ee2bad52681f347993fb1a5af5cce458c5ce8a2636c9e476e4babf8e3
+        dest: corrosion-src
+        x-checker-data:
+          type: json
+          url: https://api.github.com/repos/corrosion-rs/corrosion/releases/latest
+          version-query: .tag_name | sub("^v"; "")
+          url-query: .tarball_url
+      - type: archive
+        only-arches:
+          - x86_64
+        url: https://github.com/locaal-ai/occ-ai-dep-whispercpp/releases/download/0.0.13/whispercpp-linux-x86_64-generic-Release.tar.gz
+        sha256: 5811798e245482597ad393fac7bab82f0df8664e6b82be6231d089af13de0656
+        dest: whispercpp-prebuilt
+        strip-components: 1
+      - type: archive
+        only-arches:
+          - x86_64
+        url: https://github.com/microsoft/onnxruntime/releases/download/v1.20.1/onnxruntime-linux-x64-gpu-1.20.1.tgz
+        sha256: 6bfb87c6ebe55367a94509b8ef062239e188dccf8d5caac8d6909b2344893bf0
+        dest: onnxruntime-prebuilt
+        strip-components: 1
+      - type: inline
+        contents: |
+          [source.crates-io]
+          replace-with = "vendored-sources"
+
+          [source.vendored-sources]
+          directory = "/run/build/obs-localvocal/cargo/vendor"
+        dest: cargo
+        dest-filename: config.toml
+      - cargo-sources.json
+    post-install:
+      - install -Dm644 --target-directory=${FLATPAK_DEST}/share/metainfo
+          ${FLATPAK_BUILDER_BUILDDIR}/com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml
+
+cleanup:
+  - /uic-wrapper
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - /lib64/cmake
+  - /lib64/pkgconfig
+  - /share/aclocal
+  - "*.la"
+  - "*.a"

@@ -12,6 +12,9 @@ option(ENABLE_WEBVTT "Enable WebVTT embedding" ON)
 option(USE_SYSTEM_CURL "Use system cURL" OFF)
 option(USE_SYSTEM_ICU "Use system ICU" OFF)
 option(USE_SYSTEM_ONNXRUNTIME "Use system ONNX Runtime" OFF)
+option(USE_SYSTEM_WHISPERCPP "Use system Whisper.cpp library" OFF)
+option(USE_SYSTEM_CTRANSLATE2 "Use system CTranslate2 library" OFF)
+option(USE_SYSTEM_SENTENCEPIECE "Use system sentencepiece library" OFF)
 option(LINUX_SOURCE_BUILD
        "Build Whispercpp dependency from source on Linux instead of using one of the precompiled variants" OFF)
 option(
