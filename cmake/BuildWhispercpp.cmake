@@ -167,7 +167,11 @@ else()
     set(WHISPER_LIBRARIES Whisper GGML GGMLBase)
 
     # GGMLBase is optional depending on the whisper.cpp build configuration
-    find_library(GGMLBase_LIB ggml-base PATHS "${Whispercpp_PREFIX}/lib" NO_DEFAULT_PATH)
+    find_library(
+      GGMLBase_LIB ggml-base
+      PATHS "${Whispercpp_PREFIX}/lib"
+      NO_DEFAULT_PATH
+    )
     if(NOT GGMLBase_LIB)
       list(REMOVE_ITEM WHISPER_LIBRARIES GGMLBase)
     endif()

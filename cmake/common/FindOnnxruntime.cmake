@@ -1,10 +1,4 @@
-# FindOnnxruntime
 # Find the ONNX Runtime library
-#
-# This module sets the following variables:
-#   Onnxruntime_FOUND         - True if ONNX Runtime was found
-#   Onnxruntime_INCLUDE_DIR   - The directory containing onnxruntime_cxx_api.h
-#   Onnxruntime_LIBRARIES     - Libraries needed to use ONNX Runtime
 
 find_path(
   Onnxruntime_INCLUDE_DIR
@@ -24,9 +18,8 @@ if(Onnxruntime_FOUND)
   if(NOT TARGET Onnxruntime::Onnxruntime)
     add_library(Onnxruntime::Onnxruntime UNKNOWN IMPORTED)
     set_target_properties(
-      Onnxruntime::Onnxruntime
-      PROPERTIES IMPORTED_LOCATION "${Onnxruntime_LIBRARY}" INTERFACE_INCLUDE_DIRECTORIES
-                 "${Onnxruntime_INCLUDE_DIR}")
+      Onnxruntime::Onnxruntime PROPERTIES IMPORTED_LOCATION "${Onnxruntime_LIBRARY}" INTERFACE_INCLUDE_DIRECTORIES
+                                                                                     "${Onnxruntime_INCLUDE_DIR}")
   endif()
 endif()
 

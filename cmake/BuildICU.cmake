@@ -1,8 +1,8 @@
 include(FetchContent)
 include(ExternalProject)
 
-# Override the version if needed via -DICU_VERSION_OVERRIDE=77.1
-# When overriding the version, you MUST also provide -DICU_HASH_OVERRIDE=<sha256>
+# Override the version if needed via -DICU_VERSION_OVERRIDE=77.1. When overriding the version, you MUST also provide
+# -DICU_HASH_OVERRIDE=<sha256>
 if(DEFINED ICU_VERSION_OVERRIDE)
   set(ICU_VERSION "${ICU_VERSION_OVERRIDE}")
 else()
@@ -23,7 +23,7 @@ if(WIN32)
   else()
     set(ICU_HASH "SHA256=bedba77dd1feca09e9ae9922109a285c0ecf46d09c80b65eae6eae63a4e155dc")
   endif()
-  
+
   # Validate that hash matches version when overriding
   if(DEFINED ICU_VERSION_OVERRIDE AND NOT DEFINED ICU_HASH_OVERRIDE)
     message(
@@ -31,8 +31,7 @@ if(WIN32)
         "ICU_VERSION_OVERRIDE is set to ${ICU_VERSION}, but ICU_HASH_OVERRIDE is not defined.\n"
         "When using a custom ICU version, you MUST provide the matching SHA256 hash via -DICU_HASH_OVERRIDE=SHA256=<hash>\n"
         "Download the file from: ${ICU_URL}\n"
-        "Calculate the hash with: sha256sum <downloaded-file>"
-    )
+        "Calculate the hash with: sha256sum <downloaded-file>")
   endif()
 
   FetchContent_Declare(
@@ -89,7 +88,7 @@ else()
   else()
     set(ICU_HASH "SHA256=dfacb46bfe4747410472ce3e1144bf28a102feeaa4e3875bac9b4c6cf30f4f3e")
   endif()
-  
+
   # Validate that hash matches version when overriding
   if(DEFINED ICU_VERSION_OVERRIDE AND NOT DEFINED ICU_HASH_OVERRIDE)
     message(
@@ -97,10 +96,9 @@ else()
         "ICU_VERSION_OVERRIDE is set to ${ICU_VERSION}, but ICU_HASH_OVERRIDE is not defined.\n"
         "When using a custom ICU version, you MUST provide the matching SHA256 hash via -DICU_HASH_OVERRIDE=SHA256=<hash>\n"
         "Download the file from: ${ICU_URL}\n"
-        "Calculate the hash with: sha256sum <downloaded-file>"
-    )
+        "Calculate the hash with: sha256sum <downloaded-file>")
   endif()
-  
+
   if(APPLE)
     set(ICU_PLATFORM "MacOSX")
     set(TARGET_ARCH -arch\ $ENV{MACOS_ARCH})
