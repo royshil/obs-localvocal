@@ -170,8 +170,7 @@ else()
     find_library(
       GGMLBase_LIB ggml-base
       PATHS "${Whispercpp_PREFIX}/lib"
-      NO_DEFAULT_PATH
-    )
+      NO_DEFAULT_PATH)
     if(NOT GGMLBase_LIB)
       list(REMOVE_ITEM WHISPER_LIBRARIES GGMLBase)
     endif()
