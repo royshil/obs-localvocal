@@ -150,7 +150,7 @@ void add_whisper_params_group_properties(obs_properties_t *ppts)
 	obs_properties_add_list(g, "strategy", MT_("whisper_sampling_strategy"),
 				OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
 	obs_properties_add_int(g, "n_threads", MT_("n_threads"), 1, 8, 1);
-	obs_properties_add_int(g, "n_max_text_ctx", MT_("n_max_text_ctx"), 1, 100, 1);
+	obs_properties_add_int(g, "n_max_text_ctx", MT_("n_max_text_ctx"), 1, 20000, 1);
 	obs_properties_add_int(g, "offset_ms", MT_("offset_ms"), 0, 10000, 100);
 	obs_properties_add_int(g, "duration_ms", MT_("duration_ms"), 0, 30000, 500);
 	obs_properties_add_bool(g, "whisper_translate", MT_("whisper_translate"));
@@ -180,8 +180,8 @@ void add_whisper_params_group_properties(obs_properties_t *ppts)
 	obs_properties_add_float(g, "max_initial_ts", MT_("max_initial_ts"), 0, 100, 1);
 	obs_properties_add_float(g, "length_penalty", MT_("length_penalty"), 0, 1, 0.05);
 	obs_properties_add_float(g, "temperature_inc", MT_("temperature_inc"), 0, 1, 0.05);
-	obs_properties_add_float(g, "entropy_thold", MT_("entropy_thold"), 0, 1, 0.05);
-	obs_properties_add_float(g, "logprob_thold", MT_("logprob_thold"), 0, 1, 0.05);
+	obs_properties_add_float(g, "entropy_thold", MT_("entropy_thold"), 0, 3, 0.05);
+	obs_properties_add_float(g, "logprob_thold", MT_("logprob_thold"), -3, 0, 0.05);
 	obs_properties_add_float(g, "no_speech_thold", MT_("no_speech_thold"), 0, 1, 0.05);
 	obs_properties_add_int(g, "greedy.best_of", MT_("greedy.best_of"), 1, 10, 1);
 	obs_properties_add_int(g, "beam_search.beam_size", MT_("beam_search.beam_size"), 1, 10, 1);
