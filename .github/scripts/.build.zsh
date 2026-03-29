@@ -48,7 +48,7 @@ build() {
   local buildspec_file=${project_root}/buildspec.json
 
   fpath=("${SCRIPT_HOME}/utils.zsh" ${fpath})
-  autoload -Uz log_group log_info log_error log_output set_loglevel check_${host_os} setup_ccache
+  autoload -Uz log_group log_info log_warning log_error log_output set_loglevel check_${host_os} setup_ccache
 
   if [[ ! -r ${buildspec_file} ]] {
     log_error \
@@ -198,8 +198,66 @@ ${_usage_host:-}"
   read -r product_name product_version <<< \
     "$(jq -r '. | {name, version} | join(" ")' ${buildspec_file})"
 
+  maybe_build_aws_sdk() {
+    local -r aws_tag="${AWS_SDK_TAG:-1.11.710}"
+    local -r build_aws="${BUILD_AWS_SDK:-1}"
+    local -r enable_transcribe="${ENABLE_AWS_TRANSCRIBE:-1}"
+    local -r sdk_config="${project_root}/aws-sdk-built-curl/lib/cmake/AWSSDK/AWSSDKConfig.cmake"
+
+    case "${enable_transcribe:l}" in
+      0|false|off|no)
+        log_info "Skipping AWS SDK build (ENABLE_AWS_TRANSCRIBE=${enable_transcribe})"
+        return 0
+        ;;
+    esac
+
+    if (( ! build_aws )); then
+      log_info "Skipping AWS SDK build (BUILD_AWS_SDK=0)"
+      return 0
+    fi
+
+    if [[ -r "${sdk_config}" ]]; then
+      log_info "AWS SDK already present (${sdk_config})"
+      return 0
+    fi
+
+    log_group "Building AWS SDK for TranscribeStreaming (tag ${aws_tag})..."
+
+    if [[ ${host_os} == macos ]]; then
+      if ! "${project_root}/.github/scripts/Build-AwsSdk-macOS.zsh" \
+        -c "${config}" \
+        -t "${aws_tag}" \
+        -a "${MACOS_ARCH:-}"; then
+        if (( ${+CI} )); then
+          log_error "AWS SDK build failed on macOS (tag ${aws_tag})"
+          return 2
+        fi
+        log_warning "AWS SDK build failed; continuing without AWS Transcribe support. Set BUILD_AWS_SDK=0 to skip this step."
+        return 0
+      fi
+    elif [[ ${host_os} == linux ]]; then
+      if ! "${project_root}/.github/scripts/Build-AwsSdk-Linux.zsh" \
+        -c "${config}" \
+        -t "${aws_tag}"; then
+        if (( ${+CI} )); then
+          log_error "AWS SDK build failed on Linux (tag ${aws_tag})"
+          return 2
+        fi
+        log_warning "AWS SDK build failed; continuing without AWS Transcribe support. Set BUILD_AWS_SDK=0 to skip this step."
+        return 0
+      fi
+    else
+      log_info "AWS SDK auto-build not supported on ${host_os}"
+      return 0
+    fi
+  }
+
   pushd ${project_root}
   if (( ! (${skips[(Ie)all]} + ${skips[(Ie)build]}) )) {
+    # Build the AWS SDK on macOS/Linux by default so Amazon Transcribe works out-of-the-box
+    # when ENABLE_AWS_TRANSCRIBE is ON (default).
+    maybe_build_aws_sdk
+
     log_group "Configuring ${product_name}..."
 
     local -a cmake_args=()

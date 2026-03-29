@@ -35,6 +35,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: rustfmt
+          cache: false
       - name: rustfmt
         uses: actions-rust-lang/rustfmt@v1
         with:
