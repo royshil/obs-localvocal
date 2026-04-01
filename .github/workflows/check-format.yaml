@@ -5,7 +5,7 @@ jobs:
   clang-format:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: clang-format check 🐉
@@ -17,7 +17,7 @@ jobs:
   cmake-format:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: cmake-format check 🎛️
@@ -29,7 +29,7 @@ jobs:
   cargo-fmt:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: actions-rust-lang/setup-rust-toolchain@v1
