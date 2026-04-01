@@ -12,12 +12,35 @@ If you’re looking for a hosted desktop recording API, consider checking out [R
 [![GitHub release (latest by date)](https://img.shields.io/github/v/release/locaal-ai/obs-localvocal)](https://github.com/locaal-ai/obs-localvocal/releases)
 [![GitHub stars](https://badgen.net/github/stars/locaal-ai/obs-localvocal)](https://GitHub.com/locaal-ai/obs-localvocal/stargazers/)
 <br/>
-Download:</br>
-[![Static Badge](https://img.shields.io/badge/Windows%20(generic)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-windows-x64-generic-Installer.exe) [![Static Badge](https://img.shields.io/badge/Windows%20(NVidia)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-windows-x64-nvidia-Installer.exe) [![Static Badge](https://img.shields.io/badge/Windows%20(AMD)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-windows-x64-amd-Installer.exe)
-[![Static Badge](https://img.shields.io/badge/mac%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-macos-x86_64.pkg) [![Static Badge](https://img.shields.io/badge/mac%20M1/2/3-0a0a0a?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-macos-arm64.pkg)
-[![Static Badge](https://img.shields.io/badge/Linux%20(generic)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-generic-x86_64-linux-gnu.deb) [![Static Badge](https://img.shields.io/badge/Linux%20(NVidia)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-nvidia-x86_64-linux-gnu.deb) [![Static Badge](https://img.shields.io/badge/Linux%20(AMD)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.5.3/obs-localvocal-0.5.3-amd-x86_64-linux-gnu.deb)
-
 </div>
+
+## Downloads
+
+### Windows
+
+OS | Generic (x86_64) | NVidia (x86_64) | AMD (x86_64)
+:-:|:-------:|:------:|:---:
+Windows 10/11 | [![Static Badge](https://img.shields.io/badge/Windows%20(generic)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-windows-x64-generic-Installer.exe) | [![Static Badge](https://img.shields.io/badge/Windows%20(NVidia)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-windows-x64-nvidia-Installer.exe) | [![Static Badge](https://img.shields.io/badge/Windows%20(AMD)-0078d6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-windows-x64-amd-Installer.exe)
+
+### Linux
+
+OS | Generic (x86_64) | NVidia (x86_64) | AMD (x86_64)
+:-:|:-------:|:------:|:---:
+Ubuntu 22.04 (Jammy) .deb | [![Static Badge](https://img.shields.io/badge/Ubuntu%20(generic)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-generic-x86_64-linux-gnu.deb) | [![Static Badge](https://img.shields.io/badge/Ubuntu%20(NVidia)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-nvidia-x86_64-linux-gnu.deb) | [![Static Badge](https://img.shields.io/badge/Ubuntu%20(AMD)-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-amd-x86_64-linux-gnu.deb)
+
+### MacOS
+
+MacOS | Intel x86_64 | ARM64 (Apple silicon - M1/M2/M3/M4)
+:----:|:-----:|:------------------:
+Generic* | [![Static Badge](https://img.shields.io/badge/mac%20OS%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-embedded-x86_64.pkg) | [![Static Badge](https://img.shields.io/badge/mac%20OS%20ARM64-0a0a0a?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-embedded-arm64.pkg)
+12 (Monterey) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2012%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-12-x86_64.pkg) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2012%20ARM64-0a0a0a?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-12-arm64.pkg)
+13 (Ventura) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2013%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-13-x86_64.pkg) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2013%20ARM64-0a0a0a?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-13-arm64.pkg)
+14 (Sonoma) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2014%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-14-x86_64.pkg) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2014%20ARM64-0a0a0a?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-14-arm64.pkg)
+15 (Sequoia) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2015%20Intel-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-15-x86_64.pkg) | [![Static Badge](https://img.shields.io/badge/mac%20OS%2015%20ARM64-0a0a0a?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/locaal-ai/obs-localvocal/releases/download/0.6.1/obs-localvocal-0.6.1-macos-15-arm64.pkg)
+
+*While variants for specific versions of MacOS _may_ work better on that version of MacOS, the Generic variant is likely the best option. See [MacOS Variants](#mac-os-variants) below for more details
+
+Check out the [latest releases](https://github.com/locaal-ai/obs-localvocal/releases) for downloads and install instructions.
 
 ## Introduction
 
@@ -66,9 +89,6 @@ Current Features:
 - Filter out or replace any part of the produced captions
 - Partial transcriptions for a streaming-captions experience
 - 100s of fine-tuned Whisper models for dozens of languages from HuggingFace
-
-## Download
-Check out the [latest releases](https://github.com/locaal-ai/obs-localvocal/releases) for downloads and install instructions.
 
 ### Available Versions
 
@@ -138,6 +158,14 @@ These variants come with the following backends available:
 * Accelerate - Used in conjunction with a CPU backend to accelerate processing speed
 * Metal - Uses the system's GPU for accelerated processing
 * CoreML - Special backend that uses Apple's CoreML instead of Whisper's normal model processing, running on either the Metal or CPU backends
+
+The Generic MacOS version embeds the Metal shaders into whisper.cpp as intermediate bytecode, which is compiled at runtime for the computer and GPU being used. This is probably the best version to use unless you have a reason to use the others, and may be able to take advantage of newer features in Metal 4 in MacOS Tahoe
+
+Variants with Metal shaders pre-compiled for specific [Metal API versions](https://support.apple.com/en-gb/102894) which may or may not work slightly better on the appropriate version of MacOS:
+* MacOS 12 - Metal 2.4
+* MacOS 13 - Metal 3.0
+* MacOS 14 - Metal 3.1
+* MacOS 15 - Metal 3.2
 
 ### Models
 The plugin ships with the Tiny.en model, and will autonomously download other Whisper models through a dropdown.

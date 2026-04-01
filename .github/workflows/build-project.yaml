@@ -78,7 +78,7 @@ jobs:
     strategy:
       matrix:
         architecture: [x86_64, arm64]
-        macos_version: [12, 13, 14, 15]
+        macos_version: [12, 13, 14, 15, embedded]
     defaults:
       run:
         shell: zsh --no-rcs --errexit --pipefail {0}
