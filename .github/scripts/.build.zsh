@@ -248,7 +248,9 @@ ${_usage_host:-}"
 
         # check the MACOS_VERSION env var to determine which version of MacOS to target
         if [[ -n ${MACOS_VERSION} ]] {
-          if [[ ${MACOS_VERSION} == "13" ]] {
+          if [[ ${MACOS_VERSION} == "embedded" ]] {
+            cmake_args+=(-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0)
+          } elif [[ ${MACOS_VERSION} == "13" ]] {
             # Setting target version to 13.3 to match Whisper.cpp deps target, as that's when the new Accelerate interface was added
             cmake_args+=(-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOS_VERSION}.3)
           } else {
