@@ -87,7 +87,9 @@ if(APPLE)
 
   install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libomp.dylib)
   install_library_to_bundle(${whispercpp_fetch_SOURCE_DIR} libvulkan.1.dylib)
-  target_add_resource(${CMAKE_PROJECT_NAME} ${whispercpp_fetch_SOURCE_DIR}/bin/default.metallib)
+  if(NOT $ENV{MACOS_VERSION} STREQUAL "embedded")
+    target_add_resource(${CMAKE_PROJECT_NAME} ${whispercpp_fetch_SOURCE_DIR}/bin/default.metallib)
+  endif()
 elseif(WIN32)
   add_compile_definitions(WHISPER_DYNAMIC_BACKENDS)
 
