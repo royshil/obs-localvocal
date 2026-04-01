@@ -158,6 +158,7 @@ These variants come with the following backends available:
 * Accelerate - Used in conjunction with a CPU backend to accelerate processing speed
 * Metal - Uses the system's GPU for accelerated processing
 * CoreML - Special backend that uses Apple's CoreML instead of Whisper's normal model processing, running on either the Metal or CPU backends
+* Vulkan - For systems that can't use Metal to accelerate transcription on the GPU (likely most if not all Intel Macs), Vulkan is available as an alternative for using the GPU. To be able to use this backend, you must first install the [Vulkan SDK](https://vulkan.lunarg.com/sdk/home#mac). After doing so, you should see an additional Vulkan GPU device for each GPU available in the "Whisper backend configuration" section of the plugin filter settings.
 
 The Generic MacOS version embeds the Metal shaders into whisper.cpp as intermediate bytecode, which is compiled at runtime for the computer and GPU being used. This is probably the best version to use unless you have a reason to use the others, and may be able to take advantage of newer features in Metal 4 in MacOS Tahoe
 
