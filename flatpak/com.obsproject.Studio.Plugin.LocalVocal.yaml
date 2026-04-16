@@ -202,6 +202,19 @@ modules:
         chmod 755 ${FLATPAK_DEST}/uic-wrapper
     sources: []
 
+  # patchelf - for direct so version linking
+  - name : patchelf
+    buildsystem: simple
+    build-commands:
+      - install -D patchelf ${FLATPAK_DEST}/bin/patchelf
+    sources:
+      - type: archive
+        url: https://github.com/NixOS/patchelf/releases/download/0.18.0/patchelf-0.18.0-x86_64.tar.gz
+        strip-components: 2
+        sha256: ce84f2447fb7a8679e58bc54a20dc2b01b37b5802e12c57eece772a6f14bf3f0
+    cleanup:
+      - /bin/patchelf
+      - /bin
   # OBS LocalVocal - Main plugin
   - name: obs-localvocal
     buildsystem: cmake-ninja
