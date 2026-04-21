@@ -87,4 +87,16 @@ else()
   target_include_directories(${CMAKE_PROJECT_NAME} SYSTEM PUBLIC "${onnxruntime_SOURCE_DIR}/include")
   install(FILES ${Onnxruntime_INSTALL_LIBS} DESTINATION "${CMAKE_INSTALL_LIBDIR}/obs-plugins/${CMAKE_PROJECT_NAME}")
   set_target_properties(${CMAKE_PROJECT_NAME} PROPERTIES INSTALL_RPATH "$ORIGIN/${CMAKE_PROJECT_NAME}")
+
+  find_program(PATCHELF_EXE patchelf)
+  if(PATCHELF_EXE)
+    add_custom_command(
+      TARGET ${CMAKE_PROJECT_NAME}
+      POST_BUILD
+      COMMAND ${PATCHELF_EXE} --replace-needed libonnxruntime.so.1 libonnxruntime.so.${Onnxruntime_VERSION}
+              $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
+      COMMENT "Fixing ONNX dependency name for portability")
+  else()
+    message(WARNING "patchelf not found! The binary will still look for libonnxruntime.so.1")
+  endif()
 endif()
