@@ -329,6 +329,7 @@ jobs:
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
         with:
+          CI: 1
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
           acceleration: ${{ matrix.acceleration }}
@@ -336,6 +337,7 @@ jobs:
       - name: Package Plugin 📀
         uses: ./.github/actions/package-plugin
         with:
+          CI: 1
           package: ${{ fromJSON(needs.check-event.outputs.package) }}
           target: x86_64
           config: ${{ needs.check-event.outputs.config }}
