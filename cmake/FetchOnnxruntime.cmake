@@ -90,11 +90,13 @@ else()
 
   find_program(PATCHELF_EXE patchelf)
   if(PATCHELF_EXE)
-      add_custom_command(TARGET ${CMAKE_PROJECT_NAME} POST_BUILD
-          COMMAND ${PATCHELF_EXE} --replace-needed libonnxruntime.so.1 libonnxruntime.so.${Onnxruntime_VERSION} $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
-          COMMENT "Fixing ONNX dependency name for portability"
-      )
+    add_custom_command(
+      TARGET ${CMAKE_PROJECT_NAME}
+      POST_BUILD
+      COMMAND ${PATCHELF_EXE} --replace-needed libonnxruntime.so.1 libonnxruntime.so.${Onnxruntime_VERSION}
+              $<TARGET_FILE:${CMAKE_PROJECT_NAME}>
+      COMMENT "Fixing ONNX dependency name for portability")
   else()
-      message(WARNING "patchelf not found! The binary will still look for libonnxruntime.so.1")
+    message(WARNING "patchelf not found! The binary will still look for libonnxruntime.so.1")
   endif()
 endif()
