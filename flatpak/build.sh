@@ -86,6 +86,11 @@ sed \
     -e "s|        path: \.\.|        path: ${REPO_CLEAN}|" \
     "${MANIFEST}" > "${PATCHED}"
 
+# For non-nvidia variants, remove the CUDA runtime module (not needed).
+if [[ "${ACCELERATION}" != "nvidia" ]]; then
+    sed -i '/# BEGIN_CUDA_RUNTIME_MODULE/,/# END_CUDA_RUNTIME_MODULE/d' "${PATCHED}"
+fi
+
 # Copy all local files referenced by the manifest so flatpak-builder can find
 # them relative to the patched manifest location in WORK_DIR.
 cp "${SCRIPT_DIR}/com.obsproject.Studio.Plugin.LocalVocal.metainfo.xml" "${WORK_DIR}/"
