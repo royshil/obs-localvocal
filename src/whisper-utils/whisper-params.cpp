@@ -168,7 +168,7 @@ void add_whisper_params_group_properties(obs_properties_t *ppts)
 	obs_properties_add_bool(g, "split_on_word", MT_("split_on_word"));
 	obs_properties_add_int(g, "max_tokens", MT_("max_tokens"), 0, 1000, 1);
 	obs_properties_add_bool(g, "debug_mode", MT_("debug_mode"));
-	obs_properties_add_int(g, "audio_ctx", MT_("audio_ctx"), 0, 10, 1);
+	obs_properties_add_int(g, "audio_ctx", MT_("audio_ctx"), 0, 1500, 1);
 	obs_properties_add_bool(g, "tdrz_enable", MT_("tdrz_enable"));
 	obs_properties_add_text(g, "suppress_regex", MT_("suppress_regex"), OBS_TEXT_DEFAULT);
 	obs_properties_add_text(g, "initial_prompt", MT_("initial_prompt"), OBS_TEXT_DEFAULT);
