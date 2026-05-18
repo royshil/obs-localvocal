@@ -147,8 +147,13 @@ void add_whisper_params_group_properties(obs_properties_t *ppts)
 	obs_properties_add_group(ppts, "whisper_params_group", MT_("whisper_parameters"),
 				 OBS_GROUP_NORMAL, g);
 
-	obs_properties_add_list(g, "strategy", MT_("whisper_sampling_strategy"),
-				OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_t *strategy_list =
+		obs_properties_add_list(g, "strategy", MT_("whisper_sampling_strategy"),
+					OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_INT);
+	obs_property_list_add_int(strategy_list, MT_("whisper_sampling_greedy"),
+				  whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY);
+	obs_property_list_add_int(strategy_list, MT_("whisper_sampling_beam_search"),
+				  whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH);
 	obs_properties_add_int(g, "n_threads", MT_("n_threads"), 1, 8, 1);
 	obs_properties_add_int(g, "n_max_text_ctx", MT_("n_max_text_ctx"), 1, 20000, 1);
 	obs_properties_add_int(g, "offset_ms", MT_("offset_ms"), 0, 10000, 100);
