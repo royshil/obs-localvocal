@@ -2,7 +2,40 @@
 
 #include <obs-module.h>
 
+#include <algorithm>
+#include <cmath>
+
 #define MT_ obs_module_text
+
+// Smallest temperature_inc we pass to whisper; anything below is treated as 0 (fallback disabled)
+#define MIN_TEMPERATURE_INC 0.01f
+
+// whisper.cpp builds its fallback temperatures with
+// `for (t = temperature; t < 1.0f; t += temperature_inc)`, which never terminates (and
+// eventually throws std::bad_alloc) if temperature_inc is positive but too small to advance t.
+// Stepping the UI spinner down from 0.20 to "0.00" stores ~1.4e-17 rather than 0, so snap
+// near-zero increments to 0 and keep temperature within the property range.
+static void sanitize_temperature_params(whisper_full_params &params)
+{
+	const float temperature = params.temperature;
+	const float temperature_inc = params.temperature_inc;
+
+	if (!std::isfinite(params.temperature)) {
+		params.temperature = 0.0f;
+	}
+	params.temperature = std::clamp(params.temperature, 0.0f, 1.0f);
+
+	if (!std::isfinite(params.temperature_inc) ||
+	    params.temperature_inc < MIN_TEMPERATURE_INC) {
+		params.temperature_inc = 0.0f;
+	}
+
+	if (params.temperature != temperature || params.temperature_inc != temperature_inc) {
+		obs_log(LOG_WARNING,
+			"Whisper temperature settings out of range (temperature: %g, temperature_inc: %g), using temperature: %.2f, temperature_inc: %.2f",
+			temperature, temperature_inc, params.temperature, params.temperature_inc);
+	}
+}
 
 void whisper_params_pretty_print(whisper_full_params &params)
 {
@@ -139,6 +172,8 @@ void apply_whisper_params_from_settings(whisper_full_params &params, obs_data_t 
 	params.greedy.best_of = (int)obs_data_get_int(settings, "greedy.best_of");
 	params.beam_search.beam_size = (int)obs_data_get_int(settings, "beam_search.beam_size");
 	params.beam_search.patience = (float)obs_data_get_double(settings, "beam_search.patience");
+
+	sanitize_temperature_params(params);
 }
 
 void add_whisper_params_group_properties(obs_properties_t *ppts)
