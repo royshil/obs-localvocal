@@ -12,6 +12,7 @@
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <libavutil/channel_layout.h>
 #include <libavutil/frame.h>
 #include <libavutil/mem.h>
 #include <libavutil/opt.h>
@@ -68,8 +69,9 @@ read_audio_file(const char *filename, std::function<void(int, int)> initializati
 		return {};
 	}
 
-	initialization_callback(formatContext->streams[audioStreamIndex]->codecpar->sample_rate,
-				formatContext->streams[audioStreamIndex]->codecpar->channels);
+	initialization_callback(
+		formatContext->streams[audioStreamIndex]->codecpar->sample_rate,
+		formatContext->streams[audioStreamIndex]->codecpar->ch_layout.nb_channels);
 
 	AVCodecParameters *codecParams = formatContext->streams[audioStreamIndex]->codecpar;
 	const AVCodec *codec = avcodec_find_decoder(codecParams->codec_id);
@@ -98,14 +100,15 @@ read_audio_file(const char *filename, std::function<void(int, int)> initializati
 	AVPacket packet;
 
 	std::vector<std::vector<uint8_t>> buffer(
-		formatContext->streams[audioStreamIndex]->codecpar->channels);
+		formatContext->streams[audioStreamIndex]->codecpar->ch_layout.nb_channels);
 
 	while (av_read_frame(formatContext, &packet) >= 0) {
 		if (packet.stream_index == audioStreamIndex) {
 			if (avcodec_send_packet(codecContext, &packet) == 0) {
 				while (avcodec_receive_frame(codecContext, frame) == 0) {
 					// push data to the buffer
-					for (int j = 0; j < codecContext->channels; j++) {
+					for (int j = 0; j < codecContext->ch_layout.nb_channels;
+					     j++) {
 						buffer[j].insert(buffer[j].end(), frame->data[j],
 								 frame->data[j] +
 									 frame->nb_samples *
@@ -162,8 +165,7 @@ void write_audio_wav_file(const std::string &filename, const float *pcm32f_data,
 
 	codecContext->sample_fmt = AV_SAMPLE_FMT_FLTP;
 	codecContext->sample_rate = 16000;
-	codecContext->channels = 1;
-	codecContext->channel_layout = AV_CH_LAYOUT_MONO;
+	av_channel_layout_default(&codecContext->ch_layout, 1);
 	codecContext->bit_rate = 64000;
 	codecContext->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
 
@@ -207,7 +209,7 @@ void write_audio_wav_file(const std::string &filename, const float *pcm32f_data,
 		packet.data = nullptr;
 		packet.size = 0;
 
-		for (int k = 0; k < codecContext->channels; k++) {
+		for (int k = 0; k < codecContext->ch_layout.nb_channels; k++) {
 			if (i + frame_size < frames) {
 				memcpy(frame->data[k], pcm32f_data + i, frame_size_in_bytes);
 			} else {

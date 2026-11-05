@@ -303,7 +303,7 @@ void clear_current_caption(transcription_filter_data *gf_)
 	gf_->cleared_last_sub = true;
 }
 
-void set_text_callback(struct transcription_filter_data *gf,
+void set_text_callback(uint64_t, struct transcription_filter_data *gf,
 		       const DetectionResultWithText &resultIn)
 {
 	DetectionResultWithText result = resultIn;
