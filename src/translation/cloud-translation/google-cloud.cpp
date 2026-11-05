@@ -26,11 +26,12 @@ std::string GoogleTranslator::translate(const std::string &text, const std::stri
 	std::string response;
 
 	try {
-		// Construct URL with parameters
+		// Construct URL with parameters. format=text is needed because the API defaults
+		// to format=html, which HTML-escapes the result (e.g. "I&#39;m" instead of "I'm").
 		std::stringstream url;
 		url << "https://translation.googleapis.com/language/translate/v2"
 		    << "?key=" << api_key_ << "&q=" << CurlHelper::urlEncode(curl.get(), text)
-		    << "&target=" << sanitize_language_code(target_lang);
+		    << "&target=" << sanitize_language_code(target_lang) << "&format=text";
 
 		if (source_lang != "auto") {
 			url << "&source=" << sanitize_language_code(source_lang);
