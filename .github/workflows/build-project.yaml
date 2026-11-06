@@ -324,7 +324,7 @@ jobs:
             ${{ runner.os }}-ccache-x86_64-
 
       - name: Set up Homebrew 🍺
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
 
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
