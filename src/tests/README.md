@@ -71,6 +71,20 @@ Finally, from `.deps\obs-studio-31.1.1\build_x64\rundir\Debug\bin\64bit` copy:
 
 With all the `.dll`s in place in the `.\release\Release\test` folder the test tool should run.
 
+## Running regression tests
+
+With `ENABLE_TESTS=ON`, build and run the Whisper backend-change regression through CTest:
+
+```powershell
+cmake --build .\build_x64\ --target obs-localvocal-backend-change-tests --config Release
+ctest --test-dir build_x64 -C Release -N
+ctest --test-dir build_x64 -C Release --output-on-failure
+```
+
+The `whisper-backend-change` test covers all four combinations of unchanged/changed backend device and Flash Attention settings. It also covers when an external model file needs loading: with a built-in model selected, the same external file, a different external file, and no external file chosen yet. It requires no model files, audio files, or running OBS instance. To run only this regression, append `-R whisper-backend-change` to the CTest command.
+
+The offline transcription tool is built separately as described above. It is not registered with CTest because it requires the external audio, configuration, and model files described below.
+
 ## Using the test tool
 
 The tool expects the following arguments:
