@@ -607,8 +607,18 @@ void transcription_filter_update(void *data, obs_data_t *s)
 				obs_data_get_string(s, "whisper_model_path") != nullptr
 					? obs_data_get_string(s, "whisper_model_path")
 					: "Whisper Tiny English (74Mb)";
+			const char *external_model_setting =
+				obs_data_get_string(s, "whisper_model_path_external");
+			const std::string external_model_file_path =
+				external_model_setting != nullptr ? external_model_setting : "";
 			if (gf->whisper_model_path != new_model_path) {
 				obs_log(LOG_INFO, "New model selected: %s", new_model_path.c_str());
+				update_whisper_model(gf);
+			} else if (is_external_whisper_model_changed(
+					   new_model_path, external_model_file_path,
+					   gf->whisper_model_file_currently_loaded)) {
+				obs_log(LOG_INFO, "New external model file selected: %s",
+					external_model_file_path.c_str());
 				update_whisper_model(gf);
 			} else if (whisper_backend_changed) {
 				obs_log(LOG_INFO, "Whisper backend changed");

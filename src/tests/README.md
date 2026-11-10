@@ -81,7 +81,7 @@ ctest --test-dir build_x64 -C Release -N
 ctest --test-dir build_x64 -C Release --output-on-failure
 ```
 
-The `whisper-backend-change` test covers all four combinations of unchanged/changed backend device and Flash Attention settings. It requires no model files, audio files, or running OBS instance. To run only this regression, append `-R whisper-backend-change` to the CTest command.
+The `whisper-backend-change` test covers all four combinations of unchanged/changed backend device and Flash Attention settings. It also covers when an external model file needs loading: with a built-in model selected, the same external file, a different external file, and no external file chosen yet. It requires no model files, audio files, or running OBS instance. To run only this regression, append `-R whisper-backend-change` to the CTest command.
 
 The offline transcription tool is built separately as described above. It is not registered with CTest because it requires the external audio, configuration, and model files described below.
 

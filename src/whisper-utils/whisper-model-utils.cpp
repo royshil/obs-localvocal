@@ -124,8 +124,10 @@ void update_whisper_model(struct transcription_filter_data *gf, bool force_whisp
 				obs_log(LOG_WARNING, "External model file path is empty");
 			} else {
 				// check if the external model file is not currently loaded
+				// (a backend change still needs a restart with the same file)
 				if (gf->whisper_model_file_currently_loaded ==
-				    external_model_file_path) {
+					    external_model_file_path &&
+				    !force_whisper_restart) {
 					obs_log(LOG_INFO, "External model file is already loaded");
 					return;
 				} else {
